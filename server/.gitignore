@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# AI Models and Data
+data/chroma_db/
+*.pth
+*.bin
+models/
+
+# Temporary and Output Files
+data/temp/
+data/output/
+data/transcriptions/
+*.wav
+*.mp3
+
+# Uploads (optional - uncomment if you don't want to track uploads)
+# data/uploads/*.mp4
+# data/uploads/*.avi
+# data/uploads/*.mov
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
