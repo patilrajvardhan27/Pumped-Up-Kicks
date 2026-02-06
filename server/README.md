@@ -1,8 +1,3 @@
-# Pumped Up Kicks - AI Lecture Intelligence Platform
-
-An AI-powered lecture intelligence system that processes video lectures, generates transcriptions, creates semantic embeddings, and provides a RAG (Retrieval-Augmented Generation) chatbot for intelligent question answering about lecture content.
-
-## Overview
 
 **Pumped Up Kicks** is a complete backend system with four core components:
 
@@ -517,46 +512,7 @@ curl http://localhost:8000/api/videos
 python scripts/query_rag.py
 ```
 
----
-
-## Next Steps
-
-### Recommended
-1. **Frontend Development** - Build React UI to interact with API
-2. **Background Processing** - Add async video transcription queue
-3. **Full RAG Integration** - Enable semantic search in API (requires Python 3.11 or ChromaDB update)
-
-### Optional
-1. **Authentication** - Add user auth system
-2. **Multi-user Support** - User-specific chat sessions
-3. **Real-time Updates** - WebSocket support for streaming responses
-4. **Video Player** - Integrate video playback with timestamp navigation
-
----
-
-## Documentation
-
-- **Swagger UI:** http://localhost:8000/docs
-- **ReDoc:** http://localhost:8000/redoc
-- **API Root:** http://localhost:8000/
-
----
-
 ## License
 
 This project is for educational purposes. All AI models used (Whisper, sentence-transformers, Ollama) are open-source and free to use.
 
----
-
-## Summary
-
-**Pumped Up Kicks** provides a complete local AI lecture intelligence platform with:
-
-✅ FastAPI REST API
-✅ Local LLM (Ollama)
-✅ Video transcription (Whisper)
-✅ Semantic search (ChromaDB + sentence-transformers)
-✅ Chat history tracking
-✅ Zero cloud costs
-
-**Ready for frontend development!** 🚀

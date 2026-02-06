@@ -36,7 +36,7 @@ Pumped‑Up‑Kicks is an AI‑powered lecture intelligence platform that:
 
 ### System Architecture Overview
 
-The system is divided into **four core components**:
+The system is divided into four core components:
 
 1. Video Processing & Transcription Pipeline
 2. RAG System & Vector Database
@@ -45,7 +45,7 @@ The system is divided into **four core components**:
 
 ### Functional Requirements
 
-- Support video **upload** and/or **URL‑based downloads** (e.g., recorded lectures)
+- Support video uploads (e.g., recorded lectures)
 - Extract audio streams from video files
 - Transcribe audio using Speech‑to‑Text models (e.g., Whisper, Google STT)
 - Generate word‑ or sentence‑level timestamps
@@ -90,3 +90,5 @@ The system is divided into **four core components**:
 - Generate transcript with timestamps
 - Ask a question and receive a timestamped answer
 - Jump directly to the relevant video moment
+
+Team: Sejal Hukare, Ishita Pawar, Rajvardhan Patil, Chetan Monhot.
