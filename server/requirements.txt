@@ -1,9 +1,15 @@
-numpy<2.0
+numpy<2.4,>=1.22
 openai-whisper
 torch
 sentence-transformers
 chromadb==0.3.23
-pydantic<2.0
+pydantic>=2.0
 moviepy==1.0.3
 ffmpeg-python
 tqdm
+
+# LangChain packages
+langchain>=0.1.0
+langchain-community
+langchain-ollama
+ollama

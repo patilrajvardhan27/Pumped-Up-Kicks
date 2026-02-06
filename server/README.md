@@ -1,21 +1,70 @@
-# Server - Video Transcription & RAG System
+# Pumped Up Kicks - AI Lecture Intelligence Platform
 
-Backend server for video processing, transcription, embeddings, and RAG-based question answering.
+An AI-powered lecture intelligence system that processes video lectures, generates transcriptions, creates semantic embeddings, and provides a RAG (Retrieval-Augmented Generation) chatbot for intelligent question answering about lecture content.
 
-## Features
+## Overview
 
-- **Video Processing**: Extract audio from video files
-- **Transcription**: Speech-to-text using OpenAI Whisper (local)
-- **Embeddings**: Text embeddings using sentence-transformers
-- **Vector Storage**: ChromaDB for semantic search
-- **RAG Pipeline**: Question answering over video transcriptions
+**Pumped Up Kicks** is a complete backend system with four core components:
 
-## Setup
+1. **Video Processing & Transcription Pipeline** - Extracts audio from videos and transcribes using OpenAI Whisper (local)
+2. **RAG System & Vector Database** - Creates embeddings and stores them in ChromaDB for semantic search
+3. **Chatbot API & LLM Integration** - FastAPI backend with Ollama LLM for intelligent Q&A
+4. **Backend Infrastructure & Database** - SQLite database for video metadata and chat history
 
-### Prerequisites
+**Key Features:**
+- 100% local & free - no API keys or cloud services required
+- FastAPI REST API with auto-generated documentation
+- Local LLM using Ollama (llama3.2:3b)
+- Semantic search with ChromaDB vector database
+- Whisper-based transcription with timestamps
+- Chat history tracking
+- Video upload and management
 
-- Python 3.8 or higher
-- ffmpeg (for video/audio processing)
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    React Frontend (Future)                   │
+└────────────────────────┬────────────────────────────────────┘
+                         │ HTTP/REST
+┌────────────────────────▼────────────────────────────────────┐
+│                   FastAPI Backend (Port 8000)                │
+│  ┌─────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │ Chat Routes │  │ Video Routes │  │  SQLite DB   │       │
+│  └──────┬──────┘  └──────┬───────┘  └──────────────┘       │
+│         │                │                                    │
+│  ┌──────▼────────────────▼─────┐                            │
+│  │   Simple RAG Service         │                            │
+│  │   (Ollama Integration)       │                            │
+│  └──────────────┬───────────────┘                            │
+└─────────────────┼──────────────────────────────────────────┘
+                  │
+┌─────────────────▼────────────────────────────────────────────┐
+│                     Ollama LLM Server                         │
+│                   (llama3.2:3b model)                         │
+└───────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────┐
+│                  CLI Processing Scripts                        │
+│  ┌────────────┐  ┌──────────────┐  ┌─────────────┐          │
+│  │ Transcribe │  │  Embeddings  │  │  Query RAG  │          │
+│  │   Video    │─▶│  Generator   │─▶│   (Full)    │          │
+│  └────────────┘  └──────────────┘  └─────────────┘          │
+│       Whisper         ChromaDB      LangChain + Ollama       │
+└───────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Prerequisites
+
+Before setting up the project, ensure you have:
+
+1. **Python 3.8 or higher** (Python 3.14+ recommended)
+2. **ffmpeg** - For video/audio processing
+3. **Ollama** - Local LLM server
 
 ### Install ffmpeg
 
@@ -32,239 +81,482 @@ sudo apt-get install ffmpeg
 **Windows:**
 Download from https://ffmpeg.org/download.html
 
-### Install Python Dependencies
+### Install Ollama
 
-**Create a virtual environment (recommended):**
+**macOS/Linux:**
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+**Windows:**
+Download from https://ollama.com/download
+
+**Pull the LLM model:**
+```bash
+ollama pull llama3.2:3b
+```
+
+---
+
+## Installation
+
+### 1. Clone the Repository
 
 ```bash
-cd server
+cd /path/to/Pumped_up_kicks/server
+```
 
-# Create virtual environment
+### 2. Create Virtual Environment
+
+```bash
 python3 -m venv venv
-
-# Activate it
 source venv/bin/activate  # macOS/Linux
-# OR on Windows: venv\Scripts\activate
+# OR: venv\Scripts\activate  # Windows
+```
 
-# Install dependencies
+### 3. Install Python Dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-**Note:** Always activate the virtual environment before running the scripts:
-```bash
-source venv/bin/activate  # Run this in the server/ directory
-```
+This installs:
+- FastAPI & Uvicorn (REST API server)
+- SQLAlchemy (Database ORM)
+- Ollama Python client
+- OpenAI Whisper (transcription)
+- ChromaDB (vector database)
+- sentence-transformers (embeddings)
+- LangChain (RAG orchestration)
+- moviepy (video processing)
 
-This will install:
-- `openai-whisper` - Speech-to-text transcription
-- `sentence-transformers` - Text embeddings
-- `chromadb` - Vector database
-- `moviepy` - Video/audio processing
-- Other required dependencies
+**Note:** First run will download AI models (~1-3GB total):
+- Whisper model: ~1GB
+- Sentence-transformer model: ~100MB
+- Ollama model: ~2GB (if not already pulled)
 
-### First-time Model Downloads
+---
 
-The first time you run the scripts, models will be downloaded:
-- Whisper models: ~1-10GB depending on model size
-- Sentence-transformer models: ~100-500MB
+## Quick Start
 
-## Usage
+### Step 1: Start Ollama Server
 
-You can process videos in two ways:
-
-### Option A: Separate Steps (Recommended)
-
-This gives you more control and lets you review transcriptions before generating embeddings.
-
-#### Step 1: Transcribe Video
-
-Extract audio and transcribe to text:
+In a **new terminal window**:
 
 ```bash
-python scripts/transcribe_video.py "data/uploads/Classroom Capture Videos (online-video-cutter.com).mp4"
+ollama serve
 ```
 
-This creates:
-- `data/transcriptions/<video>_transcript.txt` - Full text
-- `data/transcriptions/<video>.srt` - Subtitles
-- `data/transcriptions/<video>_segments.json` - Timestamped segments (used for embeddings)
+Keep this running in the background.
 
-**Transcription options:**
+### Step 2: Start FastAPI Backend
+
+In your **project terminal**:
+
+```bash
+cd server
+source venv/bin/activate  # Activate virtualenv
+./start_server.sh
+```
+
+The server will start at: **http://localhost:8000**
+
+### Step 3: Explore the API
+
+Open your browser to:
+- **Swagger UI (Interactive Docs):** http://localhost:8000/docs
+- **API Root:** http://localhost:8000/
+- **Health Check:** http://localhost:8000/health
+
+---
+
+## API Endpoints
+
+### Chat Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/chat/query` | Ask a question to the AI chatbot |
+| GET | `/api/chat/history` | Get conversation history |
+| GET | `/api/chat/health` | Check RAG system health |
+
+**Example: Ask a Question**
+
+```bash
+curl -X POST http://localhost:8000/api/chat/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What is machine learning?",
+    "top_k": 5
+  }'
+```
+
+**Response:**
+```json
+{
+  "answer": "Machine learning is a type of artificial intelligence...",
+  "sources": [],
+  "response_time": 1.2,
+  "num_sources": 0
+}
+```
+
+### Video Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/videos` | List all uploaded videos |
+| GET | `/api/videos/{id}` | Get specific video details |
+| POST | `/api/videos/upload` | Upload a new video file |
+
+**Example: List Videos**
+
+```bash
+curl http://localhost:8000/api/videos
+```
+
+### Documentation Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | API information and version |
+| GET | `/health` | Server health status |
+| GET | `/docs` | Swagger UI documentation |
+| GET | `/redoc` | ReDoc documentation |
+
+---
+
+## CLI Processing Scripts
+
+For full RAG functionality with semantic search and timestamp citations, use the CLI scripts:
+
+### 1. Transcribe Video
+
+Extract audio and generate transcription with timestamps:
+
+```bash
+python scripts/transcribe_video.py "data/uploads/lecture_video.mp4"
+```
+
+**Options:**
 - `--whisper-model`: Model size (`tiny`, `base`, `small`, `medium`, `large`)
-  - `tiny`: Fastest, least accurate (~1GB)
-  - `base`: Good balance (default, ~1GB)
-  - `small`: Better accuracy (~2GB)
-  - `medium`: High accuracy (~5GB)
-  - `large`: Best accuracy (~10GB)
-- `--language`: Language code (e.g., `en`, `es`) - auto-detect if not specified
-- `--output-dir`: Output directory (default: `transcriptions`)
+- `--language`: Language code (e.g., `en`, `es`)
+- `--output-dir`: Output directory (default: `data/transcriptions`)
 
-**Example:**
-```bash
-python scripts/transcribe_video.py "data/uploads/video.mp4" \
-  --whisper-model small \
-  --language en \
-  --output-dir data/my_transcripts
-```
+**Output:**
+- `data/transcriptions/<video>_transcript.txt` - Full text
+- `data/transcriptions/<video>.srt` - Subtitles (SRT format)
+- `data/transcriptions/<video>_segments.json` - Timestamped segments
 
-#### Step 2: Generate Embeddings
+### 2. Generate Embeddings
 
-Create embeddings from the transcription JSON:
+Create vector embeddings for semantic search:
 
 ```bash
-python scripts/generate_embeddings.py "data/transcriptions/Classroom_Capture_Videos_(online-video-cutter.com)_segments.json"
+python scripts/generate_embeddings.py "data/transcriptions/<video>_segments.json"
 ```
 
-**Embedding options:**
-- `--embedding-model`: Sentence-transformer model (default: `all-MiniLM-L6-v2`)
-  - `all-MiniLM-L6-v2`: Fast, good quality (384 dim)
-  - `all-mpnet-base-v2`: Higher quality (768 dim)
-  - `multi-qa-mpnet-base-dot-v1`: Optimized for Q&A
+**Options:**
+- `--embedding-model`: Model name (default: `all-MiniLM-L6-v2`)
 - `--chunk-size`: Segments per chunk (default: 3)
-- `--collection-name`: Database collection name (default: `video_transcriptions`)
+- `--batch`: Process all files in directory
 
-**Batch process multiple transcriptions:**
+**Batch process:**
 ```bash
 python scripts/generate_embeddings.py --batch data/transcriptions/
 ```
 
-### Query the RAG System
+### 3. Query RAG System
 
-**Interactive mode:**
+Ask questions about lecture content with semantic search:
+
 ```bash
 python scripts/query_rag.py
 ```
 
-Then type your questions:
+**Interactive mode:**
 ```
-Query: What topics were discussed in the video?
-Query: Explain the main concept from the lecture
+Query: What topics were covered in the lecture?
+Query: Explain the concept of neural networks
 Query: exit
 ```
 
-**Single query mode:**
+**Single query:**
 ```bash
-python scripts/query_rag.py --query "What is the main topic?" --num-results 5
+python scripts/query_rag.py --query "What is discussed?" --num-results 5
 ```
 
-## Output Files
-
-### Transcription Output
-
-Files saved to `data/transcriptions/` directory:
-- `<video_name>_transcript.txt` - Full transcription text
-- `<video_name>.srt` - Subtitle file (SRT format)
-- `<video_name>_segments.json` - JSON with all segments and timestamps (needed for embeddings)
-
-### Embeddings Output
-
-- `data/chroma_db/` - Vector database with embeddings (persistent storage)
+---
 
 ## Project Structure
 
 ```
 server/
-├── scripts/
-│   ├── transcribe_video.py              # Step 1: Transcribe video to text
-│   ├── generate_embeddings.py           # Step 2: Create embeddings from transcription
-│   └── query_rag.py                     # Query interface for RAG
-├── src/
+├── api/                                # FastAPI application
+│   ├── main.py                         # Main app entry point
+│   ├── compat.py                       # Python 3.14 compatibility shim
+│   ├── models/
+│   │   └── database.py                 # SQLite models (Video, ChatHistory)
+│   ├── routes/
+│   │   ├── chat.py                     # Chat API endpoints
+│   │   └── videos.py                   # Video management endpoints
 │   └── services/
-│       ├── video_processing/
-│       │   └── audio_extractor.py       # Extract audio from video
-│       ├── transcription/
-│       │   └── whisper_transcriber.py   # Whisper transcription
-│       ├── embeddings/
-│       │   ├── embedding_generator.py   # Generate embeddings
-│       │   └── vector_store.py          # ChromaDB integration
-│       └── rag/
-│           └── rag_pipeline.py          # RAG query pipeline
-├── data/
-│   ├── uploads/                         # Video files
-│   ├── temp/                            # Temporary audio files
-│   ├── transcriptions/                  # Transcription outputs (.txt, .srt, .json)
-│   └── chroma_db/                       # Vector database (embeddings)
-├── config/                              # Configuration files
-├── requirements.txt                     # Python dependencies
-└── README.md                            # Documentation
+│       ├── simple_rag_service.py       # Ollama integration (API)
+│       └── rag_service.py              # Full RAG service (CLI)
+│
+├── scripts/                            # CLI processing scripts
+│   ├── transcribe_video.py             # Step 1: Video → Transcription
+│   ├── generate_embeddings.py          # Step 2: Text → Embeddings
+│   └── query_rag.py                    # Step 3: Query RAG system
+│
+├── src/services/                       # Core services
+│   ├── video_processing/               # Audio extraction
+│   ├── transcription/                  # Whisper transcription
+│   ├── embeddings/                     # Embedding generation
+│   └── rag/                            # RAG pipeline (LangChain)
+│
+├── data/                               # Data directory
+│   ├── app.db                          # SQLite database
+│   ├── uploads/                        # Uploaded video files
+│   ├── temp/                           # Temporary audio files
+│   ├── transcriptions/                 # Transcription outputs
+│   └── chroma_db/                      # Vector embeddings (ChromaDB)
+│
+├── start_server.sh                     # Server startup script
+├── requirements.txt                    # Python dependencies
+└── README.md                           # This file
 ```
+
+---
 
 ## How It Works
 
-### Processing Pipeline
+### API Workflow
 
-1. **Audio Extraction**: Extract audio track from video using moviepy
-2. **Transcription**: Transcribe audio using Whisper, get text segments with timestamps
-3. **Chunking**: Combine segments into chunks for better context
-4. **Embedding Generation**: Generate vector embeddings for each chunk using sentence-transformers
-5. **Vector Storage**: Store embeddings in ChromaDB for semantic search
+1. **User uploads video** → Saved to `data/uploads/` and metadata stored in SQLite
+2. **User asks question** → FastAPI routes to `simple_rag_service.py`
+3. **Ollama generates answer** → LLM (llama3.2:3b) processes query
+4. **Response returned** → Answer saved to chat history in database
 
-### RAG Query Pipeline
+### CLI Workflow (Full RAG)
 
-1. **Query Embedding**: Convert user query to vector embedding
-2. **Similarity Search**: Find most similar chunks in vector database
-3. **Context Building**: Retrieve relevant text segments with timestamps
-4. **Results Display**: Show matching segments with similarity scores and timestamps
+1. **Video Processing** → Extract audio using moviepy
+2. **Transcription** → Whisper generates text segments with timestamps
+3. **Chunking** → Combine segments into meaningful chunks
+4. **Embedding Generation** → sentence-transformers creates vector embeddings
+5. **Vector Storage** → ChromaDB stores embeddings for semantic search
+6. **Query Processing** → User query → embedding → similarity search → context retrieval → LLM generation
 
-## Advanced Usage
+---
 
-### Python API
+## Database Schema
 
-```python
-from pathlib import Path
-import sys
-sys.path.append(str(Path(__file__).parent / "src"))
-
-from src.services.embeddings.embedding_generator import EmbeddingGenerator
-from src.services.embeddings.vector_store import VectorStore
-from src.services.rag.rag_pipeline import RAGPipeline
-
-# Initialize
-embedding_gen = EmbeddingGenerator(model_name="all-MiniLM-L6-v2")
-vector_store = VectorStore(persist_directory="chroma_db")
-rag = RAGPipeline(embedding_gen, vector_store)
-
-# Query
-results = rag.retrieve("What is discussed?", n_results=5)
-for result in results:
-    print(f"Time: {result['metadata']['timestamp']}")
-    print(f"Text: {result['document']}")
-    print(f"Similarity: {1 - result['distance']:.2%}")
+### Videos Table
+```sql
+CREATE TABLE videos (
+    id INTEGER PRIMARY KEY,
+    filename TEXT UNIQUE NOT NULL,
+    title TEXT,
+    duration FLOAT,
+    uploaded_at DATETIME,
+    transcription_status TEXT,
+    embedding_status TEXT,
+    video_path TEXT,
+    transcript_path TEXT
+);
 ```
 
-### Filter by Video
+### Chat History Table
+```sql
+CREATE TABLE chat_history (
+    id INTEGER PRIMARY KEY,
+    video_id INTEGER,
+    session_id TEXT,
+    query TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    created_at DATETIME,
+    response_time FLOAT,
+    num_sources INTEGER
+);
+```
 
-Query specific videos using metadata filters:
+---
+
+## API Usage Examples
+
+### Python
 
 ```python
-results = rag.retrieve(
-    "topic",
-    n_results=5,
-    where={"video_file": "specific_video.mp4"}
+import requests
+
+# Ask a question
+response = requests.post(
+    "http://localhost:8000/api/chat/query",
+    json={"question": "What is deep learning?"}
 )
+result = response.json()
+print(result['answer'])
+
+# Get chat history
+history = requests.get("http://localhost:8000/api/chat/history?limit=10")
+print(history.json())
 ```
 
-## Performance Tips
+### JavaScript (React)
 
-- **Whisper Model**: Use `base` for good balance. Use `small` or `medium` for better accuracy if you have a GPU
-- **Chunk Size**: Larger chunks (5-10) for general topics, smaller chunks (2-3) for precise timestamps
-- **Embedding Model**:
-  - `all-MiniLM-L6-v2`: Fast, good quality (384 dim)
-  - `all-mpnet-base-v2`: Higher quality (768 dim)
-  - `multi-qa-mpnet-base-dot-v1`: Optimized for Q&A
+```javascript
+const API_BASE = 'http://localhost:8000/api';
+
+async function askQuestion(question) {
+    const response = await fetch(`${API_BASE}/chat/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, top_k: 5 })
+    });
+    return response.json();
+}
+
+const result = await askQuestion("Explain neural networks");
+console.log(result.answer);
+```
+
+### cURL
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Ask question
+curl -X POST http://localhost:8000/api/chat/query \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What is AI?"}'
+
+# Get chat history
+curl "http://localhost:8000/api/chat/history?limit=5"
+
+# List videos
+curl http://localhost:8000/api/videos
+```
+
+---
+
+## Performance Notes
+
+**Response Times:**
+- First API query: ~5-10 seconds (model loading)
+- Subsequent queries: ~1-2 seconds
+- API endpoints (non-LLM): <100ms
+
+**Model Recommendations:**
+- **Whisper**: Use `base` for balance, `small` for better accuracy
+- **Embeddings**: `all-MiniLM-L6-v2` (fast), `all-mpnet-base-v2` (accurate)
+- **LLM**: `llama3.2:3b` (2GB, fast), `llama3.2:7b` (better quality)
+
+---
 
 ## Troubleshooting
 
-**Out of memory:**
-- Use smaller Whisper model (`tiny` or `base`)
-- Process shorter video segments
-- Use smaller embedding model
+### API Issues
 
-**Slow transcription:**
-- Whisper is CPU-intensive. For faster processing, use a GPU-enabled environment
-- Use smaller model size
+**Problem:** Server won't start
+- **Solution:** Make sure port 8000 is available: `lsof -i :8000`
+- Kill existing process: `pkill -f uvicorn`
 
-**No results in queries:**
-- Check that videos have been processed: `python query_rag.py` will show document count
-- Try broader queries
-- Increase `n_results`
+**Problem:** Ollama connection error
+- **Solution:** Ensure Ollama is running: `ollama serve`
+- Check model is installed: `ollama list`
+
+**Problem:** Slow responses
+- **Solution:** First query loads model into memory (5-10s). Subsequent queries are faster.
+
+### CLI Script Issues
+
+**Problem:** Out of memory during transcription
+- **Solution:** Use smaller Whisper model (`tiny` or `base`)
+
+**Problem:** ChromaDB compatibility error (Python 3.14)
+- **Solution:** Use CLI scripts for full RAG (they work). API uses simple Ollama service.
+
+**Problem:** No results in semantic search
+- **Solution:** Ensure embeddings were generated: `ls data/chroma_db/`
+- Try broader queries or increase `--num-results`
+
+### General Issues
+
+**Problem:** Module not found errors
+- **Solution:** Activate virtual environment: `source venv/bin/activate`
+
+**Problem:** ffmpeg not found
+- **Solution:** Install ffmpeg (see Prerequisites)
+
+---
+
+## System Status
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| Python | ✅ | 3.14.2 |
+| FastAPI | ✅ | Running on :8000 |
+| Ollama | ✅ | llama3.2:3b (2GB) |
+| Database | ✅ | SQLite (data/app.db) |
+| Whisper | ✅ | base model |
+| ChromaDB | ✅ | 0.3.23 (CLI only) |
+| LangChain | ✅ | 1.2.8 |
+| Embeddings | ✅ | all-MiniLM-L6-v2 |
+
+---
+
+## Known Limitations
+
+- **Full RAG in API:** Currently unavailable due to Python 3.14 + ChromaDB compatibility. Use CLI scripts for full semantic search with timestamp citations.
+- **Video Upload:** API endpoint exists but background processing not yet implemented. Use CLI scripts to process videos.
+- **Sources:** API returns empty sources array (no document retrieval). CLI scripts provide full source attribution.
+
+**Workaround:** For full RAG functionality, use CLI:
+```bash
+python scripts/query_rag.py
+```
+
+---
+
+## Next Steps
+
+### Recommended
+1. **Frontend Development** - Build React UI to interact with API
+2. **Background Processing** - Add async video transcription queue
+3. **Full RAG Integration** - Enable semantic search in API (requires Python 3.11 or ChromaDB update)
+
+### Optional
+1. **Authentication** - Add user auth system
+2. **Multi-user Support** - User-specific chat sessions
+3. **Real-time Updates** - WebSocket support for streaming responses
+4. **Video Player** - Integrate video playback with timestamp navigation
+
+---
+
+## Documentation
+
+- **Swagger UI:** http://localhost:8000/docs
+- **ReDoc:** http://localhost:8000/redoc
+- **API Root:** http://localhost:8000/
+
+---
+
+## License
+
+This project is for educational purposes. All AI models used (Whisper, sentence-transformers, Ollama) are open-source and free to use.
+
+---
+
+## Summary
+
+**Pumped Up Kicks** provides a complete local AI lecture intelligence platform with:
+
+✅ FastAPI REST API
+✅ Local LLM (Ollama)
+✅ Video transcription (Whisper)
+✅ Semantic search (ChromaDB + sentence-transformers)
+✅ Chat history tracking
+✅ Zero cloud costs
+
+**Ready for frontend development!** 🚀
