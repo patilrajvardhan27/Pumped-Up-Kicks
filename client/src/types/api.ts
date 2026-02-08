@@ -1,9 +1,3 @@
-/**
- * API Type Definitions
- * All types matching the backend API contracts
- */
-
-// Chat Types
 export interface Source {
   text: string;
   timestamp: string;
@@ -44,7 +38,6 @@ export interface HealthResponse {
   vector_store: string;
 }
 
-// Video Types
 export interface VideoInfo {
   id: number;
   filename: string;
@@ -68,7 +61,6 @@ export interface UploadResponse {
   status: string;
 }
 
-// General API Response
 export interface ApiError {
   detail: string;
 }

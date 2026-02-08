@@ -2,14 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom base styles using our color system */
 @layer base {
   body {
     @apply bg-cloud-nine text-midnight-mystery;
   }
 }
 
-/* Custom component patterns */
 @layer components {
   .btn-primary {
     @apply bg-electric-blueberry hover:bg-soft-serve active:bg-deep-purple-panda

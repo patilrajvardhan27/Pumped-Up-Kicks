@@ -1,22 +1,12 @@
-/**
- * API Client Configuration
- * Central configuration for all API calls
- */
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export const API_ENDPOINTS = {
-  // Chat
   CHAT_QUERY: `${API_BASE_URL}/api/chat/query`,
   CHAT_HISTORY: `${API_BASE_URL}/api/chat/history`,
   CHAT_HEALTH: `${API_BASE_URL}/api/chat/health`,
-
-  // Videos
   VIDEOS_LIST: `${API_BASE_URL}/api/videos`,
   VIDEOS_DETAIL: (id: number) => `${API_BASE_URL}/api/videos/${id}`,
   VIDEOS_UPLOAD: `${API_BASE_URL}/api/videos/upload`,
-
-  // Health
   HEALTH: `${API_BASE_URL}/health`,
   ROOT: `${API_BASE_URL}/`,
 } as const;
