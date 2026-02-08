@@ -1,14 +1,50 @@
 # Pumped Up Kicks
 
-A full-stack application with client and server components.
+A full-stack AI-powered lecture intelligence platform.
+
+## Quick Start
+
+### Prerequisites
+- Python 3.11+ (for backend)
+- Node.js 18+ and npm (for frontend)
+
+### Running the Application
+
+**1. Start the Backend Server**
+```bash
+cd server
+./start_server.sh
+```
+The API will be available at `http://localhost:8000`
+
+**2. Start the Frontend (in a new terminal)**
+```bash
+cd client
+npm install  # First time only
+npm run dev
+```
+The web app will be available at `http://localhost:3000`
+
+**3. Open your browser**
+Navigate to `http://localhost:3000` to see the landing page!
 
 ## Project Structure
 
 ```
 .
-├── client/     # Frontend application
-├── server/     # Backend application
-└── README.md   # Project documentation
+├── client/                 # React + TypeScript frontend
+│   ├── src/
+│   │   ├── pages/         # Landing page and other pages
+│   │   ├── components/    # Reusable UI components
+│   │   ├── services/      # API service layer
+│   │   └── ...
+│   └── package.json
+├── server/                 # FastAPI backend
+│   ├── api/               # API routes and services
+│   ├── src/               # Core services (RAG, embeddings, etc.)
+│   ├── scripts/           # Video processing scripts
+│   └── data/              # Data storage
+└── README.md
 ```
 
 ## Getting Started

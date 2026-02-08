@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles using our color system */
+@layer base {
+  body {
+    @apply bg-cloud-nine text-midnight-mystery;
+  }
+}
+
+/* Custom component patterns */
+@layer components {
+  .btn-primary {
+    @apply bg-electric-blueberry hover:bg-soft-serve active:bg-deep-purple-panda
+           text-snowflake-surprise font-semibold py-2 px-4 rounded-lg
+           transition-colors duration-200;
+  }
+
+  .btn-secondary {
+    @apply bg-sunny-delight hover:bg-butterscotch-dream active:bg-caramel-crush
+           text-void-vibes font-semibold py-2 px-4 rounded-lg
+           transition-colors duration-200;
+  }
+
+  .card {
+    @apply bg-snowflake-surprise border border-silver-lining rounded-lg
+           shadow-sm p-6;
+  }
+
+  .input-field {
+    @apply border border-silver-lining rounded-lg px-4 py-2
+           focus:outline-none focus:ring-2 focus:ring-electric-blueberry
+           focus:border-transparent bg-snowflake-surprise
+           text-midnight-mystery placeholder:text-slate-skate;
+  }
+}
