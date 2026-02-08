@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, BackgroundTasks
 from pydantic import BaseModel
 from typing import List, Optional
 from sqlalchemy.orm import Session
@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 
 from api.models.database import get_db, Video
+from api.services.video_processor import get_video_processor
 
 router = APIRouter(prefix="/api/videos", tags=["videos"])
 
@@ -105,8 +106,48 @@ async def get_video(video_id: int, db: Session = Depends(get_db)):
         )
 
 
+def process_video_background(video_id: int, video_path: str, db_path: str = "data/app.db"):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from api.models.database import Video
+
+    processor = get_video_processor()
+
+    engine = create_engine(f"sqlite:///{db_path}")
+    SessionLocal = sessionmaker(bind=engine)
+    db = SessionLocal()
+
+    try:
+        video = db.query(Video).filter(Video.id == video_id).first()
+        if not video:
+            return
+
+        video.transcription_status = "processing"
+        db.commit()
+
+        result = processor.process_video(video_path, video_id)
+
+        if result["overall_status"] == "success":
+            video.transcription_status = "completed"
+            video.embedding_status = "completed"
+        else:
+            video.transcription_status = "failed"
+            video.embedding_status = "failed"
+
+        db.commit()
+
+    except Exception as e:
+        print(f"Error processing video {video_id}: {e}")
+        if video:
+            video.transcription_status = "failed"
+            video.embedding_status = "failed"
+            db.commit()
+    finally:
+        db.close()
+
 @router.post("/upload", response_model=UploadResponse)
 async def upload_video(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     title: Optional[str] = None,
     db: Session = Depends(get_db)
@@ -147,11 +188,17 @@ async def upload_video(
         db.commit()
         db.refresh(video)
 
+        background_tasks.add_task(
+            process_video_background,
+            video.id,
+            str(file_path)
+        )
+
         return UploadResponse(
-            message=f"Video '{file.filename}' uploaded successfully",
+            message=f"Video '{file.filename}' uploaded successfully. Processing started.",
             video_id=video.id,
             filename=file.filename,
-            status="pending"
+            status="processing"
         )
 
     except HTTPException:

@@ -13,7 +13,6 @@ export default function AppPage() {
 
   return (
     <div className="min-h-screen bg-cloud-nine">
-      {/* Header */}
       <header className="bg-snowflake-surprise border-b border-silver-lining">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <Link href="/">
@@ -32,14 +31,11 @@ export default function AppPage() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-12 space-y-12">
-        {/* Chat Section */}
         <section>
           <ChatInterface />
         </section>
 
-        {/* Video Management Section */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div>
             <VideoUpload onUploadSuccess={handleUploadSuccess} />
@@ -49,7 +45,6 @@ export default function AppPage() {
           </div>
         </section>
 
-        {/* Info Section */}
         <section className="card bg-gradient-to-r from-electric-blueberry to-lavender-latte text-snowflake-surprise">
           <h3 className="text-2xl font-bold mb-4">How to Use</h3>
           <div className="space-y-3 text-ocean-breeze">

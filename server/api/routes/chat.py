@@ -4,7 +4,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from api.models.database import get_db, ChatHistory
-from api.services.simple_rag_service import get_rag_service
+from api.services.lecture_rag_service import get_rag_service
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 

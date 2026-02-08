@@ -127,4 +127,63 @@ The system is divided into four core components:
 - Ask a question and receive a timestamped answer
 - Jump directly to the relevant video moment
 
+Quick Commands
+
+  Start Backend:
+  cd server
+  source venv/bin/activate
+  ./start_server.sh
+
+  Start Frontend:
+  cd client
+  npm run dev
+
+  Stop Servers:
+  # Stop backend
+  lsof -ti:8000 | xargs kill
+
+  # Stop frontend
+  lsof -ti:3000 | xargs kill
+
+  Restart Both:
+  # Stop all
+  lsof -ti:8000,3000 | xargs kill
+
+  # Start backend (in background)
+  cd server && source venv/bin/activate && ./start_server.sh &
+
+  # Start frontend
+  cd client && npm run dev
+
+  ---
+  Access Points
+
+  Once both are running:
+
+  - Main App: http://localhost:3000/app
+  - Landing: http://localhost:3000
+  - API Docs: http://localhost:8000/docs
+  - API Health: http://localhost:8000/health
+
+  ---
+  Troubleshooting
+
+  Port already in use:
+  # Kill processes on ports
+  lsof -ti:8000 | xargs kill  # Backend
+  lsof -ti:3000 | xargs kill  # Frontend
+
+  Backend won't start:
+  # Make sure you're in venv
+  cd server
+  source venv/bin/activate
+  python --version  # Should show Python 3.14
+
+  Frontend won't start:
+  # Reinstall dependencies
+  cd client
+  rm -rf node_modules
+  npm install
+  npm run dev
+
 Team: Sejal Hukare, Ishita Pawar, Rajvardhan Patil, Chetan Monhot.
