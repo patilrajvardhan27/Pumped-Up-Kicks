@@ -9,10 +9,10 @@ from pathlib import Path
 from typing import List, Dict
 
 # Add src to path
-sys.path.append(str(Path(__file__).parent / "src"))
+sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-from src.services.embeddings.embedding_generator import EmbeddingGenerator
-from src.services.embeddings.vector_store import VectorStore
+from services.embeddings.embedding_generator import EmbeddingGenerator
+from services.embeddings.vector_store import VectorStore
 
 
 def load_transcription(json_file: str) -> Dict:
@@ -78,7 +78,7 @@ def generate_embeddings(
     embedding_model: str = "all-MiniLM-L6-v2",
     chunk_size: int = 3,
     collection_name: str = "video_transcriptions",
-    persist_dir: str = "data/chroma_db"
+    persist_dir: str = "data/faiss_db"
 ):
     """
     Generate embeddings from transcription JSON and store in vector database.
@@ -140,7 +140,7 @@ def generate_embeddings(
     print(f"  - Generated {len(embeddings)} embeddings")
     print(f"  - Embedding dimension: {embeddings.shape[1]}")
 
-    # Step 4: Store in vector database
+    # Step 4: Store in vector database (both custom and LangChain format)
     print(f"\nStep 4: Storing in vector database...")
     vector_store = VectorStore(
         persist_directory=persist_dir,
@@ -151,13 +151,33 @@ def generate_embeddings(
     base_id = json_path.stem.replace("_segments", "").replace(" ", "_")
     ids = [f"{base_id}_chunk_{i}" for i in range(len(chunks))]
 
-    # Store in database
+    # Store in custom FAISS database
     vector_store.add_documents(
         documents=chunks,
         embeddings=embeddings.tolist(),
         metadatas=chunk_metadatas,
         ids=ids
     )
+
+    # Also save in LangChain FAISS format for the RAG query system
+    print(f"\nStep 5: Saving LangChain FAISS index...")
+    from langchain_community.vectorstores import FAISS as LangchainFAISS
+    from langchain_community.embeddings import HuggingFaceEmbeddings
+
+    lc_embeddings = HuggingFaceEmbeddings(
+        model_name=embedding_model,
+        model_kwargs={'device': 'cpu'},
+        encode_kwargs={'normalize_embeddings': True}
+    )
+
+    texts_with_meta = list(zip(chunks, chunk_metadatas))
+    lc_store = LangchainFAISS.from_texts(
+        texts=[t for t, _ in texts_with_meta],
+        embedding=lc_embeddings,
+        metadatas=[m for _, m in texts_with_meta]
+    )
+    lc_store.save_local(persist_dir)
+    print(f"  LangChain FAISS index saved to {persist_dir}")
 
     print(f"\n{'='*60}")
     print("Embedding generation complete!")
@@ -186,7 +206,7 @@ def batch_generate_embeddings(
     embedding_model: str = "all-MiniLM-L6-v2",
     chunk_size: int = 3,
     collection_name: str = "video_transcriptions",
-    persist_dir: str = "data/chroma_db"
+    persist_dir: str = "data/faiss_db"
 ):
     """
     Generate embeddings for all transcription files in a directory.

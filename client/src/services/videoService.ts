@@ -17,6 +17,10 @@ export class VideoService {
     return apiClient.get<VideoInfo>(API_ENDPOINTS.VIDEOS_DETAIL(id));
   }
 
+  async deleteVideo(id: number): Promise<{ message: string }> {
+    return apiClient.delete<{ message: string }>(API_ENDPOINTS.VIDEOS_DELETE(id));
+  }
+
   async uploadVideo(file: File, title?: string): Promise<UploadResponse> {
     return apiClient.upload<UploadResponse>(
       API_ENDPOINTS.VIDEOS_UPLOAD,

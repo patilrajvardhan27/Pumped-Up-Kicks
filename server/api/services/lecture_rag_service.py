@@ -71,7 +71,7 @@ class LectureRAGService:
             if score > 0.1:
                 results.append({
                     **seg,
-                    'similarity': score
+                    'similarity': min(score, 1.0)
                 })
 
         return results
@@ -150,15 +150,19 @@ Answer:""",
 
             prompt = f"""You are a helpful AI teaching assistant helping students understand lecture content.
 
-Use the lecture context below to answer the student's question accurately.
-Always cite specific timestamps when referencing parts of the lecture.
+Use the lecture context below to answer the student's question accurately and completely.
+Important guidelines:
+- Include ALL relevant points mentioned in the context, not just the first one you find.
+- Always cite specific timestamps when referencing parts of the lecture.
+- If the lecture lists multiple reasons, limitations, or examples, list all of them.
+- Be thorough but concise.
 
 Lecture Context:
 {context}
 
 Question: {question}
 
-Answer (with timestamp citations):"""
+Answer (comprehensive, with timestamp citations):"""
 
             response = ollama.generate(
                 model=self.model_name,

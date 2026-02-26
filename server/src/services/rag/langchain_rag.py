@@ -1,12 +1,12 @@
 """
 LangChain-powered RAG system for lecture Q&A.
 
-Simplified version compatible with Python 3.14 and ChromaDB 0.3.23
+Compatible with Python 3.14 using FAISS vector store.
 """
 from typing import List, Dict, Optional
 from pathlib import Path
 
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_ollama import ChatOllama
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
@@ -31,7 +31,7 @@ class LectureRAG:
 
     def __init__(
         self,
-        persist_dir: str = "data/chroma_db",
+        persist_dir: str = "data/faiss_db",
         model_name: str = "llama3.2:3b",
         embedding_model: str = "all-MiniLM-L6-v2",
         temperature: float = 0.2,
@@ -61,18 +61,17 @@ class LectureRAG:
         )
 
         # Initialize vector store
-        print(f"Connecting to ChromaDB at: {persist_dir}")
-        self.vectorstore = Chroma(
-            persist_directory=persist_dir,
-            embedding_function=self.embeddings
-        )
-
-        # Check if database has documents
-        try:
-            collection_count = self.vectorstore._collection.count()
-            print(f"✓ ChromaDB connected: {collection_count} documents indexed")
-        except Exception as e:
-            print(f"Warning: Could not get collection count: {e}")
+        faiss_path = Path(persist_dir)
+        print(f"Connecting to FAISS at: {persist_dir}")
+        if (faiss_path / "index.faiss").exists():
+            self.vectorstore = FAISS.load_local(
+                persist_dir, self.embeddings,
+                allow_dangerous_deserialization=True
+            )
+            print(f"✓ FAISS loaded: {self.vectorstore.index.ntotal} documents indexed")
+        else:
+            self.vectorstore = None
+            print("⚠ No FAISS index found yet. Upload and process a video first.")
 
         # Initialize LLM via Ollama
         print(f"Connecting to Ollama model: {model_name}")
@@ -130,6 +129,12 @@ Answer (with timestamp citations):"""
         # Retrieve relevant documents
         print(f"\nProcessing query: '{question}'")
         try:
+            if self.vectorstore is None:
+                return {
+                    "answer": "No videos have been processed yet. Please upload and process a video first.",
+                    "sources": []
+                }
+
             if video_filter:
                 print(f"Filtering by video: {video_filter}")
                 docs = self.vectorstore.similarity_search(
@@ -210,7 +215,7 @@ Answer (with timestamp citations):"""
     def get_stats(self) -> Dict:
         """Get statistics about the RAG system."""
         try:
-            doc_count = self.vectorstore._collection.count()
+            doc_count = self.vectorstore.index.ntotal if self.vectorstore else 0
             return {
                 "documents_indexed": doc_count,
                 "embedding_model": self.embeddings.model_name,

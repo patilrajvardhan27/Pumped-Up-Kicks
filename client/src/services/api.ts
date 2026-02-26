@@ -6,6 +6,7 @@ export const API_ENDPOINTS = {
   CHAT_HEALTH: `${API_BASE_URL}/api/chat/health`,
   VIDEOS_LIST: `${API_BASE_URL}/api/videos`,
   VIDEOS_DETAIL: (id: number) => `${API_BASE_URL}/api/videos/${id}`,
+  VIDEOS_DELETE: (id: number) => `${API_BASE_URL}/api/videos/${id}`,
   VIDEOS_UPLOAD: `${API_BASE_URL}/api/videos/upload`,
   HEALTH: `${API_BASE_URL}/health`,
   ROOT: `${API_BASE_URL}/`,
@@ -46,6 +47,19 @@ export class ApiClient {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'API request failed');
+    }
+
+    return response.json();
+  }
+
+  async delete<T>(endpoint: string): Promise<T> {
+    const response = await fetch(endpoint, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Delete failed');
     }
 
     return response.json();
