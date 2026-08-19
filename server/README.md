@@ -1,518 +1,198 @@
+# Pumped Up Kicks — Backend
 
-**Pumped Up Kicks** is a complete backend system with four core components:
+FastAPI service that turns lecture recordings into a searchable, question-answerable corpus.
 
-1. **Video Processing & Transcription Pipeline** - Extracts audio from videos and transcribes using OpenAI Whisper (local)
-2. **RAG System & Vector Database** - Creates embeddings and stores them in ChromaDB for semantic search
-3. **Chatbot API & LLM Integration** - FastAPI backend with Ollama LLM for intelligent Q&A
-4. **Backend Infrastructure & Database** - SQLite database for video metadata and chat history
+Four components:
 
-**Key Features:**
-- 100% local & free - no API keys or cloud services required
-- FastAPI REST API with auto-generated documentation
-- Local LLM using Ollama (llama3.2:3b)
-- Semantic search with ChromaDB vector database
-- Whisper-based transcription with timestamps
-- Chat history tracking
-- Video upload and management
+1. **Video processing** — extracts audio and transcribes it with OpenAI Whisper, locally.
+2. **Retrieval** — chunks the transcript, embeds it with sentence-transformers, and stores it in FAISS.
+3. **Answering** — sends only the retrieved excerpts to the Claude API, which answers with timestamp citations.
+4. **Storage** — SQLite for video metadata, chat history, cost accounting, and the answer cache.
+
+Transcription, embedding, and search all run on your machine. The Claude API is the only
+network call, and it only ever sees the handful of excerpts that matched the question — never
+the audio, and never the full transcript.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    React Frontend (Future)                   │
-└────────────────────────┬────────────────────────────────────┘
-                         │ HTTP/REST
-┌────────────────────────▼────────────────────────────────────┐
-│                   FastAPI Backend (Port 8000)                │
-│  ┌─────────────┐  ┌──────────────┐  ┌──────────────┐       │
-│  │ Chat Routes │  │ Video Routes │  │  SQLite DB   │       │
-│  └──────┬──────┘  └──────┬───────┘  └──────────────┘       │
-│         │                │                                    │
-│  ┌──────▼────────────────▼─────┐                            │
-│  │   Simple RAG Service         │                            │
-│  │   (Ollama Integration)       │                            │
-│  └──────────────┬───────────────┘                            │
-└─────────────────┼──────────────────────────────────────────┘
-                  │
-┌─────────────────▼────────────────────────────────────────────┐
-│                     Ollama LLM Server                         │
-│                   (llama3.2:3b model)                         │
-└───────────────────────────────────────────────────────────────┘
-
-┌───────────────────────────────────────────────────────────────┐
-│                  CLI Processing Scripts                        │
-│  ┌────────────┐  ┌──────────────┐  ┌─────────────┐          │
-│  │ Transcribe │  │  Embeddings  │  │  Query RAG  │          │
-│  │   Video    │─▶│  Generator   │─▶│   (Full)    │          │
-│  └────────────┘  └──────────────┘  └─────────────┘          │
-│       Whisper         ChromaDB      LangChain + Ollama       │
-└───────────────────────────────────────────────────────────────┘
+                        ┌──────────────────────────┐
+                        │   Next.js client :3000   │
+                        └────────────┬─────────────┘
+                                     │ REST + SSE
+                        ┌────────────▼─────────────┐
+                        │   FastAPI  :8000         │
+                        │  /api/chat  /api/videos  │
+                        └──────┬────────────┬──────┘
+                               │            │
+              ┌────────────────▼───┐   ┌────▼──────────────────┐
+              │ LectureRAGService  │   │  VideoProcessor       │
+              └───┬────────────┬───┘   └────┬──────────────┬───┘
+                  │            │            │              │
+        ┌─────────▼──┐   ┌─────▼───────┐ ┌──▼────────┐ ┌───▼─────────┐
+        │ FAISS      │   │ ClaudeClient│ │ Whisper   │ │ Embeddings  │
+        │ (local)    │   │ → Claude API│ │ (local)   │ │ (local)     │
+        └────────────┘   └─────────────┘ └───────────┘ └─────────────┘
 ```
+
+Everything talks to Claude through one file: `src/services/llm/claude_client.py`.
+Model choice, cost accounting, and error messages live there and nowhere else.
 
 ---
 
-## Prerequisites
+## Setup
 
-Before setting up the project, ensure you have:
+### Prerequisites
 
-1. **Python 3.8 or higher** (Python 3.14+ recommended)
-2. **ffmpeg** - For video/audio processing
-3. **Ollama** - Local LLM server
+- Python 3.11+ (3.14 tested)
+- `ffmpeg` — `brew install ffmpeg` on macOS, `apt install ffmpeg` on Debian/Ubuntu
+- A Claude API key — https://console.anthropic.com/settings/keys
 
-### Install ffmpeg
-
-**macOS:**
-```bash
-brew install ffmpeg
-```
-
-**Ubuntu/Debian:**
-```bash
-sudo apt-get install ffmpeg
-```
-
-**Windows:**
-Download from https://ffmpeg.org/download.html
-
-### Install Ollama
-
-**macOS/Linux:**
-```bash
-curl -fsSL https://ollama.com/install.sh | sh
-```
-
-**Windows:**
-Download from https://ollama.com/download
-
-**Pull the LLM model:**
-```bash
-ollama pull llama3.2:3b
-```
-
----
-
-## Installation
-
-### 1. Clone the Repository
-
-```bash
-cd /path/to/Pumped_up_kicks/server
-```
-
-### 2. Create Virtual Environment
-
-```bash
-python3 -m venv venv
-source venv/bin/activate  # macOS/Linux
-# OR: venv\Scripts\activate  # Windows
-```
-
-### 3. Install Python Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-This installs:
-- FastAPI & Uvicorn (REST API server)
-- SQLAlchemy (Database ORM)
-- Ollama Python client
-- OpenAI Whisper (transcription)
-- ChromaDB (vector database)
-- sentence-transformers (embeddings)
-- LangChain (RAG orchestration)
-- moviepy (video processing)
-
-**Note:** First run will download AI models (~1-3GB total):
-- Whisper model: ~1GB
-- Sentence-transformer model: ~100MB
-- Ollama model: ~2GB (if not already pulled)
-
----
-
-## Quick Start
-
-### Step 1: Start Ollama Server
-
-In a **new terminal window**:
-
-```bash
-ollama serve
-```
-
-Keep this running in the background.
-
-### Step 2: Start FastAPI Backend
-
-In your **project terminal**:
+### Install
 
 ```bash
 cd server
-source venv/bin/activate  # Activate virtualenv
-./start_server.sh
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
-The server will start at: **http://localhost:8000**
+First run downloads the Whisper model (~150 MB for `base`) and the embedding model (~90 MB).
 
-### Step 3: Explore the API
-
-Open your browser to:
-- **Swagger UI (Interactive Docs):** http://localhost:8000/docs
-- **API Root:** http://localhost:8000/
-- **Health Check:** http://localhost:8000/health
-
----
-
-## API Endpoints
-
-### Chat Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/chat/query` | Ask a question to the AI chatbot |
-| GET | `/api/chat/history` | Get conversation history |
-| GET | `/api/chat/health` | Check RAG system health |
-
-**Example: Ask a Question**
+### Configure
 
 ```bash
-curl -X POST http://localhost:8000/api/chat/query \
-  -H "Content-Type: application/json" \
-  -d '{
-    "question": "What is machine learning?",
-    "top_k": 5
-  }'
+cp .env.example .env
+# then edit .env and set ANTHROPIC_API_KEY
 ```
 
-**Response:**
-```json
-{
-  "answer": "Machine learning is a type of artificial intelligence...",
-  "sources": [],
-  "response_time": 1.2,
-  "num_sources": 0
-}
-```
+| Variable | Default | What it does |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | — | Required. Without it the API returns a clear "no key" message instead of an answer. |
+| `PUK_CLAUDE_MODEL` | `claude-sonnet-5` | Any Claude model id. `claude-haiku-4-5` is cheaper; `claude-opus-5` is stronger. |
+| `PUK_CLAUDE_EFFORT` | `low` | How much the model thinks: `low` → `max`. Grounded Q&A rarely needs more than `low`. |
+| `PUK_CLAUDE_MAX_TOKENS` | `2000` | Ceiling on answer length. Unused tokens cost nothing. |
 
-### Video Endpoints
+The variables are app-prefixed on purpose — bare `CLAUDE_MODEL` / `CLAUDE_EFFORT` are set by
+other tools and would silently override these.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/videos` | List all uploaded videos |
-| GET | `/api/videos/{id}` | Get specific video details |
-| POST | `/api/videos/upload` | Upload a new video file |
-
-**Example: List Videos**
+### Run
 
 ```bash
-curl http://localhost:8000/api/videos
-```
-
-### Documentation Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | API information and version |
-| GET | `/health` | Server health status |
-| GET | `/docs` | Swagger UI documentation |
-| GET | `/redoc` | ReDoc documentation |
-
----
-
-## CLI Processing Scripts
-
-For full RAG functionality with semantic search and timestamp citations, use the CLI scripts:
-
-### 1. Transcribe Video
-
-Extract audio and generate transcription with timestamps:
-
-```bash
-python scripts/transcribe_video.py "data/uploads/lecture_video.mp4"
-```
-
-**Options:**
-- `--whisper-model`: Model size (`tiny`, `base`, `small`, `medium`, `large`)
-- `--language`: Language code (e.g., `en`, `es`)
-- `--output-dir`: Output directory (default: `data/transcriptions`)
-
-**Output:**
-- `data/transcriptions/<video>_transcript.txt` - Full text
-- `data/transcriptions/<video>.srt` - Subtitles (SRT format)
-- `data/transcriptions/<video>_segments.json` - Timestamped segments
-
-### 2. Generate Embeddings
-
-Create vector embeddings for semantic search:
-
-```bash
-python scripts/generate_embeddings.py "data/transcriptions/<video>_segments.json"
-```
-
-**Options:**
-- `--embedding-model`: Model name (default: `all-MiniLM-L6-v2`)
-- `--chunk-size`: Segments per chunk (default: 3)
-- `--batch`: Process all files in directory
-
-**Batch process:**
-```bash
-python scripts/generate_embeddings.py --batch data/transcriptions/
-```
-
-### 3. Query RAG System
-
-Ask questions about lecture content with semantic search:
-
-```bash
-python scripts/query_rag.py
-```
-
-**Interactive mode:**
-```
-Query: What topics were covered in the lecture?
-Query: Explain the concept of neural networks
-Query: exit
-```
-
-**Single query:**
-```bash
-python scripts/query_rag.py --query "What is discussed?" --num-results 5
+./start_server.sh          # http://localhost:8000, docs at /docs
 ```
 
 ---
 
-## Project Structure
+## Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/videos/upload` | Multipart upload; queues processing and returns immediately |
+| `GET` | `/api/videos` | List videos with stage and progress |
+| `GET` | `/api/videos/{id}/status` | Lightweight status for polling during processing |
+| `DELETE` | `/api/videos/{id}` | Removes the file, transcript, and vector entries |
+| `POST` | `/api/chat/query` | Ask a question; returns answer, sources, and cost |
+| `POST` | `/api/chat/stream` | Same, streamed as server-sent events |
+| `GET` | `/api/chat/history` | Past questions with per-answer cost |
+| `GET` | `/api/chat/usage` | Running spend, question count, cache-hit rate |
+| `GET` | `/api/chat/health` | Index size, models in use |
+| `GET` | `/health` | Liveness, model name, whether a key is configured |
+
+---
+
+## Processing pipeline
+
+An upload moves through four stages, each persisted to the `videos` table so the client can
+poll `/api/videos/{id}/status` and show exactly where it is:
+
+| Stage | Progress | What happens |
+|---|---|---|
+| `queued` | 0% | File written to `data/uploads/`, row created |
+| `transcribing` | 5% | ffprobe reads duration; Whisper produces timestamped segments |
+| `indexing` | 70% | Segments chunked, embedded, appended to the FAISS index |
+| `ready` | 100% | Queryable |
+| `failed` | 100% | `error_message` holds the reason |
+
+Transcription is the slow step — roughly real time to a few times faster than real time on
+CPU, depending on the machine. It runs as a FastAPI background task, so the upload request
+returns as soon as the bytes are on disk.
+
+---
+
+## Cost
+
+Only step 4 costs money. A typical question sends ~5 excerpts (2–4k input tokens) and gets
+back a few hundred output tokens.
+
+| Model | Input / output per 1M | Rough cost per question |
+|---|---|---|
+| `claude-haiku-4-5` | $1 / $5 | ~$0.005 |
+| `claude-sonnet-5` | $3 / $15 | ~$0.015 |
+| `claude-opus-5` | $5 / $25 | ~$0.025 |
+
+Three things keep this down, all on by default:
+
+- **Retrieval, not stuffing.** Only matched excerpts are sent, never the whole transcript.
+- **Answer cache.** A repeated question over unchanged content is served from SQLite for $0.
+- **Low effort.** `PUK_CLAUDE_EFFORT=low` — the answer is already in the context.
+
+`GET /api/chat/usage` reports what has actually been spent.
+
+---
+
+## CLI
+
+```bash
+# Transcribe a video
+venv/bin/python scripts/transcribe_video.py data/uploads/lecture.mp4
+
+# Index the transcript
+venv/bin/python scripts/generate_embeddings.py data/transcriptions/lecture_segments.json
+
+# Ask a question
+venv/bin/python scripts/query_rag.py --query "what are the limitations?"
+venv/bin/python scripts/query_rag.py --stats
+```
+
+---
+
+## Layout
 
 ```
 server/
-├── api/                                # FastAPI application
-│   ├── main.py                         # Main app entry point
-│   ├── compat.py                       # Python 3.14 compatibility shim
-│   ├── models/
-│   │   └── database.py                 # SQLite models (Video, ChatHistory)
-│   ├── routes/
-│   │   ├── chat.py                     # Chat API endpoints
-│   │   └── videos.py                   # Video management endpoints
+├── api/
+│   ├── main.py                        # app, CORS, lifespan, /health
+│   ├── models/database.py             # Video, ChatHistory, AnswerCache + migration
+│   ├── routes/chat.py                 # query, stream, history, usage, health
+│   ├── routes/videos.py               # upload, list, status, delete
 │   └── services/
-│       ├── simple_rag_service.py       # Ollama integration (API)
-│       └── rag_service.py              # Full RAG service (CLI)
-│
-├── scripts/                            # CLI processing scripts
-│   ├── transcribe_video.py             # Step 1: Video → Transcription
-│   ├── generate_embeddings.py          # Step 2: Text → Embeddings
-│   └── query_rag.py                    # Step 3: Query RAG system
-│
-├── src/services/                       # Core services
-│   ├── video_processing/               # Audio extraction
-│   ├── transcription/                  # Whisper transcription
-│   ├── embeddings/                     # Embedding generation
-│   └── rag/                            # RAG pipeline (LangChain)
-│
-├── data/                               # Data directory
-│   ├── app.db                          # SQLite database
-│   ├── uploads/                        # Uploaded video files
-│   ├── temp/                           # Temporary audio files
-│   ├── transcriptions/                 # Transcription outputs
-│   └── chroma_db/                      # Vector embeddings (ChromaDB)
-│
-├── start_server.sh                     # Server startup script
-├── requirements.txt                    # Python dependencies
-└── README.md                           # This file
+│       ├── lecture_rag_service.py     # retrieval + Claude, used by the API
+│       └── video_processor.py         # transcription and indexing pipeline
+├── src/services/
+│   ├── llm/claude_client.py           # the only place that calls Claude
+│   ├── embeddings/                    # sentence-transformers + FAISS
+│   ├── transcription/                 # Whisper
+│   ├── video_processing/              # audio extraction
+│   └── rag/claude_rag.py              # CLI-facing RAG over the same index
+├── scripts/                           # transcribe, embed, query
+└── data/
+    ├── uploads/  transcriptions/  faiss_db/  app.db
 ```
-
----
-
-## How It Works
-
-### API Workflow
-
-1. **User uploads video** → Saved to `data/uploads/` and metadata stored in SQLite
-2. **User asks question** → FastAPI routes to `simple_rag_service.py`
-3. **Ollama generates answer** → LLM (llama3.2:3b) processes query
-4. **Response returned** → Answer saved to chat history in database
-
-### CLI Workflow (Full RAG)
-
-1. **Video Processing** → Extract audio using moviepy
-2. **Transcription** → Whisper generates text segments with timestamps
-3. **Chunking** → Combine segments into meaningful chunks
-4. **Embedding Generation** → sentence-transformers creates vector embeddings
-5. **Vector Storage** → ChromaDB stores embeddings for semantic search
-6. **Query Processing** → User query → embedding → similarity search → context retrieval → LLM generation
-
----
-
-## Database Schema
-
-### Videos Table
-```sql
-CREATE TABLE videos (
-    id INTEGER PRIMARY KEY,
-    filename TEXT UNIQUE NOT NULL,
-    title TEXT,
-    duration FLOAT,
-    uploaded_at DATETIME,
-    transcription_status TEXT,
-    embedding_status TEXT,
-    video_path TEXT,
-    transcript_path TEXT
-);
-```
-
-### Chat History Table
-```sql
-CREATE TABLE chat_history (
-    id INTEGER PRIMARY KEY,
-    video_id INTEGER,
-    session_id TEXT,
-    query TEXT NOT NULL,
-    answer TEXT NOT NULL,
-    created_at DATETIME,
-    response_time FLOAT,
-    num_sources INTEGER
-);
-```
-
----
-
-## API Usage Examples
-
-### Python
-
-```python
-import requests
-
-# Ask a question
-response = requests.post(
-    "http://localhost:8000/api/chat/query",
-    json={"question": "What is deep learning?"}
-)
-result = response.json()
-print(result['answer'])
-
-# Get chat history
-history = requests.get("http://localhost:8000/api/chat/history?limit=10")
-print(history.json())
-```
-
-### JavaScript (React)
-
-```javascript
-const API_BASE = 'http://localhost:8000/api';
-
-async function askQuestion(question) {
-    const response = await fetch(`${API_BASE}/chat/query`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, top_k: 5 })
-    });
-    return response.json();
-}
-
-const result = await askQuestion("Explain neural networks");
-console.log(result.answer);
-```
-
-### cURL
-
-```bash
-# Health check
-curl http://localhost:8000/health
-
-# Ask question
-curl -X POST http://localhost:8000/api/chat/query \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What is AI?"}'
-
-# Get chat history
-curl "http://localhost:8000/api/chat/history?limit=5"
-
-# List videos
-curl http://localhost:8000/api/videos
-```
-
----
-
-## Performance Notes
-
-**Response Times:**
-- First API query: ~5-10 seconds (model loading)
-- Subsequent queries: ~1-2 seconds
-- API endpoints (non-LLM): <100ms
-
-**Model Recommendations:**
-- **Whisper**: Use `base` for balance, `small` for better accuracy
-- **Embeddings**: `all-MiniLM-L6-v2` (fast), `all-mpnet-base-v2` (accurate)
-- **LLM**: `llama3.2:3b` (2GB, fast), `llama3.2:7b` (better quality)
 
 ---
 
 ## Troubleshooting
 
-### API Issues
+**"No Claude API key found"** — `.env` is missing or has no `ANTHROPIC_API_KEY`. The server
+prints whether it found a key at startup.
 
-**Problem:** Server won't start
-- **Solution:** Make sure port 8000 is available: `lsof -i :8000`
-- Kill existing process: `pkill -f uvicorn`
+**Answers say nothing is indexed** — check `GET /api/chat/health`; `documents_indexed` should
+be non-zero. If a video shows `ready` but the count is 0, re-run `generate_embeddings.py`.
 
-**Problem:** Ollama connection error
-- **Solution:** Ensure Ollama is running: `ollama serve`
-- Check model is installed: `ollama list`
+**Transcription fails immediately** — `ffmpeg` is missing from PATH.
 
-**Problem:** Slow responses
-- **Solution:** First query loads model into memory (5-10s). Subsequent queries are faster.
-
-### CLI Script Issues
-
-**Problem:** Out of memory during transcription
-- **Solution:** Use smaller Whisper model (`tiny` or `base`)
-
-**Problem:** ChromaDB compatibility error (Python 3.14)
-- **Solution:** Use CLI scripts for full RAG (they work). API uses simple Ollama service.
-
-**Problem:** No results in semantic search
-- **Solution:** Ensure embeddings were generated: `ls data/chroma_db/`
-- Try broader queries or increase `--num-results`
-
-### General Issues
-
-**Problem:** Module not found errors
-- **Solution:** Activate virtual environment: `source venv/bin/activate`
-
-**Problem:** ffmpeg not found
-- **Solution:** Install ffmpeg (see Prerequisites)
-
----
-
-## System Status
-
-| Component | Status | Details |
-|-----------|--------|---------|
-| Python | ✅ | 3.14.2 |
-| FastAPI | ✅ | Running on :8000 |
-| Ollama | ✅ | llama3.2:3b (2GB) |
-| Database | ✅ | SQLite (data/app.db) |
-| Whisper | ✅ | base model |
-| ChromaDB | ✅ | 0.3.23 (CLI only) |
-| LangChain | ✅ | 1.2.8 |
-| Embeddings | ✅ | all-MiniLM-L6-v2 |
-
----
-
-## Known Limitations
-
-- **Full RAG in API:** Currently unavailable due to Python 3.14 + ChromaDB compatibility. Use CLI scripts for full semantic search with timestamp citations.
-- **Video Upload:** API endpoint exists but background processing not yet implemented. Use CLI scripts to process videos.
-- **Sources:** API returns empty sources array (no document retrieval). CLI scripts provide full source attribution.
-
-**Workaround:** For full RAG functionality, use CLI:
-```bash
-python scripts/query_rag.py
-```
-
-## License
-
-This project is for educational purposes. All AI models used (Whisper, sentence-transformers, Ollama) are open-source and free to use.
-
+**Processing seems stuck** — Whisper on CPU is slow on long recordings. Watch the server log;
+each stage prints when it starts and finishes.

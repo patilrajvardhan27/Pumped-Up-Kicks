@@ -3,33 +3,78 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-cloud-nine text-midnight-mystery;
+    @apply bg-deck text-ink antialiased;
+    background-image:
+      radial-gradient(120% 80% at 50% -10%, rgba(242, 160, 61, 0.07), transparent 60%),
+      radial-gradient(80% 60% at 100% 100%, rgba(99, 168, 232, 0.05), transparent 65%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-signal text-well;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-signal ring-offset-2 ring-offset-deck rounded-sm;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
 @layer components {
+  .panel {
+    @apply bg-panel border border-line rounded-panel shadow-panel;
+  }
+
+  .eyebrow {
+    @apply font-mono text-eyebrow uppercase text-faint;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg font-medium
+           transition-all duration-150 disabled:cursor-not-allowed;
+  }
+
   .btn-primary {
-    @apply bg-electric-blueberry hover:bg-soft-serve active:bg-deep-purple-panda
-           text-snowflake-surprise font-semibold py-2 px-4 rounded-lg
-           transition-colors duration-200;
+    @apply btn bg-signal text-well hover:bg-signal-bright active:bg-signal-low
+           px-5 py-2.5 shadow-needle
+           disabled:bg-transparent disabled:text-faint disabled:shadow-none
+           disabled:border disabled:border-line;
   }
 
-  .btn-secondary {
-    @apply bg-sunny-delight hover:bg-butterscotch-dream active:bg-caramel-crush
-           text-void-vibes font-semibold py-2 px-4 rounded-lg
-           transition-colors duration-200;
-  }
-
-  .card {
-    @apply bg-snowflake-surprise border border-silver-lining rounded-lg
-           shadow-sm p-6;
+  .btn-ghost {
+    @apply btn border border-line text-muted hover:text-ink hover:border-line-bright
+           px-4 py-2 bg-transparent;
   }
 
   .input-field {
-    @apply border border-silver-lining rounded-lg px-4 py-2
-           focus:outline-none focus:ring-2 focus:ring-electric-blueberry
-           focus:border-transparent bg-snowflake-surprise
-           text-midnight-mystery placeholder:text-slate-skate;
+    @apply w-full bg-well border border-line rounded-lg px-4 py-3 text-ink
+           placeholder:text-faint transition-colors
+           focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal;
+  }
+
+  /* The running-tape texture: diagonal hatching that scrolls while work is
+     in progress. Used for upload and processing bars. */
+  .tape-moving {
+    background-image: repeating-linear-gradient(
+      -60deg,
+      rgba(255, 255, 255, 0.16) 0 8px,
+      transparent 8px 24px
+    );
+    @apply animate-tape-run;
   }
 }

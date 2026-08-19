@@ -7,15 +7,25 @@ A full-stack AI-powered lecture intelligence platform.
 ### Prerequisites
 - Python 3.11+ (for backend)
 - Node.js 18+ and npm (for frontend)
+- `ffmpeg` on your PATH (`brew install ffmpeg`)
+- Postgres 17+ with pgvector (`brew install postgresql@17 pgvector`)
+- A Claude API key — https://console.anthropic.com/settings/keys
 
 ### Running the Application
 
-**1. Start the Backend Server**
+**1. Configure and start the backend**
 ```bash
 cd server
+cp .env.example .env        # then set ANTHROPIC_API_KEY in .env
+alembic upgrade head        # create the schema
 ./start_server.sh
 ```
+
+Full setup instructions, including going to production, are in [SETUP.md](SETUP.md).
 The API will be available at `http://localhost:8000`
+
+Transcription, embedding, and search run locally. The Claude API is the only network
+call, and it only ever receives the excerpts that matched your question.
 
 **2. Start the Frontend (in a new terminal)**
 ```bash
@@ -32,16 +42,16 @@ Navigate to `http://localhost:3000` to see the landing page!
 
 ```
 .
-├── client/                 # React + TypeScript frontend
+├── client/                 # Next.js + TypeScript frontend
 │   ├── src/
-│   │   ├── pages/         # Landing page and other pages
-│   │   ├── components/    # Reusable UI components
-│   │   ├── services/      # API service layer
-│   │   └── ...
+│   │   ├── app/           # Landing page and /app workspace
+│   │   ├── components/    # UI components
+│   │   ├── services/      # API service layer (REST + SSE)
+│   │   └── config/        # Design tokens
 │   └── package.json
 ├── server/                 # FastAPI backend
 │   ├── api/               # API routes and services
-│   ├── src/               # Core services (RAG, embeddings, etc.)
+│   ├── src/               # Core services (Claude client, RAG, embeddings)
 │   ├── scripts/           # Video processing scripts
 │   └── data/              # Data storage
 └── README.md

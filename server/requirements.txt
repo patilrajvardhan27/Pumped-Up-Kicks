@@ -1,15 +1,35 @@
-numpy<2.4,>=1.22
-openai-whisper
-torch
-sentence-transformers
-chromadb==0.3.23
-pydantic>=2.0
-moviepy==1.0.3
-ffmpeg-python
-tqdm
+# API server dependencies.
+#
+# Deliberately excludes torch/whisper: with TRANSCRIBE_BACKEND=modal the API
+# never transcribes anything itself, which keeps the container near 300 MB
+# instead of 2.5 GB. For local transcription, also install requirements-local.txt.
 
-# LangChain packages
-langchain>=0.1.0
-langchain-community
-langchain-ollama
-ollama
+# --- web ---
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic>=2.0
+pydantic-settings
+
+# --- database ---
+sqlalchemy>=2.0
+psycopg[binary]>=3.1
+pgvector>=0.3
+alembic
+
+# --- auth ---
+pyjwt[crypto]>=2.8
+httpx
+
+# --- storage (Cloudflare R2 over the S3 API) ---
+boto3
+
+# --- embeddings: ONNX, no torch ---
+fastembed>=0.4
+numpy<2.4,>=1.22
+
+# --- answer generation ---
+anthropic>=0.69.0
+
+# --- serverless transcription dispatch ---
+modal

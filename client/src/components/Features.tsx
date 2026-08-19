@@ -1,51 +1,95 @@
-import Card from "./Card";
+/**
+ * Two sections: the pipeline (a real ordered sequence, so it is numbered) and
+ * what you get out of it (not a sequence, so it isn't).
+ */
+
+const PIPELINE = [
+  {
+    label: 'Upload',
+    body: 'Drop in a recording. It streams to the server with a live progress bar — you always know how much has landed.',
+    detail: 'MP4 · MOV · MKV · WEBM, up to 4 GB',
+  },
+  {
+    label: 'Transcribe',
+    body: 'Whisper turns the audio into timestamped text on your own machine. No audio leaves it, and it costs nothing per minute.',
+    detail: 'Runs locally',
+  },
+  {
+    label: 'Index',
+    body: 'The transcript is split into passages and embedded into a searchable index, so a question finds the right minute out of the whole hour.',
+    detail: 'Runs locally',
+  },
+  {
+    label: 'Ask',
+    body: 'Claude reads only the passages that matched and answers from them, citing the timestamp behind every claim.',
+    detail: 'Claude Sonnet 5',
+  },
+];
+
+const QUALITIES = [
+  {
+    title: 'Answers you can check',
+    body: 'Every claim carries the timestamp it came from. If the lecture never said it, the answer says so instead of guessing.',
+  },
+  {
+    title: 'Search that reads meaning',
+    body: 'Ask in your own words. Matching happens on meaning, not on whether you guessed the lecturer’s exact phrasing.',
+  },
+  {
+    title: 'Cost you can see',
+    body: 'Token counts and spend appear next to every answer, and repeat questions are served from cache for nothing.',
+  },
+];
 
 export default function Features() {
-  const features = [
-    {
-      title: "AI-Powered Analysis",
-      description: "Our AI analyzes your lectures to extract key insights and concepts",
-      color: "electric-blueberry" as const,
-      icon: "🤖",
-    },
-    {
-      title: "Smart Q&A",
-      description: "Ask questions about your lectures and get instant, accurate answers",
-      color: "teal-tango" as const,
-      icon: "💬",
-    },
-    {
-      title: "Timestamp Navigation",
-      description: "Jump to exact moments in videos based on topics and questions",
-      color: "lavender-latte" as const,
-      icon: "⏱️",
-    },
-    {
-      title: "Knowledge Graphs",
-      description: "Visualize connections between concepts across all your lectures",
-      color: "rosy-posy" as const,
-      icon: "🕸️",
-    },
-  ];
-
   return (
-    <section id="features" className="py-20 px-6 bg-cloud-nine">
-      <div className="max-w-6xl mx-auto">
-        <h2 className="text-4xl font-bold text-charcoal-champion text-center mb-12">
-          Supercharge Your Learning
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {features.map((feature, index) => (
-            <Card key={index} accentColor={feature.color}>
-              <div className="text-4xl mb-4">{feature.icon}</div>
-              <h3 className="text-2xl font-bold text-midnight-mystery mb-3">
-                {feature.title}
-              </h3>
-              <p className="text-storm-cloud">{feature.description}</p>
-            </Card>
-          ))}
+    <>
+      <section id="how" className="border-t border-line px-6 py-24">
+        <div className="mx-auto max-w-5xl">
+          <p className="eyebrow mb-4">What happens to a recording</p>
+          <h2 className="font-display text-display-lg text-ink mb-14 max-w-2xl">
+            Four steps. Three of them never leave your machine.
+          </h2>
+
+          <ol className="space-y-0">
+            {PIPELINE.map((step, index) => (
+              <li
+                key={step.label}
+                className="grid gap-4 border-t border-line py-8 last:border-b sm:grid-cols-[4rem_10rem_minmax(0,1fr)] sm:gap-8"
+              >
+                <span className="font-mono text-sm text-signal">
+                  {(index + 1).toString().padStart(2, '0')}
+                </span>
+                <div>
+                  <h3 className="font-display text-xl text-ink">{step.label}</h3>
+                  <p className="mt-1 font-mono text-[0.65rem] uppercase tracking-wider text-faint">
+                    {step.detail}
+                  </p>
+                </div>
+                <p className="leading-relaxed text-muted">{step.body}</p>
+              </li>
+            ))}
+          </ol>
         </div>
-      </div>
-    </section>
+      </section>
+
+      <section className="border-t border-line px-6 py-24">
+        <div className="mx-auto max-w-5xl">
+          <p className="eyebrow mb-4">What you get</p>
+          <h2 className="font-display text-display-lg text-ink mb-14 max-w-2xl">
+            A lecture you can interrogate.
+          </h2>
+
+          <div className="grid gap-8 md:grid-cols-3">
+            {QUALITIES.map((quality) => (
+              <div key={quality.title} className="border-l-2 border-signal/40 pl-5">
+                <h3 className="font-display text-lg text-ink mb-2">{quality.title}</h3>
+                <p className="text-sm leading-relaxed text-muted">{quality.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </>
   );
 }

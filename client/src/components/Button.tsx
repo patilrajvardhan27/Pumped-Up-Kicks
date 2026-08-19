@@ -2,7 +2,7 @@ import { ButtonHTMLAttributes, ReactNode } from 'react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
-  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'error';
+  variant?: 'primary' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -13,27 +13,28 @@ export default function Button({
   className = '',
   ...props
 }: ButtonProps) {
-  const baseStyles = 'font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
+  const base =
+    'inline-flex items-center justify-center gap-2 rounded-lg font-medium tracking-tight ' +
+    'transition-all duration-150 disabled:cursor-not-allowed';
 
   const variants = {
-    primary: 'bg-electric-blueberry hover:bg-soft-serve active:bg-deep-purple-panda text-snowflake-surprise focus:ring-electric-blueberry',
-    secondary: 'bg-sunny-delight hover:bg-butterscotch-dream active:bg-caramel-crush text-void-vibes focus:ring-sunny-delight',
-    success: 'bg-minty-fresh hover:bg-limelight active:bg-forest-friend text-snowflake-surprise focus:ring-minty-fresh',
-    warning: 'bg-banana-bonanza hover:bg-golden-glow active:bg-honey-buzz text-void-vibes focus:ring-banana-bonanza',
-    error: 'bg-strawberry-shock hover:bg-blush-berry active:bg-crimson-crisis text-snowflake-surprise focus:ring-strawberry-shock',
+    primary:
+      'bg-signal text-well hover:bg-signal-bright active:bg-signal-low shadow-needle ' +
+      'disabled:bg-transparent disabled:text-faint disabled:shadow-none disabled:border disabled:border-line',
+    ghost:
+      'border border-line text-muted hover:text-ink hover:border-line-bright bg-transparent disabled:text-faint',
+    danger:
+      'border border-fault-low text-fault hover:bg-fault-low/25 hover:border-fault bg-transparent disabled:opacity-50',
   };
 
   const sizes = {
     sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-base',
-    lg: 'px-6 py-3 text-lg',
+    md: 'px-5 py-2.5 text-[0.95rem]',
+    lg: 'px-7 py-3.5 text-base',
   };
 
   return (
-    <button
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
-      {...props}
-    >
+    <button className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...props}>
       {children}
     </button>
   );

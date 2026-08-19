@@ -1,133 +1,193 @@
-import subprocess
+"""
+The upload -> transcript -> index pipeline.
+
+Two transcription backends behind one interface: a local Whisper subprocess for
+development, and a Modal serverless GPU function for production. Both drive the
+same stage/progress fields, so the UI never knows which one ran.
+"""
 import json
+import subprocess
+import sys
 import time
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Callable, Dict, List, Optional
 
-class VideoProcessor:
-    def __init__(self):
-        self.server_dir = Path(__file__).parent.parent.parent
-        self.scripts_dir = self.server_dir / "scripts"
-        self.data_dir = self.server_dir / "data"
-        self.python_path = str(self.server_dir / "venv" / "bin" / "python3")
+from sqlalchemy.orm import Session
 
-    def transcribe_video(self, video_path: str, video_id: int) -> Dict:
-        try:
-            print(f"\n[Transcription] Starting transcription for video {video_id}")
-            print(f"[Transcription] File: {video_path}")
-            print(f"[Transcription] Using Python: {self.python_path}")
-            start_time = time.time()
+SERVER_DIR = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(SERVER_DIR / "src"))
 
-            result = subprocess.run(
-                [self.python_path, str(self.scripts_dir / "transcribe_video.py"), video_path],
-                capture_output=True,
-                text=True,
-                timeout=600
-            )
+from api.config import settings
+from api.models.database import Video
+from api.services.indexer import index_transcript
+from api.services.storage import get_storage
 
-            elapsed = time.time() - start_time
+STAGES = ("queued", "transcribing", "indexing", "ready", "failed")
 
-            if result.stdout:
-                print(f"[Transcription] stdout:\n{result.stdout}")
-            if result.stderr:
-                print(f"[Transcription] stderr:\n{result.stderr}")
+STAGE_LABELS = {
+    "queued": "Queued",
+    "transcribing": "Transcribing audio",
+    "indexing": "Building search index",
+    "ready": "Ready to query",
+    "failed": "Failed",
+}
 
-            if result.returncode == 0:
-                video_name = Path(video_path).stem
-                segments_file = self.data_dir / "transcriptions" / f"{video_name}_segments.json"
 
-                if segments_file.exists():
-                    print(f"[Transcription] Completed in {elapsed:.1f}s")
-                    return {
-                        "status": "success",
-                        "segments_file": str(segments_file),
-                        "message": "Transcription completed"
-                    }
+def probe_duration(path: Path) -> Optional[float]:
+    """Read a video's runtime with ffprobe. None if it can't be determined."""
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                str(path),
+            ],
+            capture_output=True, text=True, timeout=60,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return round(float(result.stdout.strip()), 2)
+    except Exception as e:
+        print(f"[Probe] Could not read duration: {e}")
+    return None
 
-            print(f"[Transcription] FAILED (exit code {result.returncode}) after {elapsed:.1f}s")
-            return {
-                "status": "error",
-                "message": result.stderr or "Transcription failed"
-            }
 
-        except subprocess.TimeoutExpired:
-            print(f"[Transcription] TIMEOUT after 600s")
-            return {
-                "status": "error",
-                "message": "Transcription timeout (10 minutes)"
-            }
-        except Exception as e:
-            print(f"[Transcription] EXCEPTION: {e}")
-            return {
-                "status": "error",
-                "message": str(e)
-            }
+# --- transcription backends -------------------------------------------------
 
-    def generate_embeddings(self, segments_file: str) -> Dict:
-        try:
-            print(f"\n[Embeddings] Starting embedding generation")
-            print(f"[Embeddings] Segments file: {segments_file}")
-            start_time = time.time()
 
-            result = subprocess.run(
-                [self.python_path, str(self.scripts_dir / "generate_embeddings.py"), segments_file],
-                capture_output=True,
-                text=True,
-                timeout=300
-            )
+def transcribe_local(storage_key: str) -> Dict:
+    """Run the existing Whisper script in a subprocess."""
+    storage = get_storage()
+    try:
+        local_path = storage.local_path(storage_key)
+    except Exception as e:
+        return {"status": "error", "message": f"Could not read the uploaded file: {e}"}
 
-            elapsed = time.time() - start_time
+    if not local_path.exists():
+        return {"status": "error", "message": "Uploaded file is missing from storage."}
 
-            if result.stdout:
-                print(f"[Embeddings] stdout:\n{result.stdout}")
-            if result.stderr:
-                print(f"[Embeddings] stderr:\n{result.stderr}")
+    python_path = str(SERVER_DIR / "venv" / "bin" / "python3")
+    script = SERVER_DIR / "scripts" / "transcribe_video.py"
 
-            if result.returncode == 0:
-                print(f"[Embeddings] Completed in {elapsed:.1f}s")
-                return {
-                    "status": "success",
-                    "message": "Embeddings generated"
-                }
+    print(f"[Transcribe:local] {local_path.name}")
+    started = time.time()
 
-            print(f"[Embeddings] FAILED (exit code {result.returncode}) after {elapsed:.1f}s")
-            return {
-                "status": "error",
-                "message": result.stderr or "Embedding generation failed"
-            }
+    result = subprocess.run(
+        [python_path, str(script), str(local_path)],
+        capture_output=True, text=True, timeout=3600,
+    )
 
-        except subprocess.TimeoutExpired:
-            print(f"[Embeddings] TIMEOUT after 300s")
-            return {
-                "status": "error",
-                "message": "Embedding generation timeout (5 minutes)"
-            }
-        except Exception as e:
-            print(f"[Embeddings] EXCEPTION: {e}")
-            return {
-                "status": "error",
-                "message": str(e)
-            }
+    if result.stdout:
+        print(result.stdout[-2000:])
+    if result.stderr:
+        print(result.stderr[-2000:])
 
-    def process_video(self, video_path: str, video_id: int) -> Dict:
-        transcribe_result = self.transcribe_video(video_path, video_id)
-
-        if transcribe_result["status"] != "success":
-            return transcribe_result
-
-        segments_file = transcribe_result["segments_file"]
-        embedding_result = self.generate_embeddings(segments_file)
-
+    if result.returncode != 0:
         return {
-            "transcription": transcribe_result,
-            "embeddings": embedding_result,
-            "overall_status": embedding_result["status"]
+            "status": "error",
+            "message": (result.stderr or "Transcription failed").strip()[-500:],
         }
 
-_processor: Optional[VideoProcessor] = None
+    segments_file = settings.transcripts_dir / f"{local_path.stem}_segments.json"
+    if not segments_file.exists():
+        return {"status": "error", "message": "Transcription produced no segments file."}
 
-def get_video_processor() -> VideoProcessor:
-    global _processor
-    if _processor is None:
-        _processor = VideoProcessor()
-    return _processor
+    with segments_file.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    print(f"[Transcribe:local] done in {time.time() - started:.1f}s")
+    return {
+        "status": "success",
+        "segments": data.get("segments", []),
+        "language": data.get("language"),
+    }
+
+
+def transcribe_modal(storage_key: str) -> Dict:
+    """Dispatch to the deployed Modal function (see modal_app.py)."""
+    try:
+        import modal
+
+        fn = modal.Function.from_name(settings.modal_app_name, "transcribe_from_r2")
+        print(f"[Transcribe:modal] dispatching {storage_key}")
+        result = fn.remote(storage_key)
+
+        if result.get("status") != "success":
+            return {"status": "error", "message": result.get("message", "Modal job failed")}
+
+        return {
+            "status": "success",
+            "segments": result.get("segments", []),
+            "language": result.get("language"),
+            "duration": result.get("duration"),
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": (
+                f"Could not reach the Modal transcription worker: {e}. "
+                "Check `modal deploy modal_app.py` has run."
+            ),
+        }
+
+
+def transcribe(storage_key: str) -> Dict:
+    if settings.transcribe_backend == "modal":
+        return transcribe_modal(storage_key)
+    return transcribe_local(storage_key)
+
+
+# --- pipeline ---------------------------------------------------------------
+
+
+def process_video(
+    db: Session,
+    video: Video,
+    on_stage: Optional[Callable[[str, int, Dict], None]] = None,
+) -> Dict:
+    """Transcribe then index one video, reporting progress as it goes."""
+
+    def report(stage: str, progress: int, **extra):
+        if on_stage:
+            on_stage(stage, progress, extra)
+
+    storage_key = video.storage_key
+    user_id = video.user_id
+    video_id = video.id
+
+    duration = None
+    if settings.storage_backend == "local":
+        try:
+            duration = probe_duration(get_storage().local_path(storage_key))
+        except Exception:
+            duration = None
+
+    report("transcribing", 5, duration=duration)
+
+    result = transcribe(storage_key)
+
+    if result["status"] != "success":
+        report("failed", 100, error=result.get("message"))
+        return {"overall_status": "error", "message": result.get("message")}
+
+    segments: List[Dict] = result.get("segments", [])
+    report(
+        "indexing",
+        70,
+        num_segments=len(segments),
+        duration=result.get("duration") or duration,
+    )
+
+    try:
+        num_chunks = index_transcript(db, video_id, user_id, segments)
+    except Exception as e:
+        report("failed", 100, error=f"Indexing failed: {e}")
+        return {"overall_status": "error", "message": str(e)}
+
+    if num_chunks == 0:
+        report("failed", 100, error="No speech was found in this recording.")
+        return {"overall_status": "error", "message": "No speech found"}
+
+    report("ready", 100, num_chunks=num_chunks)
+    return {"overall_status": "success", "num_chunks": num_chunks}

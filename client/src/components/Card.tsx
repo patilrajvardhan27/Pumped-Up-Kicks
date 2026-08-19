@@ -2,17 +2,16 @@ import { ReactNode } from 'react';
 
 interface CardProps {
   children: ReactNode;
-  accentColor?: string;
+  /** Tailwind border colour class for the left rule, e.g. "border-l-signal". */
+  accent?: string;
   className?: string;
 }
 
-export default function Card({ children, accentColor, className = '' }: CardProps) {
-  const borderColorClass = accentColor
-    ? `border-l-4 border-l-${accentColor}`
-    : '';
-
+export default function Card({ children, accent = 'border-l-line', className = '' }: CardProps) {
   return (
-    <div className={`bg-snowflake-surprise border border-silver-lining rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow duration-200 ${borderColorClass} ${className}`}>
+    <div
+      className={`panel border-l-2 ${accent} p-6 transition-colors duration-200 hover:border-line-bright ${className}`}
+    >
       {children}
     </div>
   );
