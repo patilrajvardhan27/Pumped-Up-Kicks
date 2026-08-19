@@ -1,270 +1,198 @@
-# Server - Video Transcription & RAG System
+# Pumped Up Kicks — Backend
 
-Backend server for video processing, transcription, embeddings, and RAG-based question answering.
+FastAPI service that turns lecture recordings into a searchable, question-answerable corpus.
 
-## Features
+Four components:
 
-- **Video Processing**: Extract audio from video files
-- **Transcription**: Speech-to-text using OpenAI Whisper (local)
-- **Embeddings**: Text embeddings using sentence-transformers
-- **Vector Storage**: ChromaDB for semantic search
-- **RAG Pipeline**: Question answering over video transcriptions
+1. **Video processing** — extracts audio and transcribes it with OpenAI Whisper, locally.
+2. **Retrieval** — chunks the transcript, embeds it with sentence-transformers, and stores it in FAISS.
+3. **Answering** — sends only the retrieved excerpts to the Claude API, which answers with timestamp citations.
+4. **Storage** — SQLite for video metadata, chat history, cost accounting, and the answer cache.
+
+Transcription, embedding, and search all run on your machine. The Claude API is the only
+network call, and it only ever sees the handful of excerpts that matched the question — never
+the audio, and never the full transcript.
+
+---
+
+## Architecture
+
+```
+                        ┌──────────────────────────┐
+                        │   Next.js client :3000   │
+                        └────────────┬─────────────┘
+                                     │ REST + SSE
+                        ┌────────────▼─────────────┐
+                        │   FastAPI  :8000         │
+                        │  /api/chat  /api/videos  │
+                        └──────┬────────────┬──────┘
+                               │            │
+              ┌────────────────▼───┐   ┌────▼──────────────────┐
+              │ LectureRAGService  │   │  VideoProcessor       │
+              └───┬────────────┬───┘   └────┬──────────────┬───┘
+                  │            │            │              │
+        ┌─────────▼──┐   ┌─────▼───────┐ ┌──▼────────┐ ┌───▼─────────┐
+        │ FAISS      │   │ ClaudeClient│ │ Whisper   │ │ Embeddings  │
+        │ (local)    │   │ → Claude API│ │ (local)   │ │ (local)     │
+        └────────────┘   └─────────────┘ └───────────┘ └─────────────┘
+```
+
+Everything talks to Claude through one file: `src/services/llm/claude_client.py`.
+Model choice, cost accounting, and error messages live there and nowhere else.
+
+---
 
 ## Setup
 
 ### Prerequisites
 
-- Python 3.8 or higher
-- ffmpeg (for video/audio processing)
+- Python 3.11+ (3.14 tested)
+- `ffmpeg` — `brew install ffmpeg` on macOS, `apt install ffmpeg` on Debian/Ubuntu
+- A Claude API key — https://console.anthropic.com/settings/keys
 
-### Install ffmpeg
-
-**macOS:**
-```bash
-brew install ffmpeg
-```
-
-**Ubuntu/Debian:**
-```bash
-sudo apt-get install ffmpeg
-```
-
-**Windows:**
-Download from https://ffmpeg.org/download.html
-
-### Install Python Dependencies
-
-**Create a virtual environment (recommended):**
+### Install
 
 ```bash
 cd server
-
-# Create virtual environment
 python3 -m venv venv
-
-# Activate it
-source venv/bin/activate  # macOS/Linux
-# OR on Windows: venv\Scripts\activate
-
-# Install dependencies
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**Note:** Always activate the virtual environment before running the scripts:
-```bash
-source venv/bin/activate  # Run this in the server/ directory
-```
+First run downloads the Whisper model (~150 MB for `base`) and the embedding model (~90 MB).
 
-This will install:
-- `openai-whisper` - Speech-to-text transcription
-- `sentence-transformers` - Text embeddings
-- `chromadb` - Vector database
-- `moviepy` - Video/audio processing
-- Other required dependencies
-
-### First-time Model Downloads
-
-The first time you run the scripts, models will be downloaded:
-- Whisper models: ~1-10GB depending on model size
-- Sentence-transformer models: ~100-500MB
-
-## Usage
-
-You can process videos in two ways:
-
-### Option A: Separate Steps (Recommended)
-
-This gives you more control and lets you review transcriptions before generating embeddings.
-
-#### Step 1: Transcribe Video
-
-Extract audio and transcribe to text:
+### Configure
 
 ```bash
-python scripts/transcribe_video.py "data/uploads/Classroom Capture Videos (online-video-cutter.com).mp4"
+cp .env.example .env
+# then edit .env and set ANTHROPIC_API_KEY
 ```
 
-This creates:
-- `data/transcriptions/<video>_transcript.txt` - Full text
-- `data/transcriptions/<video>.srt` - Subtitles
-- `data/transcriptions/<video>_segments.json` - Timestamped segments (used for embeddings)
+| Variable | Default | What it does |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | — | Required. Without it the API returns a clear "no key" message instead of an answer. |
+| `PUK_CLAUDE_MODEL` | `claude-sonnet-5` | Any Claude model id. `claude-haiku-4-5` is cheaper; `claude-opus-5` is stronger. |
+| `PUK_CLAUDE_EFFORT` | `low` | How much the model thinks: `low` → `max`. Grounded Q&A rarely needs more than `low`. |
+| `PUK_CLAUDE_MAX_TOKENS` | `2000` | Ceiling on answer length. Unused tokens cost nothing. |
 
-**Transcription options:**
-- `--whisper-model`: Model size (`tiny`, `base`, `small`, `medium`, `large`)
-  - `tiny`: Fastest, least accurate (~1GB)
-  - `base`: Good balance (default, ~1GB)
-  - `small`: Better accuracy (~2GB)
-  - `medium`: High accuracy (~5GB)
-  - `large`: Best accuracy (~10GB)
-- `--language`: Language code (e.g., `en`, `es`) - auto-detect if not specified
-- `--output-dir`: Output directory (default: `transcriptions`)
+The variables are app-prefixed on purpose — bare `CLAUDE_MODEL` / `CLAUDE_EFFORT` are set by
+other tools and would silently override these.
 
-**Example:**
-```bash
-python scripts/transcribe_video.py "data/uploads/video.mp4" \
-  --whisper-model small \
-  --language en \
-  --output-dir data/my_transcripts
-```
-
-#### Step 2: Generate Embeddings
-
-Create embeddings from the transcription JSON:
+### Run
 
 ```bash
-python scripts/generate_embeddings.py "data/transcriptions/Classroom_Capture_Videos_(online-video-cutter.com)_segments.json"
+./start_server.sh          # http://localhost:8000, docs at /docs
 ```
 
-**Embedding options:**
-- `--embedding-model`: Sentence-transformer model (default: `all-MiniLM-L6-v2`)
-  - `all-MiniLM-L6-v2`: Fast, good quality (384 dim)
-  - `all-mpnet-base-v2`: Higher quality (768 dim)
-  - `multi-qa-mpnet-base-dot-v1`: Optimized for Q&A
-- `--chunk-size`: Segments per chunk (default: 3)
-- `--collection-name`: Database collection name (default: `video_transcriptions`)
+---
 
-**Batch process multiple transcriptions:**
+## Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/videos/upload` | Multipart upload; queues processing and returns immediately |
+| `GET` | `/api/videos` | List videos with stage and progress |
+| `GET` | `/api/videos/{id}/status` | Lightweight status for polling during processing |
+| `DELETE` | `/api/videos/{id}` | Removes the file, transcript, and vector entries |
+| `POST` | `/api/chat/query` | Ask a question; returns answer, sources, and cost |
+| `POST` | `/api/chat/stream` | Same, streamed as server-sent events |
+| `GET` | `/api/chat/history` | Past questions with per-answer cost |
+| `GET` | `/api/chat/usage` | Running spend, question count, cache-hit rate |
+| `GET` | `/api/chat/health` | Index size, models in use |
+| `GET` | `/health` | Liveness, model name, whether a key is configured |
+
+---
+
+## Processing pipeline
+
+An upload moves through four stages, each persisted to the `videos` table so the client can
+poll `/api/videos/{id}/status` and show exactly where it is:
+
+| Stage | Progress | What happens |
+|---|---|---|
+| `queued` | 0% | File written to `data/uploads/`, row created |
+| `transcribing` | 5% | ffprobe reads duration; Whisper produces timestamped segments |
+| `indexing` | 70% | Segments chunked, embedded, appended to the FAISS index |
+| `ready` | 100% | Queryable |
+| `failed` | 100% | `error_message` holds the reason |
+
+Transcription is the slow step — roughly real time to a few times faster than real time on
+CPU, depending on the machine. It runs as a FastAPI background task, so the upload request
+returns as soon as the bytes are on disk.
+
+---
+
+## Cost
+
+Only step 4 costs money. A typical question sends ~5 excerpts (2–4k input tokens) and gets
+back a few hundred output tokens.
+
+| Model | Input / output per 1M | Rough cost per question |
+|---|---|---|
+| `claude-haiku-4-5` | $1 / $5 | ~$0.005 |
+| `claude-sonnet-5` | $3 / $15 | ~$0.015 |
+| `claude-opus-5` | $5 / $25 | ~$0.025 |
+
+Three things keep this down, all on by default:
+
+- **Retrieval, not stuffing.** Only matched excerpts are sent, never the whole transcript.
+- **Answer cache.** A repeated question over unchanged content is served from SQLite for $0.
+- **Low effort.** `PUK_CLAUDE_EFFORT=low` — the answer is already in the context.
+
+`GET /api/chat/usage` reports what has actually been spent.
+
+---
+
+## CLI
+
 ```bash
-python scripts/generate_embeddings.py --batch data/transcriptions/
+# Transcribe a video
+venv/bin/python scripts/transcribe_video.py data/uploads/lecture.mp4
+
+# Index the transcript
+venv/bin/python scripts/generate_embeddings.py data/transcriptions/lecture_segments.json
+
+# Ask a question
+venv/bin/python scripts/query_rag.py --query "what are the limitations?"
+venv/bin/python scripts/query_rag.py --stats
 ```
 
-### Query the RAG System
+---
 
-**Interactive mode:**
-```bash
-python scripts/query_rag.py
-```
-
-Then type your questions:
-```
-Query: What topics were discussed in the video?
-Query: Explain the main concept from the lecture
-Query: exit
-```
-
-**Single query mode:**
-```bash
-python scripts/query_rag.py --query "What is the main topic?" --num-results 5
-```
-
-## Output Files
-
-### Transcription Output
-
-Files saved to `data/transcriptions/` directory:
-- `<video_name>_transcript.txt` - Full transcription text
-- `<video_name>.srt` - Subtitle file (SRT format)
-- `<video_name>_segments.json` - JSON with all segments and timestamps (needed for embeddings)
-
-### Embeddings Output
-
-- `data/chroma_db/` - Vector database with embeddings (persistent storage)
-
-## Project Structure
+## Layout
 
 ```
 server/
-├── scripts/
-│   ├── transcribe_video.py              # Step 1: Transcribe video to text
-│   ├── generate_embeddings.py           # Step 2: Create embeddings from transcription
-│   └── query_rag.py                     # Query interface for RAG
-├── src/
+├── api/
+│   ├── main.py                        # app, CORS, lifespan, /health
+│   ├── models/database.py             # Video, ChatHistory, AnswerCache + migration
+│   ├── routes/chat.py                 # query, stream, history, usage, health
+│   ├── routes/videos.py               # upload, list, status, delete
 │   └── services/
-│       ├── video_processing/
-│       │   └── audio_extractor.py       # Extract audio from video
-│       ├── transcription/
-│       │   └── whisper_transcriber.py   # Whisper transcription
-│       ├── embeddings/
-│       │   ├── embedding_generator.py   # Generate embeddings
-│       │   └── vector_store.py          # ChromaDB integration
-│       └── rag/
-│           └── rag_pipeline.py          # RAG query pipeline
-├── data/
-│   ├── uploads/                         # Video files
-│   ├── temp/                            # Temporary audio files
-│   ├── transcriptions/                  # Transcription outputs (.txt, .srt, .json)
-│   └── chroma_db/                       # Vector database (embeddings)
-├── config/                              # Configuration files
-├── requirements.txt                     # Python dependencies
-└── README.md                            # Documentation
+│       ├── lecture_rag_service.py     # retrieval + Claude, used by the API
+│       └── video_processor.py         # transcription and indexing pipeline
+├── src/services/
+│   ├── llm/claude_client.py           # the only place that calls Claude
+│   ├── embeddings/                    # sentence-transformers + FAISS
+│   ├── transcription/                 # Whisper
+│   ├── video_processing/              # audio extraction
+│   └── rag/claude_rag.py              # CLI-facing RAG over the same index
+├── scripts/                           # transcribe, embed, query
+└── data/
+    ├── uploads/  transcriptions/  faiss_db/  app.db
 ```
 
-## How It Works
-
-### Processing Pipeline
-
-1. **Audio Extraction**: Extract audio track from video using moviepy
-2. **Transcription**: Transcribe audio using Whisper, get text segments with timestamps
-3. **Chunking**: Combine segments into chunks for better context
-4. **Embedding Generation**: Generate vector embeddings for each chunk using sentence-transformers
-5. **Vector Storage**: Store embeddings in ChromaDB for semantic search
-
-### RAG Query Pipeline
-
-1. **Query Embedding**: Convert user query to vector embedding
-2. **Similarity Search**: Find most similar chunks in vector database
-3. **Context Building**: Retrieve relevant text segments with timestamps
-4. **Results Display**: Show matching segments with similarity scores and timestamps
-
-## Advanced Usage
-
-### Python API
-
-```python
-from pathlib import Path
-import sys
-sys.path.append(str(Path(__file__).parent / "src"))
-
-from src.services.embeddings.embedding_generator import EmbeddingGenerator
-from src.services.embeddings.vector_store import VectorStore
-from src.services.rag.rag_pipeline import RAGPipeline
-
-# Initialize
-embedding_gen = EmbeddingGenerator(model_name="all-MiniLM-L6-v2")
-vector_store = VectorStore(persist_directory="chroma_db")
-rag = RAGPipeline(embedding_gen, vector_store)
-
-# Query
-results = rag.retrieve("What is discussed?", n_results=5)
-for result in results:
-    print(f"Time: {result['metadata']['timestamp']}")
-    print(f"Text: {result['document']}")
-    print(f"Similarity: {1 - result['distance']:.2%}")
-```
-
-### Filter by Video
-
-Query specific videos using metadata filters:
-
-```python
-results = rag.retrieve(
-    "topic",
-    n_results=5,
-    where={"video_file": "specific_video.mp4"}
-)
-```
-
-## Performance Tips
-
-- **Whisper Model**: Use `base` for good balance. Use `small` or `medium` for better accuracy if you have a GPU
-- **Chunk Size**: Larger chunks (5-10) for general topics, smaller chunks (2-3) for precise timestamps
-- **Embedding Model**:
-  - `all-MiniLM-L6-v2`: Fast, good quality (384 dim)
-  - `all-mpnet-base-v2`: Higher quality (768 dim)
-  - `multi-qa-mpnet-base-dot-v1`: Optimized for Q&A
+---
 
 ## Troubleshooting
 
-**Out of memory:**
-- Use smaller Whisper model (`tiny` or `base`)
-- Process shorter video segments
-- Use smaller embedding model
+**"No Claude API key found"** — `.env` is missing or has no `ANTHROPIC_API_KEY`. The server
+prints whether it found a key at startup.
 
-**Slow transcription:**
-- Whisper is CPU-intensive. For faster processing, use a GPU-enabled environment
-- Use smaller model size
+**Answers say nothing is indexed** — check `GET /api/chat/health`; `documents_indexed` should
+be non-zero. If a video shows `ready` but the count is 0, re-run `generate_embeddings.py`.
 
-**No results in queries:**
-- Check that videos have been processed: `python query_rag.py` will show document count
-- Try broader queries
-- Increase `n_results`
+**Transcription fails immediately** — `ffmpeg` is missing from PATH.
+
+**Processing seems stuck** — Whisper on CPU is slow on long recordings. Watch the server log;
+each stage prints when it starts and finishes.

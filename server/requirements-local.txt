@@ -1,0 +1,11 @@
+# Extra dependencies for running transcription on this machine
+# (TRANSCRIBE_BACKEND=local). Not needed in production, where Modal does it.
+#
+#   pip install -r requirements.txt -r requirements-local.txt
+
+-r requirements.txt
+
+openai-whisper
+torch
+ffmpeg-python
+tqdm
