@@ -35,17 +35,6 @@ export interface ChatRequest {
   top_k?: number;
 }
 
-export interface ChatResponse {
-  conversation_id: number;
-  message_id: number;
-  answer: string;
-  sources: Source[];
-  response_time: number;
-  num_sources: number;
-  usage?: Usage;
-  cache_hit: boolean;
-}
-
 /** Events emitted by POST /api/chat/stream. */
 export type StreamEvent =
   | { type: 'conversation'; conversation_id: number }
@@ -83,24 +72,6 @@ export interface ConversationItem {
 
 export interface ConversationDetail extends ConversationItem {
   messages: MessageItem[];
-}
-
-export interface HealthResponse {
-  status: string;
-  documents_indexed: number;
-  embedding_model: string;
-  llm_model: string;
-  vector_store: string;
-}
-
-export interface ServerHealth {
-  status: string;
-  database: string;
-  model: string;
-  claude_configured: boolean;
-  auth_mode: 'dev' | 'clerk';
-  storage_backend: 'local' | 'r2';
-  transcribe_backend: 'local' | 'modal';
 }
 
 export interface UsageSummary {

@@ -9,11 +9,19 @@ sys.path.append(str(Path(__file__).parent.parent / "src"))
 from services.video_processing.audio_extractor import AudioExtractor
 from services.transcription.whisper_transcriber import WhisperTranscriber
 
-def transcribe_video(video_path: str, output_dir: str = "data/transcriptions"):
+# Folders are resolved from this file, not the caller's working directory, so the
+# API (which reads transcripts from server/data) finds them wherever it was started.
+SERVER_DIR = Path(__file__).resolve().parent.parent
+TEMP_DIR = SERVER_DIR / "data" / "temp"
+TRANSCRIPTS_DIR = SERVER_DIR / "data" / "transcriptions"
+
+
+def transcribe_video(video_path: str, output_dir: str = str(TRANSCRIPTS_DIR)):
     print(f"Processing video: {video_path}")
 
     # Extract audio
-    extractor = AudioExtractor(temp_dir="data/temp")
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
+    extractor = AudioExtractor(temp_dir=str(TEMP_DIR))
     audio_path = extractor.extract_audio(video_path)
     print(f"Audio extracted: {audio_path}")
 
@@ -49,7 +57,7 @@ def transcribe_video(video_path: str, output_dir: str = "data/transcriptions"):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("video_path", help="Path to video file")
-    parser.add_argument("--output-dir", default="data/transcriptions")
+    parser.add_argument("--output-dir", default=str(TRANSCRIPTS_DIR))
 
     args = parser.parse_args()
 

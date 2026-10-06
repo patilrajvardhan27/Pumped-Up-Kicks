@@ -1,9 +1,11 @@
 """Pumped Up Kicks API."""
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from sqlalchemy.exc import InterfaceError, OperationalError
 
 from api.config import settings
 from api.models.database import get_engine
@@ -61,6 +63,30 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(OperationalError)
+@app.exception_handler(InterfaceError)
+async def database_unavailable(request: Request, exc: Exception) -> JSONResponse:
+    """
+    A database that can't be reached is an outage, not a server bug.
+
+    Answering 503 with a JSON `detail` lets the client show a real message, and
+    because this handler sits inside the CORS middleware the browser can read it
+    (an unhandled 500 is sent without CORS headers and surfaces as a CORS error).
+    """
+    # One line, not the 250-line SQLAlchemy chain, which repeats on every poll.
+    reason = str(getattr(exc, "orig", exc)).strip().splitlines()[0]
+    print(f"[Database] {request.method} {request.url.path}: {reason}")
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "Can't reach the database. Check that Postgres is running and "
+                      "that DATABASE_URL in server/.env is correct."
+        },
+        headers={"Retry-After": "5"},
+    )
+
 
 app.include_router(chat.router)
 app.include_router(videos.router)
