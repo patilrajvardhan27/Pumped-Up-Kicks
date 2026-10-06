@@ -1,199 +1,196 @@
 # Pumped Up Kicks
 
-A full-stack AI-powered lecture intelligence platform.
+**Ask your lecture a question. Get the answer, and the exact second your professor said it.**
 
-## Quick Start
+Upload a recorded lecture and ask in plain English. Every claim in the answer links to a timestamp like `[12:04]`, and clicking it jumps the video there. Answers come only from your own lectures. If the lecture didn't cover it, it says so.
 
-### Prerequisites
-- Python 3.11+ (for backend)
-- Node.js 18+ and npm (for frontend)
-- `ffmpeg` on your PATH (`brew install ffmpeg`)
-- Postgres 17+ with pgvector (`brew install postgresql@17 pgvector`)
-- A Claude API key — https://console.anthropic.com/settings/keys
+---
 
-### Running the Application
+## Architecture
 
-**1. Configure and start the backend**
+```mermaid
+flowchart TB
+    subgraph Vercel
+        UI[Next.js client]
+    end
+    CL[Clerk<br/>auth + JWKS]
+    subgraph Railway
+        API[FastAPI]
+        BG[Background jobs]
+    end
+    subgraph Data
+        PG[(Neon Postgres<br/>+ pgvector)]
+        R2[(Cloudflare R2)]
+    end
+    MO[Modal<br/>GPU worker]
+    AN[Claude API]
+
+    UI -->|sign in| CL
+    UI -->|JWT, REST + SSE| API
+    UI -->|presigned upload / playback| R2
+    API -->|verify JWT| CL
+    API -->|SQL + vector search| PG
+    API --> BG
+    BG -->|object key| MO
+    MO -->|pull audio| R2
+    BG -->|chunks + embeddings| PG
+    API -->|top-k excerpts| AN
+```
+
+Video never passes through the API: browser to R2 to Modal.
+
+---
+
+## Ingest pipeline
+
+```mermaid
+flowchart LR
+    A[Upload] --> B[(R2)]
+    B --> C[faster-whisper<br/>Modal A10G]
+    C --> D[Timestamped<br/>segments]
+    D --> E[Chunker<br/>75 s windows<br/>18 s overlap]
+    E --> F[fastembed ONNX<br/>MiniLM, 384-d]
+    F --> G[(pgvector<br/>HNSW cosine)]
+```
+
+Status: `queued → transcribing → indexing → ready | failed`, stored on the video row and polled by the UI.
+
+---
+
+## Ask flow
+
+```mermaid
+sequenceDiagram
+    participant U as Client
+    participant API as FastAPI
+    participant PG as pgvector
+    participant C as Claude
+
+    U->>API: POST /api/chat/stream
+    API->>API: Check spend quota (402 if over)
+    API->>PG: Embed question, top-5 chunks for this user
+    PG-->>API: Excerpts + timestamps
+    API->>API: Answer cache lookup
+    API->>C: Prompt with excerpts only
+    C-->>API: Token stream
+    API-->>U: SSE: sources, tokens, cost
+    U->>U: [12:04] becomes a seek link
+```
+
+---
+
+## Data model
+
+```mermaid
+erDiagram
+    users ||--o{ videos : uploads
+    users ||--o{ conversations : owns
+    videos ||--o{ chunks : "split into"
+    videos ||--o{ conversations : about
+    conversations ||--o{ messages : contains
+    messages ||--o{ message_sources : cites
+    chunks ||--o{ message_sources : "cited by"
+
+    users {
+        string id PK "Clerk id"
+        string plan
+    }
+    videos {
+        bigint id PK
+        string user_id FK
+        string storage_key
+        string stage
+        float duration_s
+    }
+    chunks {
+        bigint id PK
+        bigint video_id FK
+        string user_id FK
+        float start_s
+        float end_s
+        vector embedding "384-d, HNSW"
+    }
+    conversations {
+        bigint id PK
+        string user_id FK
+        bigint video_id FK
+    }
+    messages {
+        bigint id PK
+        bigint conversation_id FK
+        string role
+        numeric cost_usd
+    }
+    message_sources {
+        bigint message_id FK
+        bigint chunk_id FK
+        real similarity
+    }
+```
+
+Plus `answer_cache` (cache key, answer, hit count). All foreign keys cascade on delete.
+
+---
+
+## Key decisions
+
+- **Time-window chunks.** 75 s windows with 18 s overlap keep an explanation whole across boundaries.
+- **Vectors in Postgres.** Tenant filter, joins, and cascade deletes run in one database, with no separate vector store to sync.
+- **Self-invalidating cache.** The key is a hash of model + question + retrieved chunk IDs. Re-indexing changes the IDs.
+- **Ledger quotas.** Spend is summed from `messages.cost_usd` and checked before every Claude call.
+- **Signed playback.** `<video>` can't send auth headers, so `/playback` returns a short-lived URL scoped to one object, one user, one expiry.
+- **Swappable backends.** `STORAGE_BACKEND=local|r2`, `TRANSCRIBE_BACKEND=local|modal`.
+- **Lean image.** ONNX embeddings (no PyTorch) plus GPU work on Modal take the API image from ~2.5 GB to ~300 MB.
+
+---
+
+## Tech stack
+
+| | |
+|---|---|
+| **Frontend** | Next.js 15, React 18, TypeScript, Tailwind CSS, SSE |
+| **API** | FastAPI, Pydantic v2, SQLAlchemy 2.0, Alembic |
+| **Retrieval** | PostgreSQL 17, pgvector (HNSW), fastembed, all-MiniLM-L6-v2 |
+| **Transcription** | faster-whisper on Modal (A10G) or local Whisper, ffmpeg |
+| **LLM** | Claude (streaming, adaptive thinking, per-call cost tracking) |
+| **Auth / Storage** | Clerk JWT, Cloudflare R2 (S3 API, presigned URLs) |
+| **Deploy** | Vercel, Railway, Neon, Modal |
+
+---
+
+## Run locally
+
+Needs Python 3.11+, Node 18+, ffmpeg, PostgreSQL 17 with pgvector, and an Anthropic API key.
+
 ```bash
+# Database
+brew install postgresql@17 pgvector && brew services start postgresql@17
+createdb kicks_dev && psql -d kicks_dev -c "create extension vector;"
+
+# API  ->  http://localhost:8000/docs
 cd server
-cp .env.example .env        # then set ANTHROPIC_API_KEY in .env
-alembic upgrade head        # create the schema
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt -r requirements-local.txt
+cp .env.example .env            # add ANTHROPIC_API_KEY
+alembic upgrade head
 ./start_server.sh
+
+# Client  ->  http://localhost:3000
+cd client && npm install && npm run dev
 ```
 
-Full setup instructions, including going to production, are in [SETUP.md](SETUP.md).
-The API will be available at `http://localhost:8000`
+`AUTH_MODE=dev` skips sign-in. Production setup (Clerk, R2, Modal, Neon, Railway, Vercel) is in [SETUP.md](SETUP.md).
 
-Transcription, embedding, and search run locally. The Claude API is the only network
-call, and it only ever receives the excerpts that matched your question.
+---
 
-**2. Start the Frontend (in a new terminal)**
-```bash
-cd client
-npm install  # First time only
-npm run dev
-```
-The web app will be available at `http://localhost:3000`
+## Known limits
 
-**3. Open your browser**
-Navigate to `http://localhost:3000` to see the landing page!
+- Jobs run in FastAPI `BackgroundTasks`, so a restart loses in-flight work. Next: Redis + RQ.
+- Filtered HNSW recall drops as tenants grow. Next: `hnsw.iterative_scan` (pgvector 0.8+).
+- English only. No full transcript view yet.
 
-## Project Structure
+---
 
-```
-.
-├── client/                 # Next.js + TypeScript frontend
-│   ├── src/
-│   │   ├── app/           # Landing page and /app workspace
-│   │   ├── components/    # UI components
-│   │   ├── services/      # API service layer (REST + SSE)
-│   │   └── config/        # Design tokens
-│   └── package.json
-├── server/                 # FastAPI backend
-│   ├── api/               # API routes and services
-│   ├── src/               # Core services (Claude client, RAG, embeddings)
-│   ├── scripts/           # Video processing scripts
-│   └── data/              # Data storage
-└── README.md
-```
+## Team
 
-## Getting Started
-
-**"Rewind your lectures, fast‑forward your learning."**
-
-*Like a VCR for your brain — pause, rewind, and replay knowledge exactly when you need it. Every lecture becomes a searchable memory you can access instantly.*
-
-Students deal with online recorded lectures on a daily basis. Yet, they tend to miss the important explanations, and revisiting is a manual and tedious task. Important explanations get buried in the extremely long videos and revisiting requires a fair amount of guesswork.
-
-Notes are incomplete, subjective, or disconnected from the actual lecture and there is no easy way to *ask* a lecture a question later.
-
-This can lead to cognitive exhaustion and poor retention of information.
-
-Pumped‑Up‑Kicks solves this by transforming passive lecture videos into an interactive, searchable, and conversational knowledge system.
-
-### Solution Overview:
-
-Pumped‑Up‑Kicks is an AI‑powered lecture intelligence platform that:
-
-- Converts videos into accurate, timestamped transcripts
-- Indexes lecture content for semantic search and retrieval
-- Allows users to rewind knowledge by querying lectures in natural language
-- Acts as a personal academic memory that grows over time
-
-### System Architecture Overview
-
-The system is divided into four core components:
-
-1. Video Processing & Transcription Pipeline
-2. RAG System & Vector Database
-3. Chatbot API & LLM Integration
-4. Backend Infrastructure & Database
-
-### Functional Requirements
-
-- Support video uploads (e.g., recorded lectures)
-- Extract audio streams from video files
-- Transcribe audio using Speech‑to‑Text models (e.g., Whisper, Google STT)
-- Generate word‑ or sentence‑level timestamps
-- Store transcripts linked to original video timecodes
-- Maintain video metadata (title, duration, course, upload date)
-- Chunk transcripts into semantically meaningful segments
-- Generate embeddings for each chunk
-- Store embeddings in a vector database (e.g., FAISS, Pinecone, Weaviate)
-- Retrieve relevant lecture segments based on user queries
-- Preserve timestamps for retrieved chunks
-- Accept natural language queries ("Explain Fourier Transform again")
-- Use RAG to inject relevant transcript context into prompts
-- Generate concise, accurate answers via LLM (GPT, Claude, etc.)
-- Reference exact timestamps for cited explanations
-- Provide follow‑up question handling
-- User authentication & authorization
-- Lecture and transcript storage
-- Metadata management
-- API endpoints for frontend interaction
-- Background job handling (video processing, transcription)
-- Error handling and logging
-
-### Scope
-
-- Single‑speaker and multi‑speaker lectures
-- Long‑form academic content (1–3 hours)
-- English language (initially)
-- Semantic search across one or multiple lectures
-- Context retrieval for downstream LLM responses
-- Cross‑user shared knowledge graphs (future enhancement)
-- Lecture‑specific Q&A
-- Concept clarification and summarization
-- Timestamp‑linked answers
-- Cloud‑based backend (AWS/GCP/Azure)
-- Modular microservice‑friendly design
-- Scalable storage for large video files
-- Offline‑only usage (for later)
-
-### MVP Deliverables
-
-- Upload a lecture video
-- Generate transcript with timestamps
-- Ask a question and receive a timestamped answer
-- Jump directly to the relevant video moment
-
-Quick Commands
-
-  Start Backend:
-  cd server
-  source venv/bin/activate
-  ./start_server.sh
-
-  Start Frontend:
-  cd client
-  npm run dev
-
-  Stop Servers:
-  # Stop backend
-  lsof -ti:8000 | xargs kill
-
-  # Stop frontend
-  lsof -ti:3000 | xargs kill
-
-  Restart Both:
-  # Stop all
-  lsof -ti:8000,3000 | xargs kill
-
-  # Start backend (in background)
-  cd server && source venv/bin/activate && ./start_server.sh &
-
-  # Start frontend
-  cd client && npm run dev
-
-  ---
-  Access Points
-
-  Once both are running:
-
-  - Main App: http://localhost:3000/app
-  - Landing: http://localhost:3000
-  - API Docs: http://localhost:8000/docs
-  - API Health: http://localhost:8000/health
-
-  ---
-  Troubleshooting
-
-  Port already in use:
-  # Kill processes on ports
-  lsof -ti:8000 | xargs kill  # Backend
-  lsof -ti:3000 | xargs kill  # Frontend
-
-  Backend won't start:
-  # Make sure you're in venv
-  cd server
-  source venv/bin/activate
-  python --version  # Should show Python 3.14
-
-  Frontend won't start:
-  # Reinstall dependencies
-  cd client
-  rm -rf node_modules
-  npm install
-  npm run dev
-
-Team: Sejal Hukare, Ishita Pawar, Rajvardhan Patil, Chetan Monhot.
+Sejal Hukare, Ishita Pawar, Rajvardhan Patil, Chetan Monhot
