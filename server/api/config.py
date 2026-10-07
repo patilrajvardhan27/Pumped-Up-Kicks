@@ -10,9 +10,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 SERVER_DIR = Path(__file__).parent.parent
+DEFAULT_SECRET_KEY = "dev-insecure-change-me"
 
 
 class Settings(BaseSettings):
@@ -74,12 +76,31 @@ class Settings(BaseSettings):
     pro_plan_monthly_usd: float = 20.00
     max_upload_bytes: int = 4 * 1024 * 1024 * 1024
 
+    # -- abuse limits ----------------------------------------------------
+    # Requests per minute per user on the endpoints that cost money. 0 turns one off.
+    rate_limit_chat_per_minute: int = 20
+    rate_limit_upload_per_minute: int = 10
+    max_question_chars: int = 2000
+    max_title_chars: int = 200
+
     # -- web -------------------------------------------------------------
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
 
     # Signs the short-lived media URLs a <video> element loads directly.
     # Override in production: a known secret means anyone can mint playback links.
-    secret_key: str = "dev-insecure-change-me"
+    secret_key: str = DEFAULT_SECRET_KEY
+
+    @model_validator(mode="after")
+    def _no_default_secret_with_real_auth(self):
+        # Real sign-in means real users: a published default key lets anyone
+        # forge playback links to any lecture.
+        if self.auth_mode == "clerk" and self.secret_key == DEFAULT_SECRET_KEY:
+            raise ValueError(
+                "SECRET_KEY is still the development default. Generate one with "
+                "`python -c \"import secrets;print(secrets.token_urlsafe(32))\"` "
+                "and set it in server/.env before using AUTH_MODE=clerk."
+            )
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:

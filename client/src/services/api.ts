@@ -3,15 +3,11 @@ import { currentToken } from '@/lib/authToken';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export const API_ENDPOINTS = {
-  CHAT_QUERY: `${API_BASE_URL}/api/chat/query`,
   CHAT_STREAM: `${API_BASE_URL}/api/chat/stream`,
   CHAT_USAGE: `${API_BASE_URL}/api/chat/usage`,
-  CHAT_HEALTH: `${API_BASE_URL}/api/chat/health`,
   CONVERSATIONS: `${API_BASE_URL}/api/chat/conversations`,
   CONVERSATION: (id: number) => `${API_BASE_URL}/api/chat/conversations/${id}`,
   VIDEOS_LIST: `${API_BASE_URL}/api/videos`,
-  VIDEOS_DETAIL: (id: number) => `${API_BASE_URL}/api/videos/${id}`,
-  VIDEOS_STATUS: (id: number) => `${API_BASE_URL}/api/videos/${id}/status`,
   VIDEOS_PLAYBACK: (id: number) => `${API_BASE_URL}/api/videos/${id}/playback`,
   VIDEOS_DELETE: (id: number) => `${API_BASE_URL}/api/videos/${id}`,
   VIDEOS_PRESIGN: `${API_BASE_URL}/api/videos/presign`,
@@ -31,10 +27,22 @@ export class ApiError extends Error {
   }
 }
 
+/** FastAPI sends a string for its own errors and a list of {msg} objects for validation errors. */
+function messageFrom(detail: unknown): string | null {
+  if (typeof detail === 'string' && detail) return detail;
+  if (Array.isArray(detail)) {
+    const first: unknown = detail[0];
+    if (typeof first === 'object' && first !== null && 'msg' in first && typeof first.msg === 'string') {
+      return first.msg;
+    }
+  }
+  return null;
+}
+
 async function toError(response: Response, fallback: string): Promise<ApiError> {
   try {
-    const body = await response.json();
-    return new ApiError(body.detail || fallback, response.status);
+    const body: { detail?: unknown } = await response.json();
+    return new ApiError(messageFrom(body.detail) ?? fallback, response.status);
   } catch {
     return new ApiError(`${fallback} (${response.status})`, response.status);
   }
@@ -46,7 +54,7 @@ async function authHeaders(base: Record<string, string> = {}): Promise<Record<st
   return token ? { ...base, Authorization: `Bearer ${token}` } : base;
 }
 
-export class ApiClient {
+class ApiClient {
   async get<T>(endpoint: string): Promise<T> {
     const response = await fetch(endpoint, {
       method: 'GET',
@@ -187,7 +195,7 @@ export class ApiClient {
           return;
         }
         try {
-          reject(new ApiError(JSON.parse(xhr.responseText).detail || 'Upload failed', xhr.status));
+          reject(new ApiError(messageFrom(JSON.parse(xhr.responseText).detail) ?? 'Upload failed', xhr.status));
         } catch {
           reject(new ApiError(`Upload failed (${xhr.status})`, xhr.status));
         }

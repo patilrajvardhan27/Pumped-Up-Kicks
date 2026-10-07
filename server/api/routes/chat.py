@@ -25,6 +25,7 @@ from api.models.database import (
 )
 from api.services.lecture_rag_service import get_rag_service
 from api.services.quota import QuotaExceeded, enforce, get_quota
+from api.services.ratelimit import rate_limit
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -54,7 +55,7 @@ class Usage(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    question: str = Field(..., min_length=1)
+    question: str = Field(..., min_length=1, max_length=settings.max_question_chars)
     conversation_id: Optional[int] = None
     video_id: Optional[int] = None
     top_k: Optional[int] = Field(None, ge=1, le=20)
@@ -252,7 +253,11 @@ def _cache_store(db: Session, user_id: str, key: str, question: str, result: dic
 # --- routes -----------------------------------------------------------------
 
 
-@router.post("/query", response_model=ChatResponse)
+@router.post(
+    "/query",
+    response_model=ChatResponse,
+    dependencies=[rate_limit("chat", settings.rate_limit_chat_per_minute)],
+)
 def chat_query(request: ChatRequest, ctx: RequestContext = Ctx):
     rag = get_rag_service()
 
@@ -293,7 +298,7 @@ def chat_query(request: ChatRequest, ctx: RequestContext = Ctx):
             ctx.db, ctx.user_id, request.question,
             video_id=conversation.video_id, top_k=request.top_k,
         )
-        if key and not result.get("error"):
+        if key and not result.get("error") and not result.get("not_covered"):
             _cache_store(ctx.db, ctx.user_id, key, request.question, result)
 
     assistant = _persist_turn(ctx.db, conversation, request.question, result, cache_hit)
@@ -310,7 +315,7 @@ def chat_query(request: ChatRequest, ctx: RequestContext = Ctx):
     )
 
 
-@router.post("/stream")
+@router.post("/stream", dependencies=[rate_limit("chat", settings.rate_limit_chat_per_minute)])
 def chat_stream(request: ChatRequest, ctx: RequestContext = Ctx):
     """Server-sent events: sources, then deltas, then done (or error)."""
     rag = get_rag_service()
@@ -348,6 +353,8 @@ def chat_stream(request: ChatRequest, ctx: RequestContext = Ctx):
                     answer = event["answer"]
                     usage = event.get("usage", {})
                     response_time = event.get("response_time", 0.0)
+                    # A not-covered answer ends with no sources, so none are saved or cached.
+                    sources = event.get("sources", sources)
                 yield f"data: {json.dumps(event)}\n\n"
 
             if answer:

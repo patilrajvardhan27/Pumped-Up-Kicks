@@ -4,14 +4,15 @@ from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api.config import settings
 from api.deps import Ctx, RequestContext
 from api.models.database import Video, get_session
+from api.services.ratelimit import rate_limit
 from api.services.signing import SignatureError, sign, verify
 from api.services.storage import get_storage, safe_key
-from api.services.video_processor import STAGE_LABELS, process_video
+from api.services.video_processor import STAGE_LABELS, process_video, transcript_path
 
 router = APIRouter(prefix="/api/videos", tags=["videos"])
 
@@ -43,9 +44,9 @@ class VideoListResponse(BaseModel):
 
 
 class PresignRequest(BaseModel):
-    filename: str
-    content_type: Optional[str] = None
-    title: Optional[str] = None
+    filename: str = Field(..., min_length=1, max_length=255)
+    content_type: Optional[str] = Field(None, max_length=255)
+    title: Optional[str] = Field(None, max_length=settings.max_title_chars)
     file_size: Optional[int] = None
 
 
@@ -149,10 +150,17 @@ def run_pipeline(video_id: int) -> None:
         import traceback
         traceback.print_exc()
         if video is not None:
-            video.stage = "failed"
-            video.progress = 100
-            video.error_message = str(e)
-            db.commit()
+            try:
+                # A commit that failed leaves the session unusable until it is
+                # rolled back, so without this the failure below was never saved
+                # and the lecture stayed on "Transcribing" forever.
+                db.rollback()
+                video.stage = "failed"
+                video.progress = 100
+                video.error_message = str(e)
+                db.commit()
+            except Exception:
+                print(f"[Pipeline] could not record the failure of video={video_id}")
     finally:
         db.close()
 
@@ -183,7 +191,11 @@ def _owned_video(ctx: RequestContext, video_id: int) -> Video:
     return video
 
 
-@router.post("/presign", response_model=PresignResponse)
+@router.post(
+    "/presign",
+    response_model=PresignResponse,
+    dependencies=[rate_limit("upload", settings.rate_limit_upload_per_minute)],
+)
 def presign_upload(request: PresignRequest, ctx: RequestContext = Ctx):
     """
     Reserve a library slot and hand back a URL to upload to.
@@ -258,11 +270,15 @@ def complete_upload(
     )
 
 
-@router.post("/upload", response_model=UploadResponse)
+@router.post(
+    "/upload",
+    response_model=UploadResponse,
+    dependencies=[rate_limit("upload", settings.rate_limit_upload_per_minute)],
+)
 async def upload_video(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    title: Optional[str] = Form(None),
+    title: Optional[str] = Form(None, max_length=settings.max_title_chars),
     ctx: RequestContext = Ctx,
 ):
     """
@@ -399,6 +415,13 @@ def delete_video(video_id: int, ctx: RequestContext = Ctx):
         get_storage().delete(video.storage_key)
     except Exception as e:
         print(f"[Delete] Could not remove object {video.storage_key}: {e}")
+
+    # The local backend also keeps the transcript on disk. Deleting a lecture
+    # promises to delete its transcript too (see the privacy policy).
+    try:
+        transcript_path(video.storage_key).unlink(missing_ok=True)
+    except OSError as e:
+        print(f"[Delete] Could not remove transcript for {video.storage_key}: {e}")
 
     # Chunks and conversations cascade from the foreign keys.
     ctx.db.delete(video)

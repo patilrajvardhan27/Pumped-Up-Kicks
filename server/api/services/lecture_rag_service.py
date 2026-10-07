@@ -26,6 +26,8 @@ from services.llm.claude_client import (  # noqa: E402
 )
 
 from api.config import settings  # noqa: E402
+from api.services.coverage import MESSAGE as NOT_COVERED_MESSAGE  # noqa: E402
+from api.services.coverage import PROMPT_VERSION, CoverageGate, is_not_covered  # noqa: E402
 from api.models.database import Chunk, Video  # noqa: E402
 
 SYSTEM_PROMPT = """You are a teaching assistant for a student reviewing their own recorded lectures.
@@ -33,7 +35,9 @@ SYSTEM_PROMPT = """You are a teaching assistant for a student reviewing their ow
 You answer only from the lecture excerpts you are given. Each excerpt is labelled with a timestamp and the video it came from.
 
 Rules:
-- Ground every claim in the excerpts. If they do not contain the answer, say so plainly and name what the excerpts do cover.
+- Ground every claim in the excerpts.
+- If the excerpts have nothing to do with the question, reply with exactly NOT_COVERED and nothing else. Do not say what the excerpts cover instead.
+- If they cover only part of the question, answer that part and say plainly which part the lectures do not address. Do not describe unrelated material.
 - Cite the timestamp in square brackets right after the claim it supports, like [12:04].
 - If the lecture gives several reasons, limitations, or examples, list all of them.
 - Prefer the lecturer's own terminology over synonyms.
@@ -118,7 +122,7 @@ class LectureRAGService:
     @staticmethod
     def cache_key(question: str, sources: List[Dict], model: str) -> str:
         fingerprint = "|".join(str(s["chunk_id"]) for s in sources)
-        raw = f"{model}::{question.strip().lower()}::{fingerprint}"
+        raw = f"{PROMPT_VERSION}::{model}::{question.strip().lower()}::{fingerprint}"
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     @staticmethod
@@ -157,6 +161,19 @@ class LectureRAGService:
             result = get_claude_client().complete(
                 SYSTEM_PROMPT, self.build_user_message(question, sources)
             )
+
+            if is_not_covered(result["text"]):
+                # Nothing relevant: one line, and none of the excerpts that happened
+                # to be nearest, so there is nothing to cite or to click.
+                return {
+                    "answer": NOT_COVERED_MESSAGE,
+                    "sources": [],
+                    "response_time": round(time.time() - started, 2),
+                    "num_sources": 0,
+                    "usage": result["usage"].to_dict(),
+                    "cache_hit": False,
+                    "not_covered": True,
+                }
 
             return {
                 "answer": result["text"],
@@ -212,14 +229,33 @@ class LectureRAGService:
 
         try:
             answer, usage = "", ClaudeUsage(model=self.model_name).to_dict()
+            gate = CoverageGate()
 
             for event in get_claude_client().stream(
                 SYSTEM_PROMPT, self.build_user_message(question, sources)
             ):
                 if event["type"] == "delta":
-                    yield event
+                    text = gate.feed(event["text"])
+                    if text:
+                        yield {"type": "delta", "text": text}
                 elif event["type"] == "done":
                     answer, usage = event["text"], event["usage"]
+
+            tail = gate.finish()
+            if tail:
+                yield {"type": "delta", "text": tail}
+
+            if gate.not_covered or is_not_covered(answer):
+                yield {
+                    "type": "done",
+                    "answer": NOT_COVERED_MESSAGE,
+                    "sources": [],
+                    "num_sources": 0,
+                    "response_time": round(time.time() - started, 2),
+                    "usage": usage,
+                    "not_covered": True,
+                }
+                return
 
             yield {
                 "type": "done",

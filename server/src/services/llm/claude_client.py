@@ -113,10 +113,13 @@ class ClaudeClient:
         self.model = model
         self.effort = effort
         self.max_tokens = max_tokens
-        # The SDK resolves credentials from ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN,
-        # or an `ant auth login` profile -- don't hardcode a key.
+        # The key from server/.env lives on the settings object; pydantic-settings
+        # does not export it to os.environ, so it has to be passed in explicitly.
+        # With none configured the SDK still resolves ANTHROPIC_API_KEY,
+        # ANTHROPIC_AUTH_TOKEN or an `ant auth login` profile (scripts, Modal).
+        api_key = getattr(_settings, "anthropic_api_key", None) or None
         try:
-            self._client = anthropic.Anthropic(timeout=timeout, max_retries=3)
+            self._client = anthropic.Anthropic(api_key=api_key, timeout=timeout, max_retries=3)
         except Exception as e:
             raise ClaudeNotConfigured(
                 "No Claude API key found. Copy server/.env.example to server/.env and set "
@@ -253,7 +256,11 @@ def get_claude_client() -> ClaudeClient:
     """Process-wide Claude client. Created on first use."""
     global _client
     if _client is None:
-        if not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN")):
+        if not (
+            getattr(_settings, "anthropic_api_key", None)
+            or os.getenv("ANTHROPIC_API_KEY")
+            or os.getenv("ANTHROPIC_AUTH_TOKEN")
+        ):
             # The SDK can still find an `ant auth login` profile, so this is a
             # warning rather than a hard failure.
             print("[Claude] ANTHROPIC_API_KEY not set -- falling back to CLI credentials")

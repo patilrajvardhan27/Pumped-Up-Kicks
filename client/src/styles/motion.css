@@ -1,0 +1,127 @@
+/*
+ * Motion. Only transform and opacity are animated, and every animation lives
+ * behind prefers-reduced-motion: no-preference so the resting state of the
+ * page is the fully visible one.
+ */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes mark-in {
+  from {
+    opacity: 0;
+    transform: scaleY(0.2);
+  }
+}
+
+@keyframes pulse-dot {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes hatch {
+  to {
+    transform: translateX(24px);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Entrance order is set per element with --i. */
+@utility stagger {
+  animation-delay: calc(var(--i, 0) * var(--stagger-step, 70ms) + var(--stagger-base, 0ms));
+}
+
+/* Diagonal tape hatching that slides while work is in progress. */
+@utility hatch-layer {
+  position: absolute;
+  inset-block: 0;
+  left: -24px;
+  right: 0;
+  /* 16.97px along a 135deg axis repeats every 24px horizontally, which is
+     exactly the distance the hatch keyframes travel, so the loop is seamless. */
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--hatch-color, var(--color-primary)) 0 8.485px,
+    transparent 8.485px 16.97px
+  );
+}
+
+/* Faint vertical ribs on the dark timeline surface. */
+@utility strip-ribs {
+  background-image: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-on-dark) 10%, transparent) 0 1px,
+    transparent 1px 10px
+  );
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /*
+   * Scroll reveals. The Reveal component arms an element only when it is
+   * below the fold and motion is allowed, so without JavaScript nothing is
+   * ever hidden.
+   */
+  [data-reveal="armed"] {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  [data-reveal="shown"] {
+    transition:
+      opacity var(--duration-slow) var(--ease-brand),
+      transform var(--duration-slow) var(--ease-brand);
+  }
+
+  [data-reveal-group="armed"] > * {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  [data-reveal-group="shown"] > * {
+    transition:
+      opacity var(--duration-slow) var(--ease-brand),
+      transform var(--duration-slow) var(--ease-brand);
+  }
+
+  [data-reveal-group="shown"] > :nth-child(2) {
+    transition-delay: 80ms;
+  }
+
+  [data-reveal-group="shown"] > :nth-child(3) {
+    transition-delay: 160ms;
+  }
+
+  [data-reveal-group="shown"] > :nth-child(4) {
+    transition-delay: 240ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * The hero needle is rendered on its answer, then swept in by script. Where
+ * scripting and motion are both available it stays hidden until that sweep
+ * starts, so it never jumps; everywhere else it is simply visible.
+ */
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  [data-intro="pending"] {
+    opacity: 0;
+  }
+}

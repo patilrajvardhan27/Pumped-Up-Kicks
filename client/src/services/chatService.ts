@@ -1,19 +1,13 @@
 import { apiClient, API_ENDPOINTS } from './api';
 import type {
   ChatRequest,
-  ChatResponse,
   ConversationDetail,
   ConversationItem,
-  HealthResponse,
   StreamEvent,
   UsageSummary,
 } from '@/types/api';
 
-export class ChatService {
-  async query(request: ChatRequest): Promise<ChatResponse> {
-    return apiClient.post<ChatResponse>(API_ENDPOINTS.CHAT_QUERY, request);
-  }
-
+class ChatService {
   /** Streams the answer as it is written. Resolves when the stream closes. */
   async streamQuery(
     request: ChatRequest,
@@ -43,10 +37,6 @@ export class ChatService {
 
   async getUsage(): Promise<UsageSummary> {
     return apiClient.get<UsageSummary>(API_ENDPOINTS.CHAT_USAGE);
-  }
-
-  async checkHealth(): Promise<HealthResponse> {
-    return apiClient.get<HealthResponse>(API_ENDPOINTS.CHAT_HEALTH);
   }
 }
 

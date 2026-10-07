@@ -6,6 +6,7 @@ development, and a Modal serverless GPU function for production. Both drive the
 same stage/progress fields, so the UI never knows which one ran.
 """
 import json
+import re
 import subprocess
 import sys
 import time
@@ -55,6 +56,27 @@ def probe_duration(path: Path) -> Optional[float]:
 # --- transcription backends -------------------------------------------------
 
 
+# A traceback ends with a line like "FileNotFoundError: ...". Warnings (Whisper
+# prints one on every CPU run) are not the reason, even when they come last.
+_EXCEPTION_LINE = re.compile(r"^[\w.]*(Error|Exception|Interrupt)\b")
+
+
+def failure_reason(returncode: int, stderr: str) -> str:
+    """One line a student can act on, from a failed transcription process."""
+    if returncode < 0:
+        return ("the transcription was stopped before it finished, usually because the "
+                "server restarted. Delete this lecture and upload it again.")
+    for line in reversed([l.strip() for l in stderr.splitlines() if l.strip()]):
+        if _EXCEPTION_LINE.match(line):
+            return line
+    return f"it exited with code {returncode}. The server log has the details."
+
+
+def transcript_path(storage_key: str) -> Path:
+    """Where the local backend writes a lecture's transcript (named after the file)."""
+    return settings.transcripts_dir / f"{Path(storage_key).stem}_segments.json"
+
+
 def transcribe_local(storage_key: str) -> Dict:
     """Run the existing Whisper script in a subprocess."""
     storage = get_storage()
@@ -83,12 +105,11 @@ def transcribe_local(storage_key: str) -> Dict:
         print(result.stderr[-2000:])
 
     if result.returncode != 0:
-        return {
-            "status": "error",
-            "message": (result.stderr or "Transcription failed").strip()[-500:],
-        }
+        # The full traceback is in the server log above.
+        reason = failure_reason(result.returncode, result.stderr or "")
+        return {"status": "error", "message": f"Transcription failed: {reason}"[:500]}
 
-    segments_file = settings.transcripts_dir / f"{local_path.stem}_segments.json"
+    segments_file = transcript_path(storage_key)
     if not segments_file.exists():
         return {"status": "error", "message": "Transcription produced no segments file."}
 

@@ -1,0 +1,181 @@
+/*
+ * Design tokens, taken from DESIGN.md. Every colour, type role, radius and
+ * motion value used by a component is defined here and nowhere else.
+ *
+ * The default Tailwind palette, radii, shadows and type scale are cleared so
+ * an off-system value fails to compile instead of slipping in.
+ */
+@theme {
+  --color-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --text-*: initial;
+  --ease-*: initial;
+  --animate-*: initial;
+
+  /* Brand */
+  --color-primary: #f7a501;
+  --color-primary-pressed: #dd9001;
+  --color-primary-active: #b17816;
+  --color-on-primary: #23251d;
+
+  /* Surfaces */
+  --color-canvas: #eeefe9;
+  --color-surface-soft: #e5e7e0;
+  --color-surface-card: #ffffff;
+  --color-surface-doc: #fcfcfa;
+  --color-surface-dark: #23251d;
+  --color-hairline: #bfc1b7;
+  --color-hairline-soft: #dcdfd2;
+  --color-on-dark: #ffffff;
+
+  /* Text */
+  --color-ink: #23251d;
+  --color-body: #4d4f46;
+  --color-charcoal: #33342d;
+  --color-mute: #6c6e63;
+  --color-ash: #9b9c92;
+  --color-stone: #b6b7af;
+
+  /* Semantic */
+  --color-link-blue: #1d4ed8;
+  --color-link-teal: #1078a3;
+  --color-accent-blue: #2c84e0;
+  --color-accent-blue-soft: #dceaf6;
+  --color-accent-red: #cd4239;
+  --color-accent-red-soft: #f7d6d3;
+  --color-accent-green: #2c8c66;
+  --color-accent-green-soft: #d9eddf;
+  --color-accent-purple: #7c44a6;
+  --color-accent-purple-soft: #e7d8ee;
+
+  /*
+   * Focus rings need 3:1 against whatever is behind them. The blue from DESIGN.md
+   * (accent-blue) misses that on the wallpaper (2.49:1) and on soft surfaces, so
+   * light surfaces use the darker link blue (3.5:1 or better everywhere) and only
+   * dark surfaces, where the dark blue would vanish, keep the lighter one (4.05:1).
+   */
+  --color-focus: var(--color-link-blue);
+  --color-focus-on-dark: var(--color-accent-blue);
+
+  /*
+   * Derived for WCAG AA. DESIGN.md's mute (4.49:1 on canvas), accent-red
+   * (4.10:1) and hairline (1.58:1) miss the thresholds for small text and
+   * control boundaries, so these darker steps carry those jobs.
+   */
+  --color-mute-strong: #5f6157;
+  --color-danger: #b3352d;
+  --color-hairline-strong: #85877c;
+
+  /*
+   * The desktop the app sits on. Not in DESIGN.md: a muted olive green drawn
+   * from the same family as the ink, with a deeper step for its texture.
+   */
+  --color-wallpaper: #c9d5b6;
+  --color-wallpaper-deep: #b3c29c;
+
+  /* Type */
+  --text-display-xl: 2.25rem;
+  --text-display-xl--line-height: 1.5;
+  --text-display-xl--font-weight: 700;
+  --text-display-md: 1.75rem;
+  --text-display-md--line-height: 1.5;
+  --text-display-md--font-weight: 700;
+  /* DESIGN.md asks for 800; IBM Plex Sans Variable stops at 700. */
+  --text-display-lg: 1.5rem;
+  --text-display-lg--line-height: 1.33;
+  --text-display-lg--font-weight: 700;
+  --text-display-lg--letter-spacing: -0.6px;
+  --text-heading-lg: 1.3125rem;
+  --text-heading-lg--line-height: 1.4;
+  --text-heading-lg--font-weight: 700;
+  --text-heading-lg--letter-spacing: -0.5px;
+  --text-heading-md: 1.25rem;
+  --text-heading-md--line-height: 1.4;
+  --text-heading-md--font-weight: 700;
+  --text-heading-sm: 1.125rem;
+  --text-heading-sm--line-height: 1.56;
+  --text-heading-sm--font-weight: 600;
+  --text-body-md: 1rem;
+  --text-body-md--line-height: 1.5;
+  --text-body-md--font-weight: 400;
+  --text-body-strong: 1rem;
+  --text-body-strong--line-height: 1.5;
+  --text-body-strong--font-weight: 600;
+  --text-body-sm: 0.9375rem;
+  --text-body-sm--line-height: 1.71;
+  --text-body-sm--font-weight: 400;
+  --text-body-sm-strong: 0.9375rem;
+  --text-body-sm-strong--line-height: 1.71;
+  --text-body-sm-strong--font-weight: 600;
+  --text-body-xs: 0.875rem;
+  --text-body-xs--line-height: 1.43;
+  --text-body-xs--font-weight: 500;
+  --text-caption-md: 0.875rem;
+  --text-caption-md--line-height: 1.71;
+  --text-caption-md--font-weight: 700;
+  --text-caption-sm: 0.8125rem;
+  --text-caption-sm--line-height: 1.5;
+  --text-caption-sm--font-weight: 500;
+  --text-utility-xs: 0.75rem;
+  --text-utility-xs--line-height: 1.33;
+  --text-utility-xs--font-weight: 700;
+  --text-button-md: 0.875rem;
+  --text-button-md--line-height: 1.5;
+  --text-button-md--font-weight: 700;
+  --text-button-sm: 0.8125rem;
+  --text-button-sm--line-height: 1;
+  --text-button-sm--font-weight: 500;
+  --text-code-sm: 0.875rem;
+  --text-code-sm--line-height: 1.43;
+  --text-code-sm--font-weight: 400;
+  --text-code-xs: 0.8125rem;
+  --text-code-xs--line-height: 1.43;
+  --text-code-xs--font-weight: 500;
+
+  /* Shape */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  /* Beyond DESIGN.md's scale: the desktop window only. */
+  --radius-xl: 16px;
+
+  /*
+   * Elevation. DESIGN.md keeps cards flat; the one exception is the window
+   * floating over the wallpaper, which gets a soft shadow tinted with the ink.
+   */
+  --shadow-window:
+    0 1px 2px color-mix(in srgb, var(--color-ink) 12%, transparent),
+    0 16px 48px -8px color-mix(in srgb, var(--color-ink) 38%, transparent);
+
+  /* Layout */
+  --container-page: 80rem;
+  --spacing-nav: 4rem;
+  --spacing-section: 5rem;
+  --spacing-section-md: 4rem;
+  --spacing-section-sm: 3rem;
+
+  /* Layers: the sticky nav is the only raised layer in the app. */
+  --z-nav: 20;
+  --z-banner: 30;
+
+  /* Motion: one curve, three speeds. */
+  --ease-brand: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 400ms;
+  --default-transition-duration: 150ms;
+  --default-transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-rise: rise var(--duration-slow) var(--ease-brand) both;
+  --animate-mark-in: mark-in var(--duration-slow) var(--ease-brand) both;
+  --animate-pulse-dot: pulse-dot 1.6s var(--ease-brand) infinite;
+  --animate-hatch: hatch 1.2s linear infinite;
+  --animate-spin: spin 0.8s linear infinite;
+}
+
+@theme inline {
+  --font-sans: var(--font-plex), "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  --font-mono: var(--font-source-code), "Source Code Pro", ui-monospace, monospace;
+}

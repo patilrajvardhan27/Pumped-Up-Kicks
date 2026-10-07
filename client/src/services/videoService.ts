@@ -3,17 +3,12 @@ import type {
   PlaybackResponse,
   PresignResponse,
   UploadResponse,
-  VideoInfo,
   VideoListResponse,
 } from '@/types/api';
 
-export class VideoService {
+class VideoService {
   async listVideos(limit: number = 50): Promise<VideoListResponse> {
     return apiClient.get<VideoListResponse>(`${API_ENDPOINTS.VIDEOS_LIST}?limit=${limit}`);
-  }
-
-  async getStatus(id: number): Promise<VideoInfo> {
-    return apiClient.get<VideoInfo>(API_ENDPOINTS.VIDEOS_STATUS(id));
   }
 
   /** A short-lived URL a <video> element can load and seek within. */
