@@ -5,7 +5,7 @@ Lectures and chats that belong to no workspace are "Unsorted". Deleting a
 workspace never deletes what was in it; the foreign keys move it to Unsorted.
 """
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, get_args
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 
 from api.config import settings
 from api.deps import Ctx, RequestContext
-from api.models.database import Video, Workspace
+from api.models.database import Document, Video, Workspace
 
 router = APIRouter(prefix="/api/workspaces", tags=["workspaces"])
 
@@ -27,6 +27,12 @@ WorkspaceIcon = Literal[
     "book", "flask", "function", "code", "globe", "atom",
     "dna", "chart", "palette", "music", "scales", "brain",
 ]
+
+
+def color_for(index: int) -> str:
+    """Colours in turn, so subjects created together don't all look alike."""
+    colors = get_args(WorkspaceColor)
+    return colors[index % len(colors)]
 
 
 # --- schemas ----------------------------------------------------------------
@@ -49,6 +55,7 @@ class WorkspaceInfo(BaseModel):
     position: int
     canvas_course_id: Optional[int] = None
     video_count: int = 0
+    document_count: int = 0
     created_at: str
 
 
@@ -97,17 +104,23 @@ def owned_workspace(ctx: RequestContext, workspace_id: int) -> Workspace:
     return workspace
 
 
-def _video_counts(ctx: RequestContext) -> dict[int, int]:
+def _counts(ctx: RequestContext, model) -> dict[int, int]:
     rows = (
-        ctx.db.query(Video.workspace_id, func.count(Video.id))
-        .filter(Video.user_id == ctx.user_id, Video.workspace_id.is_not(None))
-        .group_by(Video.workspace_id)
+        ctx.db.query(model.workspace_id, func.count(model.id))
+        .filter(model.user_id == ctx.user_id, model.workspace_id.is_not(None))
+        .group_by(model.workspace_id)
         .all()
     )
     return {workspace_id: count for workspace_id, count in rows}
 
 
-def _to_info(workspace: Workspace, counts: dict[int, int]) -> WorkspaceInfo:
+def _video_counts(ctx: RequestContext) -> dict[int, tuple[int, int]]:
+    """(lectures, documents) per workspace id."""
+    videos, documents = _counts(ctx, Video), _counts(ctx, Document)
+    return {key: (videos.get(key, 0), documents.get(key, 0)) for key in videos.keys() | documents.keys()}
+
+
+def _to_info(workspace: Workspace, counts: dict[int, tuple[int, int]]) -> WorkspaceInfo:
     created = workspace.created_at or datetime.now()
     return WorkspaceInfo(
         id=workspace.id,
@@ -116,7 +129,8 @@ def _to_info(workspace: Workspace, counts: dict[int, int]) -> WorkspaceInfo:
         icon=workspace.icon,
         position=workspace.position,
         canvas_course_id=workspace.canvas_course_id,
-        video_count=counts.get(workspace.id, 0),
+        video_count=counts.get(workspace.id, (0, 0))[0],
+        document_count=counts.get(workspace.id, (0, 0))[1],
         created_at=created.isoformat(),
     )
 

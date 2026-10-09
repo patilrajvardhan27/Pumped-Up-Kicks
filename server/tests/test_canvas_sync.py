@@ -73,6 +73,7 @@ def test_first_sync_imports_a_course_into_a_new_subject():
 
     [subject] = api.get("/api/workspaces").json()
     assert subject["name"] == "PHYS 2210: Thermodynamics" and subject["canvas_course_id"] == 101
+    assert subject["document_count"] == 9 and subject["video_count"] == 0
 
     docs = documents()
     assert set(docs) == {
@@ -189,6 +190,8 @@ def test_second_sync_only_fetches_and_embeds_what_changed():
 def test_hidden_tabs_are_noted_and_keep_earlier_imports():
     api, fake, _ = connect()
     sync(api, link=[{"course_id": 101, "workspace_id": None}, {"course_id": 202, "workspace_id": None}])
+    colours = [w["color"] for w in api.get("/api/workspaces").json()]
+    assert len(set(colours)) == 2, "subjects created together get different colours"
     before = documents()
     assert ("canvas_assignment", 8101) in before
 

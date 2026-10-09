@@ -26,7 +26,7 @@ from api.models.database import (
     Workspace,
     get_session,
 )
-from api.routes.workspaces import owned_workspace
+from api.routes.workspaces import color_for, owned_workspace
 from api.services import canvas_auth, canvas_sync, net_guard
 from api.services.canvas_auth import CanvasAuthError
 from api.services.canvas_client import CanvasClient, CanvasError
@@ -394,7 +394,7 @@ def start_sync(request: SyncRequest, background_tasks: BackgroundTasks, ctx: Req
                 else Workspace(
                     user_id=ctx.user_id,
                     name=_unique_name(ctx, course["name"]),
-                    color="blue",
+                    color=color_for(ctx.db.query(Workspace).filter(Workspace.user_id == ctx.user_id).count()),
                     icon="book",
                     position=(ctx.db.query(func.max(Workspace.position))
                               .filter(Workspace.user_id == ctx.user_id).scalar() or 0) + 1,
