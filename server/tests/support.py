@@ -123,6 +123,14 @@ def fresh() -> None:
         # Every table hangs off users, so this empties the lot.
         conn.execute(text("truncate users, answer_cache restart identity cascade"))
 
+    # Rate limits are counted in memory per process; start each test with a clean slate.
+    import gc
+
+    from api.services.ratelimit import SlidingWindowLimiter
+
+    for limiter in (o for o in gc.get_objects() if isinstance(o, SlidingWindowLimiter)):
+        limiter._hits.clear()
+
 
 def session():
     return database.get_session()

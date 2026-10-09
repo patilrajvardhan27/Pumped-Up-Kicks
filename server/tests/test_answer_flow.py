@@ -61,7 +61,7 @@ def test_partial_answer_that_starts_with_not_is_kept():
 
 def test_no_indexed_lectures_is_unchanged():
     events, _, done = run(["unused"], sources=())
-    assert "No lecture content is indexed" in done["answer"] and done["sources"] == []
+    assert "Nothing is indexed here yet" in done["answer"] and done["sources"] == []
 
 
 def test_cache_key_changes_with_prompt_version():

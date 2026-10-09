@@ -1,6 +1,6 @@
 """
-Lecture Q&A: retrieve the relevant passages of a user's own lectures, then let
-Claude answer using only those.
+Lecture Q&A: retrieve the relevant passages of a user's own lectures and course
+material, then let Claude answer using only those.
 
 The whole multi-tenancy story is the `where Chunk.user_id == user_id` below:
 one user can never retrieve another's lecture, and the filter is applied inside
@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 SERVER_DIR = Path(__file__).parent.parent.parent
@@ -30,19 +30,21 @@ from services.llm.claude_client import (  # noqa: E402
 from api.config import settings  # noqa: E402
 from api.services.coverage import MESSAGE as NOT_COVERED_MESSAGE  # noqa: E402
 from api.services.coverage import PROMPT_VERSION, CoverageGate, is_not_covered  # noqa: E402
-from api.models.database import Chunk, Video  # noqa: E402
+from api.models.database import Chunk, Document, Video  # noqa: E402
+from api.services.document_text import PPTX  # noqa: E402
 from api.services.scope import ALL, ChatScope  # noqa: E402
 
-SYSTEM_PROMPT = """You are a teaching assistant for a student reviewing their own recorded lectures.
+SYSTEM_PROMPT = """You are a teaching assistant for a student reviewing their own recorded lectures and course material.
 
-You answer only from the lecture excerpts you are given. Each excerpt is labelled with a timestamp and the video it came from.
+You answer only from the excerpts you are given. A lecture excerpt is labelled with a timestamp and the lecture it came from. A course-material excerpt is labelled with a reference such as Doc 3, the document it came from, and its page or slide where it has one.
 
 Rules:
 - Ground every claim in the excerpts.
 - If the excerpts have nothing to do with the question, reply with exactly NOT_COVERED and nothing else. Do not say what the excerpts cover instead.
-- If they cover only part of the question, answer that part and say plainly which part the lectures do not address. Do not describe unrelated material.
-- Cite the timestamp in square brackets right after the claim it supports, like [12:04].
-- If the lecture gives several reasons, limitations, or examples, list all of them.
+- If they cover only part of the question, answer that part and say plainly which part the material does not address. Do not describe unrelated material.
+- Cite a lecture excerpt by its timestamp in square brackets right after the claim it supports, like [12:04].
+- Cite a course-material excerpt by its reference in square brackets, like [Doc 3]. One reference per pair of brackets.
+- If the material gives several reasons, limitations, or examples, list all of them.
 - Prefer the lecturer's own terminology over synonyms.
 - Be direct and concise. No preamble, no restating the question."""
 
@@ -51,6 +53,45 @@ def format_timestamp(seconds: float) -> str:
     total = max(0, int(seconds))
     h, m, s = total // 3600, (total % 3600) // 60, total % 60
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
+def page_label(page: Optional[int], mime_type: Optional[str]) -> str:
+    """'slide 4' for a deck, 'p. 4' otherwise, '' when the format has no pages."""
+    if page is None:
+        return ""
+    return f"slide {page}" if mime_type == PPTX else f"p. {page}"
+
+
+def video_source(chunk: Chunk, filename: str, title: Optional[str], duration: Optional[float]) -> Dict:
+    return {
+        "kind": "video",
+        "chunk_id": chunk.id,
+        "video_id": chunk.video_id,
+        "text": chunk.text,
+        "start": chunk.start_s,
+        "end": chunk.end_s,
+        "timestamp": f"{format_timestamp(chunk.start_s)} - {format_timestamp(chunk.end_s)}",
+        "video": title or filename,
+        "video_filename": filename,
+        "video_duration": duration,
+    }
+
+
+def document_source(chunk: Chunk, document: Document, ref: Optional[str] = None) -> Dict:
+    label = page_label(chunk.page, document.mime_type)
+    return {
+        "kind": "document",
+        "chunk_id": chunk.id,
+        "document_id": document.id,
+        "text": chunk.text,
+        "page": chunk.page,
+        "timestamp": label,
+        # `video` is the name the citation list shows, kept for older clients.
+        "video": document.title,
+        "document_title": document.title,
+        "url": document.url,
+        "ref": ref,
+    }
 
 
 class LectureRAGService:
@@ -76,8 +117,9 @@ class LectureRAGService:
 
         distance = Chunk.embedding.cosine_distance(query_vector)
         stmt = (
-            select(Chunk, Video.filename, Video.title, Video.duration_s, distance.label("distance"))
-            .join(Video, Video.id == Chunk.video_id)
+            select(Chunk, Video, Document, distance.label("distance"))
+            .outerjoin(Video, Video.id == Chunk.video_id)
+            .outerjoin(Document, Document.id == Chunk.document_id)
             .where(Chunk.user_id == user_id)
             .order_by(distance)
             .limit(k)
@@ -85,29 +127,21 @@ class LectureRAGService:
         if scope.kind == "video":
             stmt = stmt.where(Chunk.video_id == scope.video_id)
         elif scope.kind == "workspace":
+            # A chunk has exactly one parent, so this is that parent's subject.
+            subject = func.coalesce(Video.workspace_id, Document.workspace_id)
             stmt = stmt.where(
-                Video.workspace_id.is_(None)
-                if scope.workspace_id is None
-                else Video.workspace_id == scope.workspace_id
+                subject.is_(None) if scope.workspace_id is None else subject == scope.workspace_id
             )
 
-        rows = db.execute(stmt).all()
-
-        return [
-            {
-                "chunk_id": chunk.id,
-                "video_id": chunk.video_id,
-                "text": chunk.text,
-                "start": chunk.start_s,
-                "end": chunk.end_s,
-                "timestamp": f"{format_timestamp(chunk.start_s)} - {format_timestamp(chunk.end_s)}",
-                "video": title or filename,
-                "video_filename": filename,
-                "video_duration": duration,
-                "similarity": round(max(0.0, 1.0 - float(dist)), 4),
-            }
-            for chunk, filename, title, duration, dist in rows
-        ]
+        sources = []
+        for position, (chunk, video, document, dist) in enumerate(db.execute(stmt).all(), start=1):
+            if document is not None:
+                source = document_source(chunk, document, ref=f"Doc {position}")
+            else:
+                source = video_source(chunk, video.filename, video.title, video.duration_s)
+            source["similarity"] = round(max(0.0, 1.0 - float(dist)), 4)
+            sources.append(source)
+        return sources
 
     # -- prompt assembly ---------------------------------------------------
 
@@ -116,14 +150,18 @@ class LectureRAGService:
         parts, used = [], 0
 
         for i, src in enumerate(sources, 1):
-            block = f"[Excerpt {i} | {src['timestamp']} | {src['video']}]\n{src['text']}\n"
+            if src.get("kind") == "document":
+                where = f", {src['timestamp']}" if src.get("timestamp") else ""
+                block = f"[Doc {i} | {src['document_title']}{where}]\n{src['text']}\n"
+            else:
+                block = f"[Excerpt {i} | {src['timestamp']} | {src['video']}]\n{src['text']}\n"
             if used + len(block) > budget:
                 break
             parts.append(block)
             used += len(block)
 
         return (
-            "Lecture excerpts:\n\n"
+            "Excerpts:\n\n"
             + "\n".join(parts)
             + f"\n\nStudent's question: {question}"
         )
@@ -146,8 +184,8 @@ class LectureRAGService:
     @staticmethod
     def empty_answer() -> str:
         return (
-            "No lecture content is indexed yet. Upload a video and wait for it to "
-            "finish processing, then ask again."
+            "Nothing is indexed here yet. Upload a lecture or import course material "
+            "from Canvas, wait for it to finish processing, then ask again."
         )
 
     # -- answering ---------------------------------------------------------

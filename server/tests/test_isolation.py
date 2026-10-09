@@ -1,7 +1,7 @@
 """
 Tenant isolation: user A must not be able to read, change, use or even detect
-user B's workspaces, or the lectures and chats filed under them. Needs Postgres
-(see tests/support.py).
+user B's workspaces, the lectures and chats filed under them, B's imported
+course documents, or B's Canvas connection. Needs Postgres (see tests/support.py).
 
 Run from server/ with: python -m tests.test_isolation
 """
@@ -74,6 +74,74 @@ def test_searching_everything_never_reaches_another_user():
     answer = alice.post("/api/chat/query", json={"question": "secret of bob's lecture"}).json()
     assert {s["video"] for s in answer["sources"]} == {"Alice lecture"}
     assert "secret" not in claude.prompts[0].split("Student's question")[0]
+
+
+def setup_bob_with_canvas():
+    """Bob has imported a Canvas course; Alice has a subject of her own and nothing else."""
+    from tests import fake_canvas
+
+    support.fresh()
+    fake_canvas.install()
+    alice, bob = support.client("alice"), support.client("bob")
+    support.settings.canvas_allow_personal_tokens = True
+    try:
+        assert bob.post("/api/canvas/token", json={
+            "base_url": "canvas.test.edu", "token": fake_canvas.TOKEN,
+        }).status_code == 200
+    finally:
+        support.settings.canvas_allow_personal_tokens = False
+    assert bob.post("/api/canvas/sync", json={"link": [{"course_id": 101}]}).status_code == 200
+    bobs = bob.get("/api/workspaces").json()[0]["id"]
+    alices = alice.post("/api/workspaces", json={"name": "Alice's maths"}).json()["id"]
+    return alice, bob, bobs, alices
+
+
+def test_documents_are_per_user():
+    alice, bob, bobs, _ = setup_bob_with_canvas()
+    bobs_documents = bob.get("/api/documents").json()
+    assert len(bobs_documents) == 9
+
+    assert alice.get("/api/documents").json() == []
+    assert alice.get(f"/api/documents?workspace_id={bobs}").json() == []
+    assert alice.delete(f"/api/documents/{bobs_documents[0]['id']}").status_code == 404
+    assert len(bob.get("/api/documents").json()) == 9
+
+
+def test_search_never_reaches_anothers_documents():
+    alice, bob, bobs, alices = setup_bob_with_canvas()
+    support.add_video("alice", "Alice lecture", ["the carnot cycle and reservoir temperatures"], alices)
+    claude = support.use_claude()
+
+    everything = alice.post("/api/chat/query", json={"question": "carnot engine efficiency reservoir"}).json()
+    assert {s["kind"] for s in everything["sources"]} == {"video"}
+    assert "Carnot engine depends only" not in claude.prompts[0]
+
+    in_bobs = alice.post("/api/chat/query", json={
+        "question": "carnot", "scope": "workspace", "workspace_id": bobs,
+    })
+    assert in_bobs.status_code == 404
+
+
+def test_canvas_connection_and_links_are_per_user():
+    alice, bob, bobs, alices = setup_bob_with_canvas()
+
+    mine = alice.get("/api/canvas/connection").json()
+    assert mine["connected"] is False and mine.get("sync") is None
+    assert alice.get("/api/canvas/courses").status_code == 404
+    assert alice.post("/api/canvas/sync", json={}).status_code == 404
+    assert alice.delete("/api/canvas/connection").status_code == 404
+    assert bob.get("/api/canvas/connection").json()["connected"] is True
+
+    # Bob cannot link his course into Alice's subject either.
+    linked = bob.post("/api/canvas/sync", json={"link": [{"course_id": 101, "workspace_id": alices}]})
+    assert linked.status_code == 404
+    assert alice.get("/api/workspaces").json()[0]["canvas_course_id"] is None
+
+
+def test_usage_counts_only_ones_own_material():
+    alice, bob, *_ = setup_bob_with_canvas()
+    assert alice.get("/api/chat/usage").json()["content"]["used_chunks"] == 0
+    assert bob.get("/api/chat/usage").json()["content"]["used_chunks"] > 0
 
 
 if __name__ == "__main__":

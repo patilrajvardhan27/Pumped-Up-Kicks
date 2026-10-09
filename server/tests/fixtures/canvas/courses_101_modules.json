@@ -1,0 +1,56 @@
+[
+  {
+    "id": 501,
+    "name": "Week 1: The first law",
+    "position": 1,
+    "unlock_at": null,
+    "require_sequential_progress": false,
+    "publish_final_grade": false,
+    "prerequisite_module_ids": [],
+    "state": "unlocked",
+    "items_count": 3,
+    "items_url": "https://canvas.test.edu/api/v1/courses/101/modules/501/items",
+    "items": [
+      {
+        "id": 7001,
+        "title": "Week 1 overview",
+        "position": 1,
+        "indent": 0,
+        "type": "Page",
+        "module_id": 501,
+        "html_url": "https://canvas.test.edu/courses/101/modules/items/7001",
+        "page_url": "week-1-overview",
+        "url": "https://canvas.test.edu/api/v1/courses/101/pages/week-1-overview"
+      },
+      {
+        "id": 7002,
+        "title": "Lecture notes",
+        "position": 2,
+        "indent": 0,
+        "type": "File",
+        "module_id": 501,
+        "content_id": 9001,
+        "html_url": "https://canvas.test.edu/courses/101/modules/items/7002",
+        "url": "https://canvas.test.edu/api/v1/courses/101/files/9001"
+      },
+      {
+        "id": 7003,
+        "title": "Quiz 1",
+        "position": 3,
+        "indent": 0,
+        "type": "Quiz",
+        "module_id": 501,
+        "content_id": 61,
+        "html_url": "https://canvas.test.edu/courses/101/modules/items/7003"
+      }
+    ]
+  },
+  {
+    "id": 502,
+    "name": "Week 2: Entropy",
+    "position": 2,
+    "state": "unlocked",
+    "items_count": 2,
+    "items_url": "https://canvas.test.edu/api/v1/courses/101/modules/502/items"
+  }
+]

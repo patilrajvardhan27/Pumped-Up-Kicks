@@ -1,9 +1,14 @@
 """
-Per-user spend limits.
+Per-user spend limits, and a limit on how much material is indexed.
 
 Spend is summed from the messages table rather than tracked separately, so the
 quota can never drift from what was actually billed. Checked before every
 Claude call — without this, one enthusiastic user is the whole API budget.
+
+Indexed material is counted the same way, from the chunks table: lectures and
+imported course material together. It costs storage and search time rather
+than Claude spend, so it has its own allowance per plan. Canvas imports stop
+at it; lecture uploads are counted but not stopped by it.
 """
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -12,7 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from api.config import settings
-from api.models.database import Conversation, Message, User
+from api.models.database import Chunk, Conversation, Message, User
 
 
 @dataclass
@@ -87,3 +92,31 @@ def enforce(db: Session, user: User) -> QuotaStatus:
     if status.exhausted:
         raise QuotaExceeded(status)
     return status
+
+
+@dataclass
+class ContentStatus:
+    """Indexed passages against the plan's allowance."""
+
+    used_chunks: int
+    limit_chunks: int
+
+    @property
+    def remaining_chunks(self) -> int:
+        return max(0, self.limit_chunks - self.used_chunks)
+
+    def to_dict(self) -> dict:
+        return {
+            "used_chunks": self.used_chunks,
+            "limit_chunks": self.limit_chunks,
+            "remaining_chunks": self.remaining_chunks,
+            "percent_used": min(100, int(self.used_chunks / self.limit_chunks * 100))
+            if self.limit_chunks > 0 else 100,
+        }
+
+
+def get_content_status(db: Session, user: User) -> ContentStatus:
+    used = db.execute(
+        select(func.count(Chunk.id)).where(Chunk.user_id == user.id)
+    ).scalar_one()
+    return ContentStatus(used_chunks=int(used), limit_chunks=settings.plan_max_chunks(user.plan))
