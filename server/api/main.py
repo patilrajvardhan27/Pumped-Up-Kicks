@@ -1,4 +1,5 @@
 """Pumped Up Kicks API."""
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -10,6 +11,26 @@ from sqlalchemy.exc import InterfaceError, OperationalError
 from api.config import settings
 from api.models.database import get_engine
 from api.routes import canvas, chat, documents, videos, workspaces
+
+
+class _HideOAuthCode(logging.Filter):
+    """
+    The Canvas OAuth callback carries a one-time authorization code in its
+    query string. The access log keeps the path and drops the query, so the
+    code never lands in a log file.
+    """
+
+    PATH = "/api/canvas/oauth/callback"
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if isinstance(args, tuple) and len(args) >= 3 and isinstance(args[2], str):
+            if args[2].startswith(self.PATH + "?"):
+                record.args = args[:2] + (self.PATH + "?[hidden]",) + args[3:]
+        return True
+
+
+logging.getLogger("uvicorn.access").addFilter(_HideOAuthCode())
 
 
 def _database_reachable() -> bool:

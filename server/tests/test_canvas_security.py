@@ -238,6 +238,20 @@ def test_authorize_url_asks_for_read_only_scopes():
     assert canvas_auth.read_state(params["state"]) == ("alice", BASE)
 
 
+def test_access_log_hides_the_oauth_code():
+    import logging
+
+    from api.main import _HideOAuthCode
+
+    record = logging.LogRecord(
+        "uvicorn.access", logging.INFO, __file__, 1, '%s - "%s %s HTTP/%s" %d',
+        ("1.2.3.4:5", "GET", "/api/canvas/oauth/callback?code=SECRET-CODE&state=abc", "1.1", 302), None,
+    )
+    _HideOAuthCode().filter(record)
+    assert "SECRET-CODE" not in record.getMessage()
+    assert "/api/canvas/oauth/callback" in record.getMessage()
+
+
 # --- endpoints (Postgres) ---------------------------------------------------------
 
 
