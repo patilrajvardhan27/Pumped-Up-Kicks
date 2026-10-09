@@ -1,12 +1,13 @@
 """
-Per-video chat.
+Chat over a user's lectures.
 
-A conversation belongs to one user and optionally to one lecture; messages hang
-off it, and every assistant message records which chunks it cited so the
-citation strip survives a reload.
+A conversation belongs to one user and searches one lecture, one subject, the
+Unsorted lectures, or everything (see api/services/scope.py); messages hang off
+it, and every assistant message records which chunks it cited so the citation
+strip survives a reload.
 """
 import json
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -23,9 +24,11 @@ from api.models.database import (
     Video,
     get_session,
 )
+from api.routes.workspaces import owned_workspace
 from api.services.lecture_rag_service import get_rag_service
 from api.services.quota import QuotaExceeded, enforce, get_quota
 from api.services.ratelimit import rate_limit
+from api.services.scope import ChatScope
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -58,6 +61,12 @@ class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=settings.max_question_chars)
     conversation_id: Optional[int] = None
     video_id: Optional[int] = None
+    # With scope "workspace", a null workspace_id means the Unsorted lectures.
+    workspace_id: Optional[int] = None
+    # What a new conversation searches. Left out, it is "video" when video_id
+    # is given and "all" otherwise, which is how chats worked before subjects.
+    # Ignored when conversation_id is given: a thread keeps its scope.
+    scope: Optional[Literal["video", "workspace", "all"]] = None
     top_k: Optional[int] = Field(None, ge=1, le=20)
 
 
@@ -85,7 +94,9 @@ class MessageItem(BaseModel):
 class ConversationItem(BaseModel):
     id: int
     title: Optional[str]
+    scope: str
     video_id: Optional[int]
+    workspace_id: Optional[int] = None
     video_title: Optional[str] = None
     created_at: str
     updated_at: str
@@ -128,40 +139,62 @@ def _owned_conversation(ctx: RequestContext, conversation_id: int) -> Conversati
     return conversation
 
 
-def _resolve_conversation(
-    db: Session, user_id: str, conversation_id: Optional[int],
-    video_id: Optional[int], question: str,
-) -> Conversation:
+def _resolve_conversation(ctx: RequestContext, request: ChatRequest) -> Conversation:
     """Find the requested thread, or open a new one titled from the question."""
-    if conversation_id is not None:
+    db, user_id = ctx.db, ctx.user_id
+
+    if request.conversation_id is not None:
         conversation = (
             db.query(Conversation)
-            .filter(Conversation.id == conversation_id, Conversation.user_id == user_id)
+            .filter(Conversation.id == request.conversation_id, Conversation.user_id == user_id)
             .first()
         )
         if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
         return conversation
 
-    if video_id is not None:
-        owns = (
-            db.query(Video)
-            .filter(Video.id == video_id, Video.user_id == user_id)
-            .first()
-        )
-        if not owns:
-            raise HTTPException(status_code=404, detail="Video not found")
-
-    title = question.strip()
+    scope = request.scope or ("video" if request.video_id is not None else "all")
+    title = request.question.strip()
     conversation = Conversation(
         user_id=user_id,
-        video_id=video_id,
+        scope=scope,
         title=title[:80] + ("…" if len(title) > 80 else ""),
     )
+
+    if scope == "video":
+        if request.video_id is None:
+            raise HTTPException(status_code=400, detail="Pick a lecture to ask about.")
+        video = (
+            db.query(Video)
+            .filter(Video.id == request.video_id, Video.user_id == user_id)
+            .first()
+        )
+        if not video:
+            raise HTTPException(status_code=404, detail="Video not found")
+        # Filed with its lecture, so it shows under that lecture's subject.
+        conversation.video_id = video.id
+        conversation.workspace_id = video.workspace_id
+    elif scope == "workspace" and request.workspace_id is not None:
+        conversation.workspace_id = owned_workspace(ctx, request.workspace_id).id
+
     db.add(conversation)
     db.commit()
     db.refresh(conversation)
     return conversation
+
+
+def _conversation_item(conversation: Conversation, video_title: Optional[str]) -> dict:
+    return dict(
+        id=conversation.id,
+        title=conversation.title,
+        scope=conversation.scope,
+        video_id=conversation.video_id,
+        workspace_id=conversation.workspace_id,
+        video_title=video_title,
+        created_at=conversation.created_at.isoformat(),
+        updated_at=conversation.updated_at.isoformat(),
+        message_count=len(conversation.messages),
+    )
 
 
 def _source_models(message: Message) -> List[Source]:
@@ -266,20 +299,18 @@ def chat_query(request: ChatRequest, ctx: RequestContext = Ctx):
     except QuotaExceeded as e:
         raise HTTPException(status_code=402, detail=str(e))
 
-    conversation = _resolve_conversation(
-        ctx.db, ctx.user_id, request.conversation_id, request.video_id, request.question
-    )
+    conversation = _resolve_conversation(ctx, request)
+    scope = ChatScope.of(conversation)
 
     sources = rag.retrieve(
-        ctx.db, ctx.user_id, request.question,
-        video_id=conversation.video_id, top_k=request.top_k,
+        ctx.db, ctx.user_id, request.question, scope=scope, top_k=request.top_k,
     )
 
     cache_hit = False
     key = None
 
     if sources:
-        key = rag.cache_key(request.question, sources, rag.model_name)
+        key = rag.cache_key(request.question, sources, rag.model_name, scope)
         cached = _cache_lookup(ctx.db, ctx.user_id, key)
         if cached:
             cached.hits += 1
@@ -295,8 +326,7 @@ def chat_query(request: ChatRequest, ctx: RequestContext = Ctx):
 
     if not cache_hit:
         result = rag.answer(
-            ctx.db, ctx.user_id, request.question,
-            video_id=conversation.video_id, top_k=request.top_k,
+            ctx.db, ctx.user_id, request.question, scope=scope, top_k=request.top_k,
         )
         if key and not result.get("error") and not result.get("not_covered"):
             _cache_store(ctx.db, ctx.user_id, key, request.question, result)
@@ -325,11 +355,9 @@ def chat_stream(request: ChatRequest, ctx: RequestContext = Ctx):
     except QuotaExceeded as e:
         raise HTTPException(status_code=402, detail=str(e))
 
-    conversation = _resolve_conversation(
-        ctx.db, ctx.user_id, request.conversation_id, request.video_id, request.question
-    )
+    conversation = _resolve_conversation(ctx, request)
     conversation_id = conversation.id
-    conversation_video_id = conversation.video_id
+    scope = ChatScope.of(conversation)
     user_id = ctx.user_id
     question = request.question
     top_k = request.top_k
@@ -344,9 +372,7 @@ def chat_stream(request: ChatRequest, ctx: RequestContext = Ctx):
             first = {"type": "conversation", "conversation_id": conversation_id}
             yield f"data: {json.dumps(first)}\n\n"
 
-            for event in rag.stream_answer(
-                db, user_id, question, video_id=conversation_video_id, top_k=top_k
-            ):
+            for event in rag.stream_answer(db, user_id, question, scope=scope, top_k=top_k):
                 if event["type"] == "sources":
                     sources = event["sources"]
                 elif event["type"] == "done":
@@ -367,7 +393,7 @@ def chat_stream(request: ChatRequest, ctx: RequestContext = Ctx):
                     "usage": usage,
                 }
                 if sources:
-                    key = rag.cache_key(question, sources, rag.model_name)
+                    key = rag.cache_key(question, sources, rag.model_name, scope)
                     _cache_store(db, user_id, key, question, result)
                 _persist_turn(db, conversation, question, result, cache_hit=False)
 
@@ -387,12 +413,24 @@ def chat_stream(request: ChatRequest, ctx: RequestContext = Ctx):
 
 @router.get("/conversations", response_model=List[ConversationItem])
 def list_conversations(
-    video_id: Optional[int] = None, limit: int = 50, ctx: RequestContext = Ctx
+    video_id: Optional[int] = None,
+    workspace_id: Optional[int] = None,
+    unsorted: bool = False,
+    limit: int = 50,
+    ctx: RequestContext = Ctx,
 ):
-    """Threads for this user, optionally only those about one lecture."""
+    """
+    Threads for this user. Optionally only those about one lecture, those filed
+    under one subject, or (unsorted=true) those filed under no subject. Threads
+    across every lecture are filed under no subject but are not Unsorted.
+    """
     query = ctx.db.query(Conversation).filter(Conversation.user_id == ctx.user_id)
     if video_id is not None:
         query = query.filter(Conversation.video_id == video_id)
+    if workspace_id is not None:
+        query = query.filter(Conversation.workspace_id == workspace_id)
+    elif unsorted:
+        query = query.filter(Conversation.workspace_id.is_(None), Conversation.scope != "all")
 
     conversations = query.order_by(Conversation.updated_at.desc()).limit(limit).all()
 
@@ -402,15 +440,7 @@ def list_conversations(
     }
 
     return [
-        ConversationItem(
-            id=c.id,
-            title=c.title,
-            video_id=c.video_id,
-            video_title=video_titles.get(c.video_id),
-            created_at=c.created_at.isoformat(),
-            updated_at=c.updated_at.isoformat(),
-            message_count=len(c.messages),
-        )
+        ConversationItem(**_conversation_item(c, video_titles.get(c.video_id)))
         for c in conversations
     ]
 
@@ -426,13 +456,7 @@ def get_conversation(conversation_id: int, ctx: RequestContext = Ctx):
         video_title = (video.title or video.filename) if video else None
 
     return ConversationDetail(
-        id=conversation.id,
-        title=conversation.title,
-        video_id=conversation.video_id,
-        video_title=video_title,
-        created_at=conversation.created_at.isoformat(),
-        updated_at=conversation.updated_at.isoformat(),
-        message_count=len(conversation.messages),
+        **_conversation_item(conversation, video_title),
         messages=[
             MessageItem(
                 id=m.id,

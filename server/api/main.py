@@ -9,7 +9,7 @@ from sqlalchemy.exc import InterfaceError, OperationalError
 
 from api.config import settings
 from api.models.database import get_engine
-from api.routes import chat, videos
+from api.routes import chat, videos, workspaces
 
 
 def _database_reachable() -> bool:
@@ -90,6 +90,7 @@ async def database_unavailable(request: Request, exc: Exception) -> JSONResponse
 
 app.include_router(chat.router)
 app.include_router(videos.router)
+app.include_router(workspaces.router)
 
 
 @app.get("/")
@@ -101,6 +102,7 @@ def root():
         "endpoints": {
             "presign": "/api/videos/presign",
             "videos": "/api/videos",
+            "workspaces": "/api/workspaces",
             "chat": "/api/chat/query",
             "chat_stream": "/api/chat/stream",
             "conversations": "/api/chat/conversations",

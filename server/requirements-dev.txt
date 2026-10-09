@@ -1,0 +1,4 @@
+# Test runner. Every test module also runs on its own: python -m tests.<module>
+# The database tests need Postgres with pgvector; see tests/support.py.
+-r requirements.txt
+pytest

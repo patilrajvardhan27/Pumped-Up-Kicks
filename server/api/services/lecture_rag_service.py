@@ -2,9 +2,11 @@
 Lecture Q&A: retrieve the relevant passages of a user's own lectures, then let
 Claude answer using only those.
 
-The whole multi-tenancy story is the `where Chunk.user_id == user_id` below —
+The whole multi-tenancy story is the `where Chunk.user_id == user_id` below:
 one user can never retrieve another's lecture, and the filter is applied inside
-the vector search rather than after it.
+the vector search rather than after it. The conversation's scope (one lecture,
+one subject, Unsorted, or everything) narrows the search further and never
+widens it.
 """
 import hashlib
 import sys
@@ -29,6 +31,7 @@ from api.config import settings  # noqa: E402
 from api.services.coverage import MESSAGE as NOT_COVERED_MESSAGE  # noqa: E402
 from api.services.coverage import PROMPT_VERSION, CoverageGate, is_not_covered  # noqa: E402
 from api.models.database import Chunk, Video  # noqa: E402
+from api.services.scope import ALL, ChatScope  # noqa: E402
 
 SYSTEM_PROMPT = """You are a teaching assistant for a student reviewing their own recorded lectures.
 
@@ -64,10 +67,10 @@ class LectureRAGService:
         db: Session,
         user_id: str,
         question: str,
-        video_id: Optional[int] = None,
+        scope: ChatScope = ALL,
         top_k: Optional[int] = None,
     ) -> List[Dict]:
-        """Nearest chunks belonging to this user, optionally within one lecture."""
+        """Nearest chunks belonging to this user, within the conversation's scope."""
         k = top_k or settings.default_top_k
         query_vector = get_embedder(self.embedding_model).embed_one(question)
 
@@ -79,8 +82,14 @@ class LectureRAGService:
             .order_by(distance)
             .limit(k)
         )
-        if video_id is not None:
-            stmt = stmt.where(Chunk.video_id == video_id)
+        if scope.kind == "video":
+            stmt = stmt.where(Chunk.video_id == scope.video_id)
+        elif scope.kind == "workspace":
+            stmt = stmt.where(
+                Video.workspace_id.is_(None)
+                if scope.workspace_id is None
+                else Video.workspace_id == scope.workspace_id
+            )
 
         rows = db.execute(stmt).all()
 
@@ -120,9 +129,18 @@ class LectureRAGService:
         )
 
     @staticmethod
-    def cache_key(question: str, sources: List[Dict], model: str) -> str:
+    def cache_key(question: str, sources: List[Dict], model: str, scope: ChatScope = ALL) -> str:
+        """
+        The chunk fingerprint already ties an answer to the excerpts it was
+        written from. The scope is in the key too, so an answer cached in one
+        subject is never served in another, even when both retrieve the same
+        passages (a lecture that moved between subjects, say).
+        """
         fingerprint = "|".join(str(s["chunk_id"]) for s in sources)
-        raw = f"{PROMPT_VERSION}::{model}::{question.strip().lower()}::{fingerprint}"
+        raw = (
+            f"{PROMPT_VERSION}::{model}::{scope.cache_token}::"
+            f"{question.strip().lower()}::{fingerprint}"
+        )
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     @staticmethod
@@ -139,14 +157,14 @@ class LectureRAGService:
         db: Session,
         user_id: str,
         question: str,
-        video_id: Optional[int] = None,
+        scope: ChatScope = ALL,
         top_k: Optional[int] = None,
     ) -> Dict:
         started = time.time()
         sources: List[Dict] = []
 
         try:
-            sources = self.retrieve(db, user_id, question, video_id, top_k)
+            sources = self.retrieve(db, user_id, question, scope, top_k)
 
             if not sources:
                 return {
@@ -202,14 +220,14 @@ class LectureRAGService:
         db: Session,
         user_id: str,
         question: str,
-        video_id: Optional[int] = None,
+        scope: ChatScope = ALL,
         top_k: Optional[int] = None,
     ) -> Iterator[Dict]:
         """Yields sources, then text deltas, then a final done/error event."""
         started = time.time()
 
         try:
-            sources = self.retrieve(db, user_id, question, video_id, top_k)
+            sources = self.retrieve(db, user_id, question, scope, top_k)
         except Exception as e:
             yield {"type": "error", "message": f"Retrieval failed: {e}"}
             return
