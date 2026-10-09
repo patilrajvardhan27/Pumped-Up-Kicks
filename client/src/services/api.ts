@@ -24,6 +24,11 @@ export const API_ENDPOINTS = {
   CANVAS_TOKEN: `${API_BASE_URL}/api/canvas/token`,
   CANVAS_COURSES: `${API_BASE_URL}/api/canvas/courses`,
   CANVAS_SYNC: `${API_BASE_URL}/api/canvas/sync`,
+  STUDY_GUIDE: (videoId: number) => `${API_BASE_URL}/api/videos/${videoId}/study-guide`,
+  PRACTICE: (workspaceId: number) => `${API_BASE_URL}/api/workspaces/${workspaceId}/practice`,
+  PRACTICE_SET: (id: number) => `${API_BASE_URL}/api/practice/${id}`,
+  DEADLINES: `${API_BASE_URL}/api/deadlines`,
+  SEARCH: `${API_BASE_URL}/api/search`,
   HEALTH: `${API_BASE_URL}/health`,
 } as const;
 

@@ -144,5 +144,45 @@ def test_usage_counts_only_ones_own_material():
     assert bob.get("/api/chat/usage").json()["content"]["used_chunks"] > 0
 
 
+def test_study_tools_deadlines_and_search_are_per_user():
+    import json
+    from datetime import datetime, timedelta, timezone
+
+    from api.models.database import Deadline
+
+    alice, bob, bobs, alices = setup_bob_with_canvas()
+    bob_video = support.add_video("bob", "Bob lecture", ["bob's private lecture on heat engines"], bobs)
+    guide = {"summary": "Bob's guide.", "key_terms": [], "outline": [{"timestamp": "0:00", "title": "Start"}]}
+    claude = support.use_claude(json.dumps(guide))
+    assert bob.post(f"/api/videos/{bob_video}/study-guide").status_code == 200
+
+    assert alice.get(f"/api/videos/{bob_video}/study-guide").status_code == 404
+    assert alice.post(f"/api/videos/{bob_video}/study-guide").status_code == 404
+
+    support.use_claude(json.dumps({"items": [{"question": "Q", "answer": "A", "source": "E1"}]}))
+    bobs_set = bob.post(f"/api/workspaces/{bobs}/practice", json={"kind": "questions"}).json()["id"]
+    assert alice.get(f"/api/workspaces/{bobs}/practice").status_code == 404
+    assert alice.post(f"/api/workspaces/{bobs}/practice", json={"kind": "questions"}).status_code == 404
+    assert alice.delete(f"/api/practice/{bobs_set}").status_code == 404
+    assert len(claude.prompts) == 1, "nothing of Bob's was sent on Alice's behalf"
+
+    db = support.session()
+    try:
+        db.add(Deadline(
+            user_id="bob", workspace_id=bobs, canvas_course_id=5, canvas_assignment_id=9,
+            title="Bob's essay", due_at=datetime.now(timezone.utc) + timedelta(days=2), is_quiz=False,
+        ))
+        db.commit()
+    finally:
+        db.close()
+    assert alice.get("/api/deadlines").json() == []
+    assert alice.get(f"/api/deadlines?workspace_id={bobs}").json() == []
+    assert "Bob's essay" in [d["title"] for d in bob.get("/api/deadlines").json()]
+
+    for params in ({"q": "heat engines"}, {"q": "carnot", "workspace_id": bobs}):
+        assert alice.get("/api/search", params=params).json() == []
+    assert bob.get("/api/search", params={"q": "heat engines"}).json()
+
+
 if __name__ == "__main__":
     support.run(globals())

@@ -27,6 +27,7 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
     func,
+    literal_column,
     text,
 )
 from sqlalchemy.orm import DeclarativeBase, relationship, sessionmaker
@@ -220,6 +221,92 @@ class Deadline(Base):
     )
 
 
+class UsageCharge(Base):
+    """
+    What a Claude call outside chat cost: a study guide or a practice set,
+    including calls whose reply was unusable and so produced nothing to keep.
+    The monthly quota sums these alongside chat messages.
+    """
+
+    __tablename__ = "usage_charges"
+
+    id = Column(BigInteger, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    purpose = Column(String, nullable=False)
+    model = Column(String, nullable=True)
+    input_tokens = Column(Integer, nullable=True)
+    output_tokens = Column(Integer, nullable=True)
+    cost_usd = Column(Numeric(10, 6), nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("purpose in ('study_guide', 'practice')", name="ck_usage_charges_purpose"),
+        Index("ix_usage_charges_user_created", "user_id", "created_at"),
+    )
+
+
+class StudyGuide(Base):
+    """
+    A lecture's summary, key terms and timestamped outline. Generated once, on
+    request, and kept: asking again returns the stored guide rather than paying
+    for a new one. What it cost is recorded in usage_charges.
+    """
+
+    __tablename__ = "study_guides"
+
+    id = Column(BigInteger, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    video_id = Column(
+        BigInteger, ForeignKey("videos.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+
+    summary = Column(Text, nullable=False)
+    # JSON lists: [{"term", "definition", "start"}], [{"start", "title"}].
+    key_terms = Column(Text, nullable=False)
+    outline = Column(Text, nullable=False)
+    # Set when the transcript was too long to send whole: the guide covers up to here.
+    covered_until_s = Column(Float, nullable=True)
+
+    model = Column(String, nullable=True)
+    input_tokens = Column(Integer, nullable=True)
+    output_tokens = Column(Integer, nullable=True)
+    cost_usd = Column(Numeric(10, 6), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (Index("ix_study_guides_user", "user_id"),)
+
+
+class StudySet(Base):
+    """
+    Practice questions or flashcards made from one subject's lectures and
+    course material. Every item carries the passage its answer comes from.
+    """
+
+    __tablename__ = "study_sets"
+
+    id = Column(BigInteger, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    workspace_id = Column(
+        BigInteger, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False
+    )
+
+    kind = Column(String, nullable=False)
+    focus = Column(String, nullable=True)
+    # JSON list of items, each with its citation (see api/services/study.py).
+    items = Column(Text, nullable=False)
+
+    model = Column(String, nullable=True)
+    input_tokens = Column(Integer, nullable=True)
+    output_tokens = Column(Integer, nullable=True)
+    cost_usd = Column(Numeric(10, 6), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("kind in ('questions', 'flashcards')", name="ck_study_sets_kind"),
+        Index("ix_study_sets_user_workspace", "user_id", "workspace_id", "created_at"),
+    )
+
+
 class CanvasConnection(Base):
     """
     One student's link to their school's Canvas. Tokens are stored encrypted
@@ -301,6 +388,14 @@ class Chunk(Base):
         ),
         Index("ix_chunks_user_video", "user_id", "video_id"),
         Index("ix_chunks_user_document", "user_id", "document_id"),
+        # Full-text search over transcripts and documents. An expression index,
+        # so adding it didn't rewrite the table; queries must use the same
+        # to_tsvector('english', text) expression to use it.
+        Index(
+            "ix_chunks_text_search",
+            func.to_tsvector(literal_column("'english'"), text),
+            postgresql_using="gin",
+        ),
         # HNSW is overkill below ~100k rows but costs little; an exact scan is
         # the fallback the planner picks anyway when the filter is selective.
         Index(

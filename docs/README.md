@@ -164,7 +164,7 @@ erDiagram
     }
 ```
 
-Plus `answer_cache` (cache key, answer, hit count). Foreign keys cascade on delete, except `workspace_id`: deleting a subject moves its lectures and chats to Unsorted.
+Plus `answer_cache` (cache key, answer, hit count), `deadlines` (Canvas due dates), `study_guides` (one per lecture), `study_sets` (practice questions and flashcards) and `usage_charges` (what study-tool calls cost). Foreign keys cascade on delete, except `workspace_id`: deleting a subject moves its lectures and chats to Unsorted.
 
 ---
 
@@ -173,6 +173,8 @@ Plus `answer_cache` (cache key, answer, hit count). Foreign keys cascade on dele
 - **Time-window chunks.** 75 s windows with 18 s overlap keep an explanation whole across boundaries.
 - **Vectors in Postgres.** Tenant filter, joins, and cascade deletes run in one database, with no separate vector store to sync.
 - **Self-invalidating cache.** The key is a hash of model + scope + question + retrieved chunk IDs. Re-indexing changes the IDs, and an answer cached in one subject is never served in another.
+- **Study tools check what comes back.** A study guide's timestamps must fall inside passages that were sent; every practice question or flashcard must cite an excerpt it was given. What each call cost goes in `usage_charges` and counts toward the quota, unusable replies included.
+- **Search without a new store.** Full-text search is Postgres's own, on an expression index over chunk text, so adding it rewrote nothing.
 - **Subjects scope the search.** A chat searches one lecture, one subject, Unsorted, or everything. The scope is stored on the conversation, so deleting a subject never widens what its chats search.
 - **Ledger quotas.** Spend is summed from `messages.cost_usd` and checked before every Claude call.
 - **Signed playback.** `<video>` can't send auth headers, so `/playback` returns a short-lived URL scoped to one object, one user, one expiry.

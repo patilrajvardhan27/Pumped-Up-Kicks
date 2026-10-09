@@ -34,7 +34,7 @@ export function PrivacyContent() {
             </li>
             <li>
               <Strong>Your questions and answers.</Strong> Your chats, the excerpts each answer cited, and the tokens
-              and cost each answer used.
+              and cost each answer used. Study guides and practice sets you make, with what each cost.
             </li>
             <li>
               <Strong>Usage.</Strong> How many questions you have asked this month, how many were answered from cache,
@@ -76,8 +76,9 @@ export function PrivacyContent() {
             </li>
             <li>
               <Strong>Anthropic</Strong> receives your question and the few transcript or course-material excerpts
-              that matched it, so Claude can write the answer. It does not receive your video, your audio, a full
-              transcript or whole course files.
+              that matched it, so Claude can write the answer. When you ask for a study guide, it receives that
+              one lecture&rsquo;s full transcript; for practice questions or flashcards, a selection of passages
+              from that subject. It never receives your video, your audio or whole course files.
             </li>
             <li>
               <Strong>Your school&rsquo;s Canvas</Strong> receives our requests to read the courses you connected, made

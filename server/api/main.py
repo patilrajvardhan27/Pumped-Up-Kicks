@@ -10,7 +10,7 @@ from sqlalchemy.exc import InterfaceError, OperationalError
 
 from api.config import settings
 from api.models.database import get_engine
-from api.routes import canvas, chat, documents, videos, workspaces
+from api.routes import canvas, chat, documents, search, study, videos, workspaces
 
 
 class _HideOAuthCode(logging.Filter):
@@ -114,6 +114,8 @@ app.include_router(videos.router)
 app.include_router(workspaces.router)
 app.include_router(documents.router)
 app.include_router(canvas.router)
+app.include_router(study.router)
+app.include_router(search.router)
 
 
 @app.get("/")
@@ -128,6 +130,8 @@ def root():
             "workspaces": "/api/workspaces",
             "documents": "/api/documents",
             "canvas": "/api/canvas/connection",
+            "search": "/api/search",
+            "deadlines": "/api/deadlines",
             "chat": "/api/chat/query",
             "chat_stream": "/api/chat/stream",
             "conversations": "/api/chat/conversations",

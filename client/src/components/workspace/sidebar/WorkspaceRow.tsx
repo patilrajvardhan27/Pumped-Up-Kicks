@@ -2,10 +2,11 @@
 
 import { useId, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { IconButton } from '@/components/ui/IconButton';
-import { CanvasIcon, ChatsIcon, DisclosureIcon, EditIcon, PlayIcon } from '@/components/ui/icons';
+import { CanvasIcon, ChatsIcon, DeadlineIcon, DisclosureIcon, EditIcon, PlayIcon } from '@/components/ui/icons';
 import { cn } from '@/lib/cn';
 import type { WorkspaceKey } from '@/lib/workspaces';
-import type { ConversationItem, VideoInfo, WorkspaceInfo } from '@/types/api';
+import { safeUrl } from '@/lib/timestamps';
+import type { ConversationItem, Deadline, VideoInfo, WorkspaceInfo } from '@/types/api';
 import { VIDEO_DRAG, WORKSPACE_DRAG, carries, draggedId, startDrag } from './dnd';
 import { WorkspaceGlyph } from './WorkspaceGlyph';
 
@@ -25,6 +26,8 @@ interface WorkspaceRowProps {
   videos: VideoInfo[];
   /** Imported Canvas material in this subject. */
   documentCount?: number;
+  /** Upcoming Canvas deadlines in this subject, soonest first. */
+  deadlines?: Deadline[];
   conversations: ConversationItem[];
   selectedVideoId: number | null;
   activeConversationId: number | null;
@@ -42,6 +45,21 @@ interface WorkspaceRowProps {
 }
 
 const RECENT_CHATS = 3;
+const DUE_SHOWN = 3;
+const SOON_MS = 3 * 24 * 60 * 60 * 1000;
+
+/** "Fri 18 Oct, 11:59 PM", in the student's own time zone. */
+function dueLabel(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit',
+  });
+}
+
+/** "today", "tomorrow" or "in 3d", for the row itself. */
+function dueSoon(iso: string, now: number): string {
+  const days = Math.floor((new Date(iso).getTime() - now) / (24 * 60 * 60 * 1000));
+  return days <= 0 ? 'due today' : days === 1 ? 'due tomorrow' : `due in ${days}d`;
+}
 
 /** One subject in the sidebar: the row itself and, when open, its lectures and recent chats. */
 export function WorkspaceRow({
@@ -55,6 +73,7 @@ export function WorkspaceRow({
   modifierLabel,
   videos,
   documentCount = 0,
+  deadlines = [],
   conversations,
   selectedVideoId,
   activeConversationId,
@@ -100,6 +119,9 @@ export function WorkspaceRow({
   };
 
   const recent = conversations.slice(0, RECENT_CHATS);
+  const [now] = useState(() => Date.now());
+  const next = deadlines[0];
+  const urgent = next && new Date(next.due_at).getTime() - now < SOON_MS ? next : null;
 
   return (
     <li
@@ -154,8 +176,15 @@ export function WorkspaceRow({
           className="flex min-h-9 min-w-0 flex-1 items-center gap-2 rounded-sm text-left"
         >
           <WorkspaceGlyph subject={workspace ?? (rowKey as 'all' | 'unsorted')} size="sm" />
-          <span className={cn('truncate text-body-xs', active ? 'font-bold text-ink' : 'text-body')}>
-            {label}
+          <span className="flex min-w-0 flex-col">
+            <span className={cn('truncate text-body-xs', active ? 'font-bold text-ink' : 'text-body')}>
+              {label}
+            </span>
+            {urgent && (
+              <span className="truncate text-caption-sm text-danger">
+                {dueSoon(urgent.due_at, now)}: {urgent.title}
+              </span>
+            )}
           </span>
         </button>
 
@@ -234,6 +263,39 @@ export function WorkspaceRow({
             <CanvasIcon className="size-3.5 text-mute-strong" />
             {documentCount} from Canvas
           </p>
+        )}
+
+        {deadlines.length > 0 && (
+          <ul aria-label={`Due soon in ${label}`} className="mt-1 flex flex-col border-t border-hairline-soft pt-1">
+            {deadlines.slice(0, DUE_SHOWN).map((deadline) => {
+              const href = safeUrl(deadline.url);
+              const content = (
+                <>
+                  <DeadlineIcon className="size-3.5 text-mute-strong" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-ink">{deadline.title}</span>
+                    <span className="block text-mute-strong">
+                      <time dateTime={deadline.due_at}>{dueLabel(deadline.due_at)}</time>
+                      {deadline.is_quiz ? ', quiz' : ''}
+                    </span>
+                  </span>
+                </>
+              );
+              const row = 'flex min-h-10 w-full min-w-0 items-center gap-2 rounded-sm px-2 py-1 text-left text-caption-sm';
+              return (
+                <li key={deadline.id}>
+                  {href ? (
+                    <a href={href} target="_blank" rel="noopener noreferrer" className={cn(row, 'no-underline hover:bg-surface-soft')}>
+                      {content}
+                      <span className="sr-only"> (opens Canvas in a new tab)</span>
+                    </a>
+                  ) : (
+                    <div className={row}>{content}</div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         )}
 
         {recent.length > 0 && (
