@@ -16,7 +16,7 @@ interface AnalyticsEvents {
   cta_clicked: { id: string };
   timeline_scrubbed: Record<string, never>;
   lecture_uploaded: { size_mb: number };
-  question_asked: { scope: 'lecture' | 'library' | 'thread' };
+  question_asked: { scope: 'lecture' | 'subject' | 'library' | 'thread' };
   citation_clicked: { source: 'answer' | 'timeline' };
 }
 

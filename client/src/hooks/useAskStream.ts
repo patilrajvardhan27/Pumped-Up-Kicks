@@ -4,12 +4,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/lib/analytics';
 import { ApiError } from '@/services/api';
 import { chatService } from '@/services/chatService';
-import type { StreamEvent } from '@/types/api';
+import type { ChatRequest, StreamEvent } from '@/types/api';
 import type { Turn } from '@/types/chat';
 
+/** What a new chat searches. An existing thread keeps its own scope. */
+export type NewChatScope = Pick<ChatRequest, 'scope' | 'video_id' | 'workspace_id'>;
+
 interface AskStreamOptions {
-  /** Lecture the conversation is scoped to; null means all lectures. */
-  videoId: number | null;
+  scope: NewChatScope;
   conversationId: number | null;
   append: (turn: Turn) => void;
   patch: (key: string, change: (turn: Turn) => Turn) => void;
@@ -23,7 +25,7 @@ const TOP_K = 5;
 
 /** Sends a question and streams the answer into its turn. */
 export function useAskStream({
-  videoId,
+  scope,
   conversationId,
   append,
   patch,
@@ -44,7 +46,14 @@ export function useAskStream({
       if (!trimmed || busy) return;
 
       track('question_asked', {
-        scope: conversationId != null ? 'thread' : videoId != null ? 'lecture' : 'library',
+        scope:
+          conversationId != null
+            ? 'thread'
+            : scope.scope === 'video'
+              ? 'lecture'
+              : scope.scope === 'workspace'
+                ? 'subject'
+                : 'library',
       });
 
       const key = `t${Date.now()}`;
@@ -57,12 +66,7 @@ export function useAskStream({
 
       const update = (change: Partial<Turn>) => patch(key, (turn) => ({ ...turn, ...change }));
 
-      const scope =
-        conversationId != null
-          ? { conversation_id: conversationId }
-          : videoId != null
-            ? { video_id: videoId }
-            : {};
+      const target = conversationId != null ? { conversation_id: conversationId } : scope;
 
       const handleEvent = (event: StreamEvent) => {
         if (event.type === 'conversation') {
@@ -89,7 +93,7 @@ export function useAskStream({
 
       try {
         await chatService.streamQuery(
-          { question: trimmed, top_k: TOP_K, ...scope },
+          { question: trimmed, top_k: TOP_K, ...target },
           handleEvent,
           controller.signal,
         );
@@ -112,7 +116,7 @@ export function useAskStream({
         abortRef.current = null;
       }
     },
-    [busy, conversationId, videoId, append, patch, remove, adopt, onConversationStarted, onTurnComplete],
+    [busy, conversationId, scope, append, patch, remove, adopt, onConversationStarted, onTurnComplete],
   );
 
   const stop = useCallback(() => abortRef.current?.abort(), []);

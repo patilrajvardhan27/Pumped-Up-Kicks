@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { chatService } from '@/services/chatService';
+import { chatService, type ConversationFilter } from '@/services/chatService';
 import type { ConversationItem } from '@/types/api';
 
-/** Chat threads, optionally only those about one lecture. */
-export function useConversations(videoId: number | null, refreshTrigger?: number) {
+/** Chat threads, optionally only those about one lecture or filed under one subject. */
+export function useConversations(filter: ConversationFilter, refreshTrigger?: number) {
+  const { videoId, workspaceId, unsorted } = filter;
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [reloadCount, setReloadCount] = useState(0);
@@ -13,7 +14,7 @@ export function useConversations(videoId: number | null, refreshTrigger?: number
   useEffect(() => {
     let cancelled = false;
     chatService
-      .listConversations(videoId)
+      .listConversations({ videoId, workspaceId, unsorted })
       .then((items) => {
         if (!cancelled) setConversations(items);
       })
@@ -26,7 +27,7 @@ export function useConversations(videoId: number | null, refreshTrigger?: number
     return () => {
       cancelled = true;
     };
-  }, [videoId, refreshTrigger, reloadCount]);
+  }, [videoId, workspaceId, unsorted, refreshTrigger, reloadCount]);
 
   /** Deletes a thread. A failed delete is ignored; the list reloads either way. */
   const remove = useCallback(async (id: number) => {

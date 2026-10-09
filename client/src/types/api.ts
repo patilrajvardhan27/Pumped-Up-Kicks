@@ -28,10 +28,18 @@ export interface Quota {
   exhausted: boolean;
 }
 
+/**
+ * What a chat searches: one lecture, one subject (a null workspace_id means
+ * the Unsorted lectures), or every lecture.
+ */
+export type ChatScope = 'video' | 'workspace' | 'all';
+
 export interface ChatRequest {
   question: string;
   conversation_id?: number;
+  scope?: ChatScope;
   video_id?: number;
+  workspace_id?: number | null;
   top_k?: number;
 }
 
@@ -63,7 +71,10 @@ export interface MessageItem {
 export interface ConversationItem {
   id: number;
   title?: string | null;
+  scope: ChatScope;
   video_id?: number | null;
+  /** The subject the thread is filed under; null is Unsorted (or, for scope 'all', none). */
+  workspace_id?: number | null;
   video_title?: string | null;
   created_at: string;
   updated_at: string;
@@ -88,6 +99,8 @@ export type VideoStage = 'queued' | 'transcribing' | 'indexing' | 'ready' | 'fai
 
 export interface VideoInfo {
   id: number;
+  /** The subject this lecture is filed under; null is Unsorted. */
+  workspace_id: number | null;
   filename: string;
   title?: string;
   duration?: number;
@@ -125,4 +138,39 @@ export interface UploadResponse {
   video_id: number;
   filename: string;
   status: string;
+}
+
+/** Keys into a fixed palette; lib/workspaces.ts maps them onto design tokens. */
+export type WorkspaceColor = 'blue' | 'green' | 'red' | 'purple' | 'teal' | 'olive';
+
+export type WorkspaceIcon =
+  | 'book'
+  | 'flask'
+  | 'function'
+  | 'code'
+  | 'globe'
+  | 'atom'
+  | 'dna'
+  | 'chart'
+  | 'palette'
+  | 'music'
+  | 'scales'
+  | 'brain';
+
+/** A subject: a named group of lectures and the chats about them. */
+export interface WorkspaceInfo {
+  id: number;
+  name: string;
+  color: WorkspaceColor;
+  icon: WorkspaceIcon;
+  position: number;
+  canvas_course_id?: number | null;
+  video_count: number;
+  created_at: string;
+}
+
+export interface WorkspaceDraft {
+  name: string;
+  color: WorkspaceColor;
+  icon: WorkspaceIcon;
 }

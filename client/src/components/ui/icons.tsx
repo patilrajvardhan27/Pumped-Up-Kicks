@@ -2,10 +2,27 @@ import type { Icon, IconProps } from '@phosphor-icons/react';
 import {
   ArrowRightIcon as PhArrowRight,
   ArrowsHorizontalIcon,
+  ArrowDownIcon as PhArrowDown,
+  ArrowUpIcon as PhArrowUp,
+  AtomIcon,
+  BookOpenIcon,
   BooksIcon,
   BrainIcon as PhBrain,
   ArrowLeftIcon as PhArrowLeft,
+  ChartLineIcon,
+  CodeIcon as PhCode,
   CompassIcon,
+  DnaIcon,
+  FlaskIcon,
+  FunctionIcon,
+  GlobeHemisphereWestIcon,
+  MusicNotesIcon,
+  PaletteIcon,
+  PencilSimpleIcon,
+  ScalesIcon,
+  SidebarSimpleIcon,
+  StackIcon,
+  TrayIcon,
   CookieIcon as PhCookie,
   FileTextIcon,
   ShieldCheckIcon,
@@ -62,6 +79,10 @@ export const DisclosureIcon = wrap(CaretRightIcon);
 export const MenuIcon = wrap(ListIcon);
 export const DragIcon = wrap(ArrowsHorizontalIcon);
 export const SpinnerIcon = wrap(CircleNotchIcon, 'bold', 'animate-spin');
+export const EditIcon = wrap(PencilSimpleIcon);
+export const MoveUpIcon = wrap(PhArrowUp);
+export const MoveDownIcon = wrap(PhArrowDown);
+export const SidebarIcon = wrap(SidebarSimpleIcon);
 
 // Features
 export const UploadIcon = wrap(UploadSimpleIcon, 'duotone');
@@ -78,3 +99,19 @@ export const PreviewIcon = wrap(MonitorPlayIcon, 'duotone');
 export const PrivacyIcon = wrap(ShieldCheckIcon, 'duotone');
 export const TermsIcon = wrap(FileTextIcon, 'duotone');
 export const LostIcon = wrap(CompassIcon, 'duotone');
+export const AllLecturesIcon = wrap(StackIcon, 'duotone');
+export const UnsortedIcon = wrap(TrayIcon, 'duotone');
+
+// Subject icons, drawn white on the subject's colour tile.
+export const SubjectBookIcon = wrap(BookOpenIcon);
+export const SubjectFlaskIcon = wrap(FlaskIcon);
+export const SubjectFunctionIcon = wrap(FunctionIcon);
+export const SubjectCodeIcon = wrap(PhCode);
+export const SubjectGlobeIcon = wrap(GlobeHemisphereWestIcon);
+export const SubjectAtomIcon = wrap(AtomIcon);
+export const SubjectDnaIcon = wrap(DnaIcon);
+export const SubjectChartIcon = wrap(ChartLineIcon);
+export const SubjectPaletteIcon = wrap(PaletteIcon);
+export const SubjectMusicIcon = wrap(MusicNotesIcon);
+export const SubjectScalesIcon = wrap(ScalesIcon);
+export const SubjectBrainIcon = wrap(PhBrain);

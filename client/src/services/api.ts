@@ -13,6 +13,10 @@ export const API_ENDPOINTS = {
   VIDEOS_PRESIGN: `${API_BASE_URL}/api/videos/presign`,
   VIDEOS_COMPLETE: (id: number) => `${API_BASE_URL}/api/videos/${id}/complete`,
   VIDEOS_UPLOAD: `${API_BASE_URL}/api/videos/upload`,
+  VIDEOS_MOVE: (id: number) => `${API_BASE_URL}/api/videos/${id}/workspace`,
+  WORKSPACES: `${API_BASE_URL}/api/workspaces`,
+  WORKSPACE: (id: number) => `${API_BASE_URL}/api/workspaces/${id}`,
+  WORKSPACES_ORDER: `${API_BASE_URL}/api/workspaces/order`,
   HEALTH: `${API_BASE_URL}/health`,
 } as const;
 
@@ -68,6 +72,25 @@ class ApiClient {
   async post<T>(endpoint: string, data: unknown): Promise<T> {
     const response = await fetch(endpoint, {
       method: 'POST',
+      headers: await authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) throw await toError(response, 'Request failed');
+    return response.json();
+  }
+
+  async put<T>(endpoint: string, data: unknown): Promise<T> {
+    return this.send<T>('PUT', endpoint, data);
+  }
+
+  async patch<T>(endpoint: string, data: unknown): Promise<T> {
+    return this.send<T>('PATCH', endpoint, data);
+  }
+
+  private async send<T>(method: 'PUT' | 'PATCH', endpoint: string, data: unknown): Promise<T> {
+    const response = await fetch(endpoint, {
+      method,
       headers: await authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
     });

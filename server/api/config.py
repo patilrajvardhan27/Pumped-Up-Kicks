@@ -82,6 +82,7 @@ class Settings(BaseSettings):
     rate_limit_upload_per_minute: int = 10
     max_question_chars: int = 2000
     max_title_chars: int = 200
+    max_workspaces_per_user: int = 50
 
     # -- web -------------------------------------------------------------
     cors_origins: str = "http://localhost:3000,http://localhost:5173"

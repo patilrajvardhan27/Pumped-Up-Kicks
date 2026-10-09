@@ -8,7 +8,8 @@ from pydantic import BaseModel, Field
 
 from api.config import settings
 from api.deps import Ctx, RequestContext
-from api.models.database import Video, get_session
+from api.models.database import Conversation, Video, get_session
+from api.routes.workspaces import owned_workspace
 from api.services.ratelimit import rate_limit
 from api.services.signing import SignatureError, sign, verify
 from api.services.storage import get_storage, safe_key
@@ -25,6 +26,7 @@ CONTENT_TYPES = {
 
 class VideoInfo(BaseModel):
     id: int
+    workspace_id: Optional[int] = None
     filename: str
     title: Optional[str]
     duration: Optional[float]
@@ -48,6 +50,8 @@ class PresignRequest(BaseModel):
     content_type: Optional[str] = Field(None, max_length=255)
     title: Optional[str] = Field(None, max_length=settings.max_title_chars)
     file_size: Optional[int] = None
+    # The subject to file the lecture under; null leaves it in Unsorted.
+    workspace_id: Optional[int] = None
 
 
 class PresignResponse(BaseModel):
@@ -65,6 +69,11 @@ class UploadResponse(BaseModel):
     status: str
 
 
+class MoveRequest(BaseModel):
+    """Null moves the lecture to Unsorted."""
+    workspace_id: Optional[int] = None
+
+
 class PlaybackResponse(BaseModel):
     """A URL a <video> element can load directly, and when it stops working."""
     url: str
@@ -76,6 +85,7 @@ class PlaybackResponse(BaseModel):
 def _to_info(video: Video) -> VideoInfo:
     return VideoInfo(
         id=video.id,
+        workspace_id=video.workspace_id,
         filename=video.filename,
         title=video.title or video.filename,
         duration=video.duration_s,
@@ -205,6 +215,8 @@ def presign_upload(request: PresignRequest, ctx: RequestContext = Ctx):
     """
     ext = _validate_filename(request.filename)
     _claim_filename(ctx, request.filename)
+    if request.workspace_id is not None:
+        owned_workspace(ctx, request.workspace_id)
 
     if request.file_size and request.file_size > settings.max_upload_bytes:
         raise HTTPException(
@@ -218,6 +230,7 @@ def presign_upload(request: PresignRequest, ctx: RequestContext = Ctx):
 
     video = Video(
         user_id=ctx.user_id,
+        workspace_id=request.workspace_id,
         filename=request.filename,
         title=request.title or request.filename,
         storage_key=key,
@@ -279,6 +292,7 @@ async def upload_video(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     title: Optional[str] = Form(None, max_length=settings.max_title_chars),
+    workspace_id: Optional[int] = Form(None),
     ctx: RequestContext = Ctx,
 ):
     """
@@ -287,6 +301,8 @@ async def upload_video(
     """
     _validate_filename(file.filename)
     _claim_filename(ctx, file.filename)
+    if workspace_id is not None:
+        owned_workspace(ctx, workspace_id)
 
     key = safe_key(ctx.user_id, file.filename)
     storage = get_storage()
@@ -303,6 +319,7 @@ async def upload_video(
 
     video = Video(
         user_id=ctx.user_id,
+        workspace_id=workspace_id,
         filename=file.filename,
         title=title or file.filename,
         storage_key=key,
@@ -333,6 +350,33 @@ def get_video(video_id: int, ctx: RequestContext = Ctx):
 def get_video_status(video_id: int, ctx: RequestContext = Ctx):
     """Polled by the client while a lecture is being prepared."""
     video = _owned_video(ctx, video_id)
+    ctx.db.refresh(video)
+    return _to_info(video)
+
+
+@router.put("/{video_id}/workspace", response_model=VideoInfo)
+def move_video(video_id: int, request: MoveRequest, ctx: RequestContext = Ctx):
+    """File a lecture under another subject, or under none (Unsorted)."""
+    video = _owned_video(ctx, video_id)
+    if request.workspace_id is not None:
+        owned_workspace(ctx, request.workspace_id)
+
+    video.workspace_id = request.workspace_id
+
+    # Threads about this one lecture are filed with it, so they move too. Their
+    # updated_at is kept, so a move does not reshuffle the recent chats.
+    ctx.db.query(Conversation).filter(
+        Conversation.user_id == ctx.user_id,
+        Conversation.video_id == video.id,
+        Conversation.scope == "video",
+    ).update(
+        {
+            Conversation.workspace_id: request.workspace_id,
+            Conversation.updated_at: Conversation.updated_at,
+        },
+        synchronize_session=False,
+    )
+    ctx.db.commit()
     ctx.db.refresh(video)
     return _to_info(video)
 

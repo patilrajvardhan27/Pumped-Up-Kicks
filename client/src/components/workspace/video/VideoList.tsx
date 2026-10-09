@@ -4,38 +4,57 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { LibraryIcon } from '@/components/ui/icons';
-import { useVideoLibrary } from '@/hooks/useVideoLibrary';
-import type { VideoInfo } from '@/types/api';
+import type { VideoInfo, WorkspaceInfo } from '@/types/api';
 import { VideoListItem } from './VideoListItem';
 
 interface VideoListProps {
-  refreshTrigger?: number;
-  /** Lecture the chat is scoped to; null means all of them. */
+  /** The lectures in the open subject. */
+  videos: VideoInfo[];
+  /** Shown as the card's heading: the open subject's name. */
+  heading: string;
+  /** Every subject, for each lecture's "Subject" menu. */
+  workspaces: WorkspaceInfo[];
+  loading: boolean;
+  error: string | null;
+  onClearError: () => void;
+  deletingId: number | null;
+  onDelete: (id: number) => void;
+  onMove: (id: number, workspaceId: number | null) => void;
+  /** Lecture the chat is scoped to; null means the whole subject. */
   selectedId?: number | null;
-  onVideosChange?: (videos: VideoInfo[]) => void;
   onSelect?: (id: number | null) => void;
 }
 
-export function VideoList({ refreshTrigger, selectedId = null, onVideosChange, onSelect }: VideoListProps) {
-  const library = useVideoLibrary(refreshTrigger, onVideosChange);
-  const { videos } = library;
+export function VideoList({
+  videos,
+  heading,
+  workspaces,
+  loading,
+  error,
+  onClearError,
+  deletingId,
+  onDelete,
+  onMove,
+  selectedId = null,
+  onSelect,
+}: VideoListProps) {
   const readyCount = videos.filter((video) => video.stage === 'ready').length;
 
   const confirmDelete = (video: VideoInfo) => {
     const confirmed = window.confirm(
-      `Delete \u201c${video.title}\u201d? Its transcript and search index go with it.`,
+      `Delete “${video.title}”? Its transcript and search index go with it.`,
     );
-    if (confirmed) library.deleteVideo(video.id);
+    if (confirmed) onDelete(video.id);
   };
 
   return (
     <Card as="section" padding="tile" aria-labelledby="library-heading" className="flex flex-col gap-4">
       <div className="flex min-h-8 items-center justify-between gap-3">
-        <h2 id="library-heading" className="flex items-center gap-2 text-heading-sm text-ink">
+        <h2 id="library-heading" className="flex min-w-0 items-center gap-2 text-heading-sm text-ink">
           <LibraryIcon className="size-5" />
-          Library
+          <span className="truncate">{heading}</span>
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {selectedId !== null && (
             <Button variant="tertiary" size="sm" onClick={() => onSelect?.(null)}>
               Search all
@@ -47,17 +66,17 @@ export function VideoList({ refreshTrigger, selectedId = null, onVideosChange, o
         </div>
       </div>
 
-      {library.error && (
-        <Alert tone="danger" title="Library" onClose={library.clearError}>
-          {library.error}
+      {error && (
+        <Alert tone="danger" title="Library" onClose={onClearError}>
+          {error}
         </Alert>
       )}
 
-      {library.loading ? (
+      {loading ? (
         <p className="py-6 text-center text-body-xs text-mute-strong">Loading…</p>
       ) : videos.length === 0 ? (
         <p className="py-6 text-center text-body-xs text-body">
-          No lectures yet. Add one above and it will appear here as it processes.
+          No lectures here yet. Add one above, or drag one in from another subject.
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
@@ -65,10 +84,12 @@ export function VideoList({ refreshTrigger, selectedId = null, onVideosChange, o
             <VideoListItem
               key={video.id}
               video={video}
+              workspaces={workspaces}
               selected={selectedId === video.id}
-              deleting={library.deletingId === video.id}
+              deleting={deletingId === video.id}
               onSelect={(id) => onSelect?.(id)}
               onDelete={confirmDelete}
+              onMove={onMove}
             />
           ))}
         </ul>
