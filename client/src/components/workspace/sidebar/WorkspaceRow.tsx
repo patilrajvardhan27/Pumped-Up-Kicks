@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { IconButton } from '@/components/ui/IconButton';
-import { ChatsIcon, DisclosureIcon, EditIcon, PlayIcon } from '@/components/ui/icons';
+import { CanvasIcon, ChatsIcon, DisclosureIcon, EditIcon, PlayIcon } from '@/components/ui/icons';
 import { cn } from '@/lib/cn';
 import type { WorkspaceKey } from '@/lib/workspaces';
 import type { ConversationItem, VideoInfo, WorkspaceInfo } from '@/types/api';
@@ -23,6 +23,8 @@ interface WorkspaceRowProps {
   shortcut?: number;
   modifierLabel: string;
   videos: VideoInfo[];
+  /** Imported Canvas material in this subject. */
+  documentCount?: number;
   conversations: ConversationItem[];
   selectedVideoId: number | null;
   activeConversationId: number | null;
@@ -52,6 +54,7 @@ export function WorkspaceRow({
   shortcut,
   modifierLabel,
   videos,
+  documentCount = 0,
   conversations,
   selectedVideoId,
   activeConversationId,
@@ -187,7 +190,7 @@ export function WorkspaceRow({
 
       <div id={treeId} hidden={!expanded} className="mt-0.5 mb-1 ml-4 border-l border-hairline-soft pl-1.5">
         {videos.length === 0 ? (
-          <p className="px-2 py-1.5 text-caption-sm text-mute-strong">No lectures yet</p>
+          documentCount === 0 && <p className="px-2 py-1.5 text-caption-sm text-mute-strong">No lectures yet</p>
         ) : (
           <ul aria-label={`Lectures in ${label}`} className="flex flex-col">
             {videos.map((video) => {
@@ -224,6 +227,13 @@ export function WorkspaceRow({
               );
             })}
           </ul>
+        )}
+
+        {documentCount > 0 && (
+          <p className="flex min-h-8 items-center gap-2 px-2 text-caption-sm text-body">
+            <CanvasIcon className="size-3.5 text-mute-strong" />
+            {documentCount} from Canvas
+          </p>
         )}
 
         {recent.length > 0 && (

@@ -15,7 +15,7 @@ export const site = {
   operator: process.env.NEXT_PUBLIC_OPERATOR_NAME?.trim() || null,
   contactEmail: process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || null,
   /** Bump when either legal page changes in substance. */
-  legalUpdated: '6 October 2026',
+  legalUpdated: '9 October 2026',
 } as const;
 
 export const pageTitle = (title: string) => `${title} | ${site.name}`;

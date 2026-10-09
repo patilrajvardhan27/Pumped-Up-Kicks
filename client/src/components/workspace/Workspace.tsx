@@ -4,11 +4,14 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import type { NewChatScope } from '@/hooks/useAskStream';
+import { useCanvas } from '@/hooks/useCanvas';
 import { useConversations } from '@/hooks/useConversations';
+import { useDocuments } from '@/hooks/useDocuments';
 import { useVideoLibrary } from '@/hooks/useVideoLibrary';
 import type { VideoPlayerHandle } from '@/hooks/useVideoPlayer';
 import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { useWorkspaceShortcuts } from '@/hooks/useWorkspaceShortcuts';
+import { useCanvasReturn } from '@/lib/canvasReturn';
 import { cn } from '@/lib/cn';
 import { usePersistedString } from '@/lib/persisted';
 import {
@@ -22,8 +25,10 @@ import {
 } from '@/lib/workspaces';
 import type { ConversationFilter } from '@/services/chatService';
 import type { ConversationItem, Source, VideoInfo, WorkspaceInfo } from '@/types/api';
+import { CanvasDialog } from './canvas/CanvasDialog';
 import { ChatPanel } from './chat/ChatPanel';
 import { ConversationList } from './chat/ConversationList';
+import { CourseMaterial } from './documents/CourseMaterial';
 import { SidebarDrawer } from './sidebar/SidebarDrawer';
 import { WorkspaceGlyph } from './sidebar/WorkspaceGlyph';
 import { WorkspaceSidebar, type WorkspaceSidebarProps } from './sidebar/WorkspaceSidebar';
@@ -43,9 +48,10 @@ const COLLAPSED_KEY = 'puk-sidebar-collapsed-v1';
 export function Workspace() {
   const [libraryTrigger, setLibraryTrigger] = useState(0);
   const [threadsTrigger, setThreadsTrigger] = useState(0);
+  const [materialTrigger, setMaterialTrigger] = useState(0);
 
   const library = useVideoLibrary(libraryTrigger);
-  const subjects = useWorkspaces();
+  const subjects = useWorkspaces(materialTrigger);
   const allChats = useConversations({}, threadsTrigger);
   const { videos } = library;
   const { workspaces } = subjects;
@@ -57,6 +63,31 @@ export function Workspace() {
     parseKey(storedKey, subjects.loading ? null : workspaces) ?? 'all';
   const collapsed = storedCollapsed === '1';
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // A finished sync (or a disconnect) can add subjects and material.
+  const materialChanged = useCallback(() => setMaterialTrigger((n) => n + 1), []);
+  const canvas = useCanvas(materialChanged);
+  const canvasReturn = useCanvasReturn();
+  const [canvasOpen, setCanvasOpen] = useState(false);
+  const [returnSeen, setReturnSeen] = useState(false);
+  const showCanvas = canvasOpen || (canvasReturn !== null && !returnSeen);
+  const openCanvas = useCallback(() => {
+    setCanvasOpen(true);
+    setDrawerOpen(false);
+  }, []);
+  const closeCanvas = useCallback(() => {
+    setCanvasOpen(false);
+    setReturnSeen(true);
+  }, []);
+
+  const documents = useDocuments(
+    activeKey === 'all'
+      ? { all: true }
+      : activeKey === 'unsorted'
+        ? { unsorted: true }
+        : { workspaceId: activeKey },
+    materialTrigger,
+  );
 
   // Which lecture the chat is scoped to; null means the whole open subject.
   const [videoId, setVideoId] = useState<number | null>(null);
@@ -183,7 +214,7 @@ export function Workspace() {
 
   const hasContent = selectedVideo
     ? selectedVideo.stage === 'ready'
-    : inView.some((video) => video.stage === 'ready');
+    : inView.some((video) => video.stage === 'ready') || documents.some((doc) => doc.num_chunks > 0);
 
   const threadFilter: ConversationFilter =
     videoId != null
@@ -227,6 +258,8 @@ export function Workspace() {
     onUpdate: subjects.update,
     onDelete: deleteWorkspace,
     onReorder: subjects.reorder,
+    canvasStatus: canvas.status,
+    onOpenCanvas: openCanvas,
   };
 
   return (
@@ -275,6 +308,7 @@ export function Workspace() {
             selectedId={videoId}
             onSelect={selectVideo}
           />
+          <CourseMaterial documents={documents} />
           <ConversationList
             filter={threadFilter}
             heading={threadsHeading}
@@ -313,6 +347,14 @@ export function Workspace() {
       <SidebarDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <WorkspaceSidebar {...sidebarProps} onClose={() => setDrawerOpen(false)} />
       </SidebarDrawer>
+
+      <CanvasDialog
+        open={showCanvas}
+        onClose={closeCanvas}
+        canvas={canvas}
+        workspaces={workspaces}
+        returned={returnSeen ? null : canvasReturn}
+      />
     </>
   );
 }

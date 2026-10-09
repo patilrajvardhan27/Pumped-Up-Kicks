@@ -9,16 +9,25 @@ import {
   BooksIcon,
   BrainIcon as PhBrain,
   ArrowLeftIcon as PhArrowLeft,
+  ArrowSquareOutIcon,
+  ArrowsClockwiseIcon,
+  CalendarBlankIcon,
   ChartLineIcon,
+  ClipboardTextIcon,
   CodeIcon as PhCode,
   CompassIcon,
   DnaIcon,
+  FileDocIcon,
+  FilePdfIcon,
   FlaskIcon,
   FunctionIcon,
   GlobeHemisphereWestIcon,
+  GraduationCapIcon,
+  MegaphoneIcon,
   MusicNotesIcon,
   PaletteIcon,
   PencilSimpleIcon,
+  PresentationIcon,
   ScalesIcon,
   SidebarSimpleIcon,
   StackIcon,
@@ -83,6 +92,8 @@ export const EditIcon = wrap(PencilSimpleIcon);
 export const MoveUpIcon = wrap(PhArrowUp);
 export const MoveDownIcon = wrap(PhArrowDown);
 export const SidebarIcon = wrap(SidebarSimpleIcon);
+export const ExternalIcon = wrap(ArrowSquareOutIcon);
+export const SyncIcon = wrap(ArrowsClockwiseIcon);
 
 // Features
 export const UploadIcon = wrap(UploadSimpleIcon, 'duotone');
@@ -101,6 +112,16 @@ export const TermsIcon = wrap(FileTextIcon, 'duotone');
 export const LostIcon = wrap(CompassIcon, 'duotone');
 export const AllLecturesIcon = wrap(StackIcon, 'duotone');
 export const UnsortedIcon = wrap(TrayIcon, 'duotone');
+export const CanvasIcon = wrap(GraduationCapIcon, 'duotone');
+export const DeadlineIcon = wrap(CalendarBlankIcon, 'duotone');
+
+// Kinds of imported course material.
+export const PdfIcon = wrap(FilePdfIcon);
+export const SlidesIcon = wrap(PresentationIcon);
+export const WordIcon = wrap(FileDocIcon);
+export const PageIcon = wrap(FileTextIcon);
+export const AnnouncementIcon = wrap(MegaphoneIcon);
+export const AssignmentIcon = wrap(ClipboardTextIcon);
 
 // Subject icons, drawn white on the subject's colour tile.
 export const SubjectBookIcon = wrap(BookOpenIcon);

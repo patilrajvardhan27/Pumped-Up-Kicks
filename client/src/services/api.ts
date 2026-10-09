@@ -17,6 +17,13 @@ export const API_ENDPOINTS = {
   WORKSPACES: `${API_BASE_URL}/api/workspaces`,
   WORKSPACE: (id: number) => `${API_BASE_URL}/api/workspaces/${id}`,
   WORKSPACES_ORDER: `${API_BASE_URL}/api/workspaces/order`,
+  DOCUMENTS: `${API_BASE_URL}/api/documents`,
+  DOCUMENT: (id: number) => `${API_BASE_URL}/api/documents/${id}`,
+  CANVAS_CONNECTION: `${API_BASE_URL}/api/canvas/connection`,
+  CANVAS_OAUTH_START: `${API_BASE_URL}/api/canvas/oauth/start`,
+  CANVAS_TOKEN: `${API_BASE_URL}/api/canvas/token`,
+  CANVAS_COURSES: `${API_BASE_URL}/api/canvas/courses`,
+  CANVAS_SYNC: `${API_BASE_URL}/api/canvas/sync`,
   HEALTH: `${API_BASE_URL}/health`,
 } as const;
 
