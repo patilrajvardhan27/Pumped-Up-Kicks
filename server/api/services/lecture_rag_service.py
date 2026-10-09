@@ -44,6 +44,7 @@ Rules:
 - If they cover only part of the question, answer that part and say plainly which part the material does not address. Do not describe unrelated material.
 - Cite a lecture excerpt by its timestamp in square brackets right after the claim it supports, like [12:04].
 - Cite a course-material excerpt by its reference in square brackets, like [Doc 3]. One reference per pair of brackets.
+- When both lecture and course-material excerpts bear on the question, use and cite both.
 - If the material gives several reasons, limitations, or examples, list all of them.
 - Prefer the lecturer's own terminology over synonyms.
 - Be direct and concise. No preamble, no restating the question."""
@@ -125,16 +126,22 @@ class LectureRAGService:
             .limit(k)
         )
         if scope.kind == "video":
-            stmt = stmt.where(Chunk.video_id == scope.video_id)
-        elif scope.kind == "workspace":
-            # A chunk has exactly one parent, so this is that parent's subject.
-            subject = func.coalesce(Video.workspace_id, Document.workspace_id)
-            stmt = stmt.where(
-                subject.is_(None) if scope.workspace_id is None else subject == scope.workspace_id
+            rows = db.execute(stmt.where(Chunk.video_id == scope.video_id)).all()
+        else:
+            if scope.kind == "workspace":
+                # A chunk has exactly one parent, so this is that parent's subject.
+                subject = func.coalesce(Video.workspace_id, Document.workspace_id)
+                stmt = stmt.where(
+                    subject.is_(None) if scope.workspace_id is None else subject == scope.workspace_id
+                )
+            rows = self._balanced(
+                db.execute(stmt.where(Chunk.video_id.is_not(None))).all(),
+                db.execute(stmt.where(Chunk.document_id.is_not(None))).all(),
+                k,
             )
 
         sources = []
-        for position, (chunk, video, document, dist) in enumerate(db.execute(stmt).all(), start=1):
+        for position, (chunk, video, document, dist) in enumerate(rows, start=1):
             if document is not None:
                 source = document_source(chunk, document, ref=f"Doc {position}")
             else:
@@ -142,6 +149,19 @@ class LectureRAGService:
             source["similarity"] = round(max(0.0, 1.0 - float(dist)), 4)
             sources.append(source)
         return sources
+
+    @staticmethod
+    def _balanced(lectures: List, documents: List, k: int) -> List:
+        """
+        Merge the nearest lecture and document passages. Each kind keeps up to
+        a third of the places when it has candidates, so a subject's answer can
+        draw on (and cite) both even when one kind is more numerous; the rest
+        go to whichever passages are nearest. Rows are (chunk, video, document, distance).
+        """
+        reserve = max(1, k // 3)
+        kept = lectures[:reserve] + documents[:reserve]
+        rest = sorted(lectures[reserve:] + documents[reserve:], key=lambda row: row[-1])
+        return sorted(kept + rest[: max(0, k - len(kept))], key=lambda row: row[-1])[:k]
 
     # -- prompt assembly ---------------------------------------------------
 

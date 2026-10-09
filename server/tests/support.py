@@ -217,9 +217,11 @@ def install_fakes() -> None:
 
 def use_claude(reply: str = "It is covered [0:10].") -> FakeClaude:
     import api.services.lecture_rag_service as rag_module
+    from api.services import study
 
     fake = FakeClaude(reply)
     rag_module.get_claude_client = lambda: fake
+    study.get_claude_client = lambda: fake
     return fake
 
 
@@ -259,6 +261,38 @@ def add_video(user_id: str, title: str, transcript: list[str], workspace_id=None
         ])
         db.commit()
         return video.id
+    finally:
+        db.close()
+
+
+def add_document(
+    user_id: str, title: str, pages: list[str], workspace_id=None, canvas_id: int = 1,
+    mime_type: str = "application/pdf",
+) -> int:
+    """An imported PDF with one indexed chunk per page."""
+    from api.models.database import Chunk, Document, User
+
+    db = session()
+    try:
+        if db.get(User, user_id) is None:
+            db.add(User(id=user_id, email=f"{user_id}@test.local", plan="free"))
+            db.commit()
+        document = Document(
+            user_id=user_id, workspace_id=workspace_id, source="canvas_file",
+            canvas_course_id=1, canvas_id=canvas_id, title=title, mime_type=mime_type,
+            url=f"https://canvas.test.edu/courses/1/files/{canvas_id}",
+            num_pages=len(pages), num_chunks=len(pages),
+        )
+        db.add(document)
+        db.commit()
+        embedder = HashingEmbedder()
+        db.add_all([
+            Chunk(document_id=document.id, user_id=user_id, text=text_, page=i + 1,
+                  embedding=embedder.embed_one(text_))
+            for i, text_ in enumerate(pages)
+        ])
+        db.commit()
+        return document.id
     finally:
         db.close()
 

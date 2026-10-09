@@ -13,6 +13,7 @@ from tests import support
 BASE = "fc71a20a8909"
 WORKSPACES = "cbc5d28c211d"
 CANVAS = "c8ac3f0a9197"
+STUDY = "dc3868b32385"
 
 _TEST_URL = make_url(support.TEST_DATABASE_URL)
 URL = _TEST_URL.set(database=f"{_TEST_URL.database}_migrations").render_as_string(hide_password=False)
@@ -205,6 +206,45 @@ def test_canvas_downgrade_drops_documents_and_keeps_lectures():
 
         support.migrate(URL, "head")
         assert "documents" in inspect(engine).get_table_names()
+    finally:
+        engine.dispose()
+
+
+def test_study_tools_upgrade_and_downgrade():
+    engine = fresh_database()
+    try:
+        support.migrate(URL, BASE)
+        with engine.begin() as conn:
+            seed_before_workspaces(conn)
+        support.migrate(URL, STUDY)
+
+        tables = set(inspect(engine).get_table_names())
+        assert {"study_guides", "study_sets", "usage_charges"} <= tables
+        indexes = {i["name"] for i in inspect(engine).get_indexes("chunks")}
+        assert "ix_chunks_text_search" in indexes
+        with engine.connect() as conn:
+            found = conn.execute(text(
+                "select count(*) from chunks where to_tsvector('english', text) @@ websearch_to_tsquery('english', 'hello')"
+            )).scalar()
+            assert found == 1, "existing chunks are searchable straight away"
+
+        with engine.begin() as conn:
+            conn.execute(text(
+                "insert into study_guides (user_id, video_id, summary, key_terms, outline) "
+                "values ('u1', 1, 's', '[]', '[]')"
+            ))
+            conn.execute(text(
+                "insert into usage_charges (user_id, purpose, cost_usd) values ('u1', 'study_guide', 0.01)"
+            ))
+
+        support.migrate(URL, CANVAS, direction="downgrade")
+        tables = set(inspect(engine).get_table_names())
+        assert not {"study_guides", "study_sets", "usage_charges"} & tables
+        assert "ix_chunks_text_search" not in {i["name"] for i in inspect(engine).get_indexes("chunks")}
+        with engine.connect() as conn:
+            assert conn.execute(text("select count(*) from chunks")).scalar() == 1
+
+        support.migrate(URL, "head")
     finally:
         engine.dispose()
 
