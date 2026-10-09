@@ -88,6 +88,11 @@ erDiagram
     users ||--o{ conversations : owns
     workspaces ||--o{ videos : files
     workspaces ||--o{ conversations : files
+    workspaces ||--o{ documents : files
+    users ||--o| canvas_connections : "connects"
+    users ||--o{ documents : imports
+    users ||--o{ deadlines : "due dates"
+    documents ||--o{ chunks : "split into"
     videos ||--o{ chunks : "split into"
     videos ||--o{ conversations : about
     conversations ||--o{ messages : contains
@@ -116,11 +121,28 @@ erDiagram
     }
     chunks {
         bigint id PK
-        bigint video_id FK
+        bigint video_id FK "or"
+        bigint document_id FK "exactly one"
         string user_id FK
-        float start_s
-        float end_s
+        float start_s "lectures"
+        float end_s "lectures"
+        int page "documents"
         vector embedding "384-d, HNSW"
+    }
+    documents {
+        bigint id PK
+        string user_id FK
+        bigint workspace_id FK
+        string source "canvas file, page, syllabus..."
+        bigint canvas_id
+        timestamptz updated_at "skip unchanged on re-sync"
+    }
+    canvas_connections {
+        bigint id PK
+        string user_id FK "one per user"
+        string base_url
+        text access_token_enc "Fernet"
+        string sync_stage
     }
     conversations {
         bigint id PK

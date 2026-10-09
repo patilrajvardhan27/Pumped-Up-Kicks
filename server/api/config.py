@@ -6,6 +6,7 @@ with nothing configured: auth falls back to a single dev user, storage to the
 local disk, transcription to an in-process Whisper run. Setting the corresponding
 env vars switches each one to its production backend independently.
 """
+import json
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -75,6 +76,28 @@ class Settings(BaseSettings):
     free_plan_monthly_usd: float = 1.00
     pro_plan_monthly_usd: float = 20.00
     max_upload_bytes: int = 4 * 1024 * 1024 * 1024
+    # Indexed passages per account, lectures and imported course material
+    # together. Imports stop at the limit; see api/services/quota.py.
+    free_plan_max_chunks: int = 10_000
+    pro_plan_max_chunks: int = 100_000
+
+    # -- Canvas ----------------------------------------------------------
+    # Every school runs its own Canvas, and each school's admin issues the
+    # developer key (OAuth client) for it. JSON, keyed by the school's address:
+    #   {"https://canvas.example.edu": {"client_id": "...", "client_secret": "..."}}
+    canvas_oauth_clients: str = ""
+    # Lets a developer connect with a personal access token instead of OAuth.
+    # Local testing only: Canvas's API policy forbids multi-user apps from
+    # asking users for one, so this refuses to start with AUTH_MODE=clerk.
+    canvas_allow_personal_tokens: bool = False
+    # Fernet key(s) that encrypt stored Canvas tokens, comma separated, the
+    # first one used for new tokens. Required with AUTH_MODE=clerk.
+    canvas_token_key: str | None = None
+    canvas_max_file_bytes: int = 50 * 1024 * 1024
+    # Where this API and the web app are reached from a browser: the OAuth
+    # redirect comes back to the first and then sends the student to the second.
+    public_api_url: str = "http://localhost:8000"
+    public_app_url: str = "http://localhost:3000"
 
     # -- abuse limits ----------------------------------------------------
     # Requests per minute per user on the endpoints that cost money. 0 turns one off.
@@ -103,6 +126,42 @@ class Settings(BaseSettings):
             )
         return self
 
+    @model_validator(mode="after")
+    def _canvas_settings_are_safe(self):
+        if self.canvas_allow_personal_tokens and self.auth_mode == "clerk":
+            raise ValueError(
+                "CANVAS_ALLOW_PERSONAL_TOKENS is for local testing only. Canvas's API "
+                "policy forbids asking real users for access tokens; use OAuth "
+                "(CANVAS_OAUTH_CLIENTS) with AUTH_MODE=clerk."
+            )
+        canvas_enabled = bool(self.canvas_oauth_clients) or self.canvas_allow_personal_tokens
+        if canvas_enabled and self.auth_mode == "clerk" and not self.canvas_token_key:
+            raise ValueError(
+                "CANVAS_TOKEN_KEY is not set. Generate one with `python -c \"from "
+                "cryptography.fernet import Fernet;print(Fernet.generate_key().decode())\"`."
+            )
+        self.canvas_oauth_client_map  # fails here, at startup, on malformed JSON
+        return self
+
+    @property
+    def canvas_oauth_client_map(self) -> dict[str, dict[str, str]]:
+        """CANVAS_OAUTH_CLIENTS parsed, keyed by the school's address without a trailing slash."""
+        if not self.canvas_oauth_clients.strip():
+            return {}
+        try:
+            raw = json.loads(self.canvas_oauth_clients)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"CANVAS_OAUTH_CLIENTS is not valid JSON: {e.msg}") from None
+        clients = {}
+        for url, client in raw.items():
+            if not isinstance(client, dict) or not client.get("client_id") or not client.get("client_secret"):
+                raise ValueError(f"CANVAS_OAUTH_CLIENTS entry for {url} needs client_id and client_secret.")
+            clients[url.strip().lower().rstrip("/")] = {
+                "client_id": str(client["client_id"]),
+                "client_secret": str(client["client_secret"]),
+            }
+        return clients
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
@@ -121,6 +180,9 @@ class Settings(BaseSettings):
 
     def plan_limit_usd(self, plan: str) -> float:
         return self.pro_plan_monthly_usd if plan == "pro" else self.free_plan_monthly_usd
+
+    def plan_max_chunks(self, plan: str) -> int:
+        return self.pro_plan_max_chunks if plan == "pro" else self.free_plan_max_chunks
 
 
 @lru_cache

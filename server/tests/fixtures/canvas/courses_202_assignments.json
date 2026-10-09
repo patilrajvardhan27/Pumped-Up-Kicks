@@ -1,0 +1,16 @@
+[
+  {
+    "id": 8101,
+    "name": "Homework 3: eigenvalues",
+    "description": "<p>Find the eigenvalues of the given matrix.</p>",
+    "due_at": "2026-10-18T05:59:59Z",
+    "points_possible": 10.0,
+    "course_id": 202,
+    "submission_types": [
+      "online_upload"
+    ],
+    "published": true,
+    "locked_for_user": false,
+    "updated_at": "2026-09-03T12:00:00Z"
+  }
+]

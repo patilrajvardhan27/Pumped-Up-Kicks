@@ -26,7 +26,7 @@ from api.models.database import (
 )
 from api.routes.workspaces import owned_workspace
 from api.services.lecture_rag_service import get_rag_service
-from api.services.quota import QuotaExceeded, enforce, get_quota
+from api.services.quota import QuotaExceeded, enforce, get_content_status, get_quota
 from api.services.ratelimit import rate_limit
 from api.services.scope import ChatScope
 
@@ -37,15 +37,26 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
 class Source(BaseModel):
+    """One cited passage: from a lecture (timestamps) or a document (page or slide)."""
+
+    kind: Literal["video", "document"] = "video"
     chunk_id: Optional[int] = None
     video_id: Optional[int] = None
     text: str
+    # "12:04 - 13:19" for a lecture; "p. 4", "slide 4" or "" for a document.
     timestamp: str
+    # The source's display name: the lecture title, or the document title.
     video: str
     start: Optional[float] = None
     end: Optional[float] = None
     similarity: Optional[float] = None
     video_duration: Optional[float] = None
+    document_id: Optional[int] = None
+    document_title: Optional[str] = None
+    page: Optional[int] = None
+    url: Optional[str] = None
+    # How the answer cites a document passage, such as "Doc 3".
+    ref: Optional[str] = None
 
 
 class Usage(BaseModel):
@@ -123,6 +134,8 @@ class UsageSummary(BaseModel):
     total_output_tokens: int
     model: str
     quota: dict
+    # Indexed passages (lectures and imported material) against the plan's allowance.
+    content: dict
 
 
 # --- helpers ----------------------------------------------------------------
@@ -198,25 +211,27 @@ def _conversation_item(conversation: Conversation, video_title: Optional[str]) -
 
 
 def _source_models(message: Message) -> List[Source]:
-    from api.services.lecture_rag_service import format_timestamp
+    """
+    The citations behind a stored answer, in the order they were given to the
+    model, so a [Doc 3] in the answer still points at the third passage.
+    """
+    from api.services.lecture_rag_service import document_source, video_source
 
     out = []
-    for link in message.sources:
+    ordered = sorted(message.sources, key=lambda link: link.position or 0)
+    for index, link in enumerate(ordered, start=1):
         chunk = link.chunk
         if chunk is None:
             continue
-        video = chunk.video
-        out.append(Source(
-            chunk_id=chunk.id,
-            video_id=chunk.video_id,
-            text=chunk.text,
-            timestamp=f"{format_timestamp(chunk.start_s)} - {format_timestamp(chunk.end_s)}",
-            video=(video.title or video.filename) if video else "unknown",
-            start=chunk.start_s,
-            end=chunk.end_s,
-            similarity=link.similarity,
-            video_duration=video.duration_s if video else None,
-        ))
+        if chunk.document is not None:
+            source = document_source(chunk, chunk.document, ref=f"Doc {link.position or index}")
+        elif chunk.video is not None:
+            video = chunk.video
+            source = video_source(chunk, video.filename, video.title, video.duration_s)
+        else:
+            continue
+        source["similarity"] = link.similarity
+        out.append(Source(**source))
     return out
 
 
@@ -243,7 +258,7 @@ def _persist_turn(
     db.refresh(assistant)
 
     seen = set()
-    for source in result.get("sources", []):
+    for position, source in enumerate(result.get("sources", []), start=1):
         chunk_id = source.get("chunk_id")
         if chunk_id is None or chunk_id in seen:
             continue
@@ -252,6 +267,7 @@ def _persist_turn(
             message_id=assistant.id,
             chunk_id=chunk_id,
             similarity=source.get("similarity"),
+            position=position,
         ))
 
     db.commit()
@@ -498,6 +514,7 @@ def get_usage(ctx: RequestContext = Ctx):
         total_output_tokens=sum(m.output_tokens or 0 for m in messages),
         model=settings.puk_claude_model,
         quota=get_quota(ctx.db, ctx.user).to_dict(),
+        content=get_content_status(ctx.db, ctx.user).to_dict(),
     )
 
 

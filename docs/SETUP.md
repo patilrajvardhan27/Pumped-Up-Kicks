@@ -228,12 +228,89 @@ app startup — two containers booting at once would race.
 
 ---
 
+## 5b. Canvas (per school)
+
+Canvas has no single API host: every school runs its own (for example
+`https://canvas.colorado.edu`), and each school's Canvas admin decides which
+apps may use it. Students connect with OAuth2 against their own school, using
+a developer key that school issued for this app. Canvas's API policy forbids
+multi-user apps from asking students to paste access tokens they generated
+themselves, so there is no such option in production.
+
+### What the school's Canvas admin creates
+
+In Canvas: **Admin, Developer Keys, + Developer Key, API Key**.
+
+| Field | Value |
+|---|---|
+| Key name | Pumped Up Kicks (or your operator name) |
+| Owner email | your contact address |
+| Redirect URIs | `https://<your-api-host>/api/canvas/oauth/callback` (exactly `PUBLIC_API_URL` + that path) |
+| Enforce scopes | On, with only the read-only scopes below |
+
+Scopes (all `GET`, nothing that writes; no quizzes, submissions, grades or other people):
+
+```
+url:GET|/api/v1/users/:id
+url:GET|/api/v1/courses
+url:GET|/api/v1/courses/:id
+url:GET|/api/v1/courses/:course_id/files
+url:GET|/api/v1/courses/:course_id/pages
+url:GET|/api/v1/courses/:course_id/pages/:url_or_id
+url:GET|/api/v1/courses/:course_id/modules
+url:GET|/api/v1/courses/:course_id/assignments
+url:GET|/api/v1/courses/:course_id/discussion_topics
+```
+
+The scope picker in the developer key form shows the exact names your Canvas
+version uses; if one differs, use the picker's name and update `SCOPES` in
+`server/api/services/canvas_auth.py` to match. After saving, the admin switches
+the key **On** and sends you its client ID and secret.
+
+### What you configure
+
+`server/.env`:
+```
+CANVAS_OAUTH_CLIENTS={"https://canvas.example.edu": {"client_id": "...", "client_secret": "..."}}
+CANVAS_TOKEN_KEY=<Fernet key>
+PUBLIC_API_URL=https://<your-api-host>
+PUBLIC_APP_URL=https://<your-web-host>
+```
+
+Add one entry per school to `CANVAS_OAUTH_CLIENTS`. Generate the token key with
+`python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())"`.
+To rotate it, put the new key first and keep the old one after a comma until
+every student has re-synced.
+
+Requests to Canvas ignore `HTTP_PROXY`/`HTTPS_PROXY` and only reach public
+addresses, so the API host needs direct outbound https to the school's Canvas
+and to Canvas's file store (files are served from a different host).
+
+### Trying it on your own machine
+
+With `AUTH_MODE=dev` you can skip the developer key and use a personal access
+token for your own Canvas account: set `CANVAS_ALLOW_PERSONAL_TOKENS=true`,
+create a token in Canvas under **Account, Settings, New access token**, and use
+"Use a personal access token" in the Canvas dialog. The server refuses to start
+with this flag and `AUTH_MODE=clerk`.
+
+### What gets imported
+
+For each course a student chooses: files (PDF, PowerPoint, Word), pages, the
+syllabus, announcements, module names, and assignments with their due dates.
+Quiz-type assignments keep their title and due date only. Locked or hidden
+material is skipped. A later sync only downloads and re-indexes what changed.
+
+---
+
 ## 6. Before you let anyone in
 
 - [ ] `AUTH_MODE=clerk` — confirm the DEV MODE chip is gone from the header
 - [ ] Spend cap set in the Anthropic Console
 - [ ] `FREE_PLAN_MONTHLY_USD` tuned (default $1.00 ≈ 78 questions on Sonnet)
 - [ ] Sign up as a second user and confirm you cannot see the first user's lectures
+- [ ] `CANVAS_TOKEN_KEY` set, `CANVAS_ALLOW_PERSONAL_TOKENS` unset
+- [ ] Each school's redirect URI matches `PUBLIC_API_URL` exactly
 - [ ] `CORS_ORIGINS` lists only your real frontend domain
 - [ ] `SECRET_KEY` set to a real random value — it signs playback URLs, and the
       default lets anyone mint a link to any lecture:

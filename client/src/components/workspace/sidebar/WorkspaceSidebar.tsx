@@ -14,7 +14,8 @@ import {
   videosIn,
   type WorkspaceKey,
 } from '@/lib/workspaces';
-import type { ConversationItem, VideoInfo, WorkspaceDraft, WorkspaceInfo } from '@/types/api';
+import type { CanvasStatus, ConversationItem, VideoInfo, WorkspaceDraft, WorkspaceInfo } from '@/types/api';
+import { CanvasEntry } from '../canvas/CanvasEntry';
 import { VIDEO_DRAG, carries, draggedId } from './dnd';
 import { WorkspaceEditor } from './WorkspaceEditor';
 import { WorkspaceGlyph } from './WorkspaceGlyph';
@@ -45,6 +46,8 @@ export interface WorkspaceSidebarProps {
   onUpdate: (id: number, change: Partial<WorkspaceDraft>) => Promise<boolean>;
   onDelete: (workspace: WorkspaceInfo) => void;
   onReorder: (ids: number[]) => void;
+  canvasStatus: CanvasStatus | null;
+  onOpenCanvas: () => void;
 }
 
 /**
@@ -74,6 +77,8 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps) {
     onUpdate,
     onDelete,
     onReorder,
+    canvasStatus,
+    onOpenCanvas,
   } = props;
 
   const modifier = useModifierLabel();
@@ -183,6 +188,7 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps) {
               expanded={expanded.has(workspace.id)}
               shortcut={index < 9 ? index + 1 : undefined}
               videos={videosIn(videos, workspace.id)}
+              documentCount={workspace.document_count}
               conversations={chatsIn(workspace.id)}
               onActivate={() => activate(workspace.id)}
               onToggle={() => toggle(workspace.id)}
@@ -252,6 +258,10 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps) {
         </ul>
       </div>
 
+      <div className="shrink-0 border-t border-hairline-soft p-2">
+        <CanvasEntry status={canvasStatus} onOpen={onOpenCanvas} />
+      </div>
+
       {onToggleCollapsed && (
         <p className="shrink-0 border-t border-hairline-soft px-3 py-2 text-caption-sm text-mute-strong">
           <Kbd>{modifier}</Kbd> <Kbd>1</Kbd> to <Kbd>9</Kbd> opens a subject. <Kbd>{modifier}</Kbd>{' '}
@@ -267,7 +277,16 @@ function Kbd({ children }: { children: ReactNode }) {
 }
 
 /** The collapsed sidebar: one tile per subject, still a drop target for lectures. */
-function SidebarRail({ workspaces, videos, activeKey, onToggleCollapsed, onSelect, onMoveVideo }: WorkspaceSidebarProps) {
+function SidebarRail({
+  workspaces,
+  videos,
+  activeKey,
+  onToggleCollapsed,
+  onSelect,
+  onMoveVideo,
+  canvasStatus,
+  onOpenCanvas,
+}: WorkspaceSidebarProps) {
   const modifier = useModifierLabel();
 
   return (
@@ -310,6 +329,8 @@ function SidebarRail({ workspaces, videos, activeKey, onToggleCollapsed, onSelec
           glyph={<WorkspaceGlyph subject="unsorted" />}
         />
       </ul>
+      <span aria-hidden="true" className="mt-auto mb-1 h-px w-6 bg-hairline-soft" />
+      <CanvasEntry status={canvasStatus} onOpen={onOpenCanvas} compact />
     </nav>
   );
 }

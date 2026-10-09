@@ -1,13 +1,24 @@
+/** One cited passage: from a lecture (with timestamps) or a course document (with a page or slide). */
 export interface Source {
+  kind?: 'video' | 'document';
   chunk_id?: number;
   video_id?: number;
   text: string;
+  /** "12:04 - 13:19" for a lecture; "p. 4", "slide 4" or "" for a document. */
   timestamp: string;
+  /** The source's display name: the lecture or document title. */
   video: string;
   start?: number;
   end?: number;
   similarity?: number;
   video_duration?: number;
+  document_id?: number;
+  document_title?: string;
+  page?: number | null;
+  /** Where to open a document: the item in Canvas. */
+  url?: string | null;
+  /** How the answer cites a document passage, such as "Doc 3". */
+  ref?: string | null;
 }
 
 export interface Usage {
@@ -85,6 +96,14 @@ export interface ConversationDetail extends ConversationItem {
   messages: MessageItem[];
 }
 
+/** Indexed passages (lectures and imported course material) against the plan's allowance. */
+export interface ContentQuota {
+  used_chunks: number;
+  limit_chunks: number;
+  remaining_chunks: number;
+  percent_used: number;
+}
+
 export interface UsageSummary {
   questions_asked: number;
   cache_hits: number;
@@ -93,6 +112,7 @@ export interface UsageSummary {
   total_output_tokens: number;
   model: string;
   quota: Quota;
+  content: ContentQuota;
 }
 
 export type VideoStage = 'queued' | 'transcribing' | 'indexing' | 'ready' | 'failed';
@@ -166,6 +186,8 @@ export interface WorkspaceInfo {
   position: number;
   canvas_course_id?: number | null;
   video_count: number;
+  /** Course material imported from Canvas. */
+  document_count: number;
   created_at: string;
 }
 
@@ -173,4 +195,73 @@ export interface WorkspaceDraft {
   name: string;
   color: WorkspaceColor;
   icon: WorkspaceIcon;
+}
+
+export type DocumentSource =
+  | 'canvas_file'
+  | 'canvas_page'
+  | 'canvas_syllabus'
+  | 'canvas_announcement'
+  | 'canvas_assignment';
+
+/** Course material imported from Canvas. */
+export interface DocumentInfo {
+  id: number;
+  workspace_id: number | null;
+  source: DocumentSource;
+  title: string;
+  mime_type?: string | null;
+  url?: string | null;
+  module_name?: string | null;
+  module_position?: number | null;
+  num_pages?: number | null;
+  num_chunks: number;
+  updated_at?: string | null;
+}
+
+export type CanvasSyncStage = 'idle' | 'queued' | 'syncing' | 'ready' | 'failed';
+
+export interface CanvasSyncSummary {
+  added: number;
+  updated: number;
+  unchanged: number;
+  removed: number;
+  deadlines: number;
+  skipped: string[];
+}
+
+export interface CanvasSync {
+  stage: CanvasSyncStage;
+  progress: number;
+  detail?: string | null;
+  error?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  summary?: CanvasSyncSummary | null;
+}
+
+/** Never carries a token: the server keeps those to itself. */
+export interface CanvasStatus {
+  connected: boolean;
+  base_url?: string | null;
+  auth_type?: 'oauth' | 'personal_token' | null;
+  connected_at?: string | null;
+  sync?: CanvasSync | null;
+  /** Schools this server has a developer key for. */
+  schools: string[];
+  personal_tokens_allowed: boolean;
+}
+
+export interface CanvasCourse {
+  id: number;
+  name: string;
+  course_code?: string | null;
+  term?: string | null;
+  workspace_id?: number | null;
+}
+
+export interface CanvasSyncRequest {
+  /** workspace_id null creates a subject named after the course. */
+  link?: { course_id: number; workspace_id: number | null }[];
+  unlink?: number[];
 }

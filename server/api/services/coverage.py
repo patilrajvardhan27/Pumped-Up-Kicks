@@ -15,11 +15,11 @@ actually separate.
 """
 
 MARKER = "NOT_COVERED"
-MESSAGE = "That isn't covered in your lectures."
+MESSAGE = "That isn't covered in your lectures or course material."
 
 # Bump when the system prompt changes meaning, so answers cached under the old
 # prompt are not served as if the new one had written them.
-PROMPT_VERSION = "2"
+PROMPT_VERSION = "3"
 
 # Characters a model may wrap the marker in, such as **NOT_COVERED** or `NOT_COVERED`.
 _LEADING = " \t\r\n*`'\"_"

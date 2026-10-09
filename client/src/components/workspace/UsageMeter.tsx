@@ -12,10 +12,10 @@ import { formatUsd } from '@/lib/format';
 export function UsageMeter({ refreshTrigger }: { refreshTrigger?: number }) {
   const usage = useUsage(refreshTrigger);
 
-  if (!usage || usage.questions_asked === 0) return null;
+  if (!usage || (usage.questions_asked === 0 && !usage.content?.used_chunks)) return null;
 
-  const { quota } = usage;
-  const cacheRate = Math.round((usage.cache_hits / usage.questions_asked) * 100);
+  const { quota, content } = usage;
+  const cacheRate = usage.questions_asked ? Math.round((usage.cache_hits / usage.questions_asked) * 100) : 0;
   const tone = quota.percent_used >= 90 ? 'danger' : quota.percent_used >= 70 ? 'primary' : 'success';
 
   return (
@@ -49,6 +49,15 @@ export function UsageMeter({ refreshTrigger }: { refreshTrigger?: number }) {
           </dd>
         </div>
       </dl>
+
+      {content && (
+        <p className="flex items-baseline justify-between gap-3 border-t border-hairline-soft pt-3 text-caption-sm text-mute-strong">
+          <span>Indexed passages, lectures and course material</span>
+          <span className={`font-mono text-code-xs tabular-nums ${content.remaining_chunks === 0 ? 'text-danger' : 'text-body'}`}>
+            {content.used_chunks.toLocaleString('en-US')} / {content.limit_chunks.toLocaleString('en-US')}
+          </span>
+        </p>
+      )}
     </Card>
   );
 }

@@ -26,6 +26,13 @@ export function PrivacyContent() {
               index of that transcript (lists of numbers that let us find passages by meaning).
             </li>
             <li>
+              <Strong>Canvas, only if you connect it.</Strong> The sign-in Canvas gives us for your account, stored
+              encrypted and never shown back to you or anyone else. From the courses you choose to import: files
+              (PDF, PowerPoint, Word), pages, the syllabus, announcements, module names, and assignment descriptions
+              and due dates, plus a search index of that text. We never import quizzes or exam questions, grades,
+              submissions, or anything about other students.
+            </li>
+            <li>
               <Strong>Your questions and answers.</Strong> Your chats, the excerpts each answer cited, and the tokens
               and cost each answer used.
             </li>
@@ -49,6 +56,10 @@ export function PrivacyContent() {
         <LegalSection id="use" title="How we use it">
           <List>
             <li>To transcribe your recordings, index them and answer your questions.</li>
+            <li>
+              To import the Canvas courses you choose and keep them up to date when you sync. We only read from
+              Canvas; we never post, submit or change anything there.
+            </li>
             <li>To apply the usage limits of your plan and to keep the service secure.</li>
             <li>To understand which features are used and fix what is broken, if you accepted analytics.</li>
           </List>
@@ -64,8 +75,13 @@ export function PrivacyContent() {
               <Strong>Clerk</Strong> handles sign-in and holds your account details.
             </li>
             <li>
-              <Strong>Anthropic</Strong> receives your question and the few transcript excerpts that matched it, so
-              Claude can write the answer. It does not receive your video, your audio or the full transcript.
+              <Strong>Anthropic</Strong> receives your question and the few transcript or course-material excerpts
+              that matched it, so Claude can write the answer. It does not receive your video, your audio, a full
+              transcript or whole course files.
+            </li>
+            <li>
+              <Strong>Your school&rsquo;s Canvas</Strong> receives our requests to read the courses you connected, made
+              with your permission. Your school already holds that material; we do not send it anything else.
             </li>
             <li>
               <Strong>PostHog</Strong> receives analytics events, only if you accepted.
@@ -99,7 +115,10 @@ export function PrivacyContent() {
         <LegalSection id="retention" title="How long we keep it">
           <P>
             Videos, transcripts, search indexes and chats stay until you delete them. Deleting a lecture removes the
-            file, its transcript, its index entries and the chats about it. Account details stay while your account is
+            file, its transcript, its index entries and the chats about it. Disconnecting Canvas deletes the stored
+            sign-in at once and asks Canvas to revoke it; you can choose to delete everything imported from Canvas
+            at the same time, or delete imported items later. Deleting a subject never deletes what is in it: its
+            lectures and material move to Unsorted. Account details stay while your account is
             open. Ask us to delete your account and we will remove your data, apart from anything the law requires us
             to keep. Backups can hold copies for a short time afterwards.
           </P>

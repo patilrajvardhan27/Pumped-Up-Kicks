@@ -1,0 +1,13 @@
+{
+  "access_token": "1~oauth-access-token-from-canvas",
+  "token_type": "Bearer",
+  "user": {
+    "id": 4471,
+    "name": "Test Student",
+    "global_id": "10000000004471",
+    "effective_locale": "en"
+  },
+  "canvas_region": "us-east-1",
+  "refresh_token": "1~oauth-refresh-token-from-canvas",
+  "expires_in": 3600
+}
