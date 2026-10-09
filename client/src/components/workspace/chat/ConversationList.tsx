@@ -7,14 +7,17 @@ import { ChatsIcon, CloseIcon, PlusIcon } from '@/components/ui/icons';
 import { useConversations } from '@/hooks/useConversations';
 import { cn } from '@/lib/cn';
 import { formatRelativeTime, pluralise } from '@/lib/format';
+import type { ConversationFilter } from '@/services/chatService';
 import type { ConversationItem } from '@/types/api';
 
 interface ConversationListProps {
-  /** Null shows every thread; a number scopes to one lecture. */
-  videoId: number | null;
+  /** Which threads to show: one lecture's, one subject's, Unsorted, or (empty) all. */
+  filter: ConversationFilter;
+  heading: string;
   activeId: number | null;
   refreshTrigger?: number;
-  onSelect: (id: number | null, videoId?: number | null) => void;
+  /** Called with null to start a new chat. */
+  onSelect: (conversation: ConversationItem | null) => void;
 }
 
 function summary(conversation: ConversationItem, showLecture: boolean): string {
@@ -26,8 +29,9 @@ function summary(conversation: ConversationItem, showLecture: boolean): string {
   return parts.join(', ');
 }
 
-export function ConversationList({ videoId, activeId, refreshTrigger, onSelect }: ConversationListProps) {
-  const { conversations, loading, remove } = useConversations(videoId, refreshTrigger);
+export function ConversationList({ filter, heading, activeId, refreshTrigger, onSelect }: ConversationListProps) {
+  const { conversations, loading, remove } = useConversations(filter, refreshTrigger);
+  const videoId = filter.videoId ?? null;
 
   const confirmRemove = async (id: number) => {
     if (!window.confirm('Delete this chat? The lecture itself stays in your library.')) return;
@@ -40,7 +44,7 @@ export function ConversationList({ videoId, activeId, refreshTrigger, onSelect }
       <div className="flex min-h-8 items-center justify-between gap-3">
         <h2 id="chats-heading" className="flex min-w-0 items-center gap-2 text-heading-sm text-ink">
           <ChatsIcon className="size-5" />
-          {videoId ? 'Chats about this lecture' : 'Recent chats'}
+          <span className="truncate">{heading}</span>
         </h2>
         <Button variant="tertiary" size="sm" onClick={() => onSelect(null)}>
           <PlusIcon className="size-3.5" />
@@ -71,7 +75,7 @@ export function ConversationList({ videoId, activeId, refreshTrigger, onSelect }
                 <div className="min-w-0 flex-1">
                   <button
                     type="button"
-                    onClick={() => onSelect(conversation.id, conversation.video_id)}
+                    onClick={() => onSelect(conversation)}
                     aria-current={active ? 'true' : undefined}
                     title={title}
                     className={cn(

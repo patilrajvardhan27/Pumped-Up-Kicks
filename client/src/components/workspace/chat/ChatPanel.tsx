@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { Alert } from '@/components/ui/Alert';
-import { useAskStream } from '@/hooks/useAskStream';
+import { type NewChatScope, useAskStream } from '@/hooks/useAskStream';
 import { useChatThread } from '@/hooks/useChatThread';
 import type { Source, VideoInfo } from '@/types/api';
 import type { SeekHandler } from '@/types/chat';
@@ -11,9 +11,14 @@ import { ChatEmptyState } from './ChatEmptyState';
 import { ChatTurn } from './ChatTurn';
 
 interface ChatPanelProps {
+  /** Every lecture, so citations from any of them can be placed on a timeline. */
   videos: VideoInfo[];
-  /** Lecture the conversation is scoped to; null means all lectures. */
-  videoId: number | null;
+  /** What a new chat searches. */
+  scope: NewChatScope;
+  /** The open lecture or subject, as the student would name it. */
+  scopeLabel: string;
+  /** Whether anything in scope is ready to be asked. */
+  hasContent: boolean;
   conversationId: number | null;
   onConversationStarted: (id: number) => void;
   onTurnComplete: () => void;
@@ -24,7 +29,9 @@ interface ChatPanelProps {
 
 export function ChatPanel({
   videos,
-  videoId,
+  scope,
+  scopeLabel,
+  hasContent,
   conversationId,
   onConversationStarted,
   onTurnComplete,
@@ -34,7 +41,7 @@ export function ChatPanel({
   const thread = useChatThread(conversationId);
   const { turns } = thread;
   const stream = useAskStream({
-    videoId,
+    scope,
     conversationId,
     append: thread.append,
     patch: thread.patch,
@@ -64,10 +71,6 @@ export function ChatPanel({
     if (latestSources) onSourcesChange?.(latestSources);
   }, [latestSources, onSourcesChange]);
 
-  const hasContent = videos.some((video) => video.stage === 'ready');
-  const scopeLabel = videoId
-    ? videos.find((video) => video.id === videoId)?.title || 'this lecture'
-    : 'all your lectures';
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -77,7 +80,7 @@ export function ChatPanel({
         ) : turns.length === 0 ? (
           <ChatEmptyState
             hasContent={hasContent}
-            scoped={videoId != null}
+            scope={scope.scope ?? 'all'}
             scopeLabel={scopeLabel}
             onAsk={stream.ask}
           />

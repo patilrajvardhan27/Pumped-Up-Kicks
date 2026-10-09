@@ -13,12 +13,16 @@ import { UploadProgress } from './UploadProgress';
 const TITLE_MAX_CHARS = 200;
 
 interface VideoUploadProps {
+  /** The subject new lectures are filed under; null is Unsorted. */
+  workspaceId: number | null;
+  /** Where the upload will land, shown so it is never a surprise. */
+  destination: string;
   /** Called with the new video's id once the file is on the server. */
   onUploadSuccess?: (videoId: number) => void;
 }
 
-export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
-  const upload = useVideoUpload(onUploadSuccess);
+export function VideoUpload({ workspaceId, destination, onUploadSuccess }: VideoUploadProps) {
+  const upload = useVideoUpload(workspaceId, onUploadSuccess);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -36,6 +40,9 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
         </h2>
         <span className="text-caption-sm text-mute-strong">MP4, MOV, MKV, WEBM</span>
       </div>
+      <p className="-mt-2 truncate text-caption-sm text-body">
+        Files into <span className="font-bold text-ink">{destination}</span>
+      </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <DropZone

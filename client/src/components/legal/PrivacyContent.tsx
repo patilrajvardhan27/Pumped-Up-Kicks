@@ -81,8 +81,9 @@ export function PrivacyContent() {
         <LegalSection id="cookies" title="Cookies and local storage">
           <List>
             <li>
-              <Strong>Always on, needed to work.</Strong> Clerk&rsquo;s session cookies keep you signed in. A small
-              entry in your browser&rsquo;s local storage remembers your analytics choice.
+              <Strong>Always on, needed to work.</Strong> Clerk&rsquo;s session cookies keep you signed in. Small
+              entries in your browser&rsquo;s local storage remember your analytics choice, which subject you had
+              open, and whether the subject list is collapsed.
             </li>
             <li>
               <Strong>Only if you accept.</Strong> PostHog stores an anonymous id in your browser so repeat visits

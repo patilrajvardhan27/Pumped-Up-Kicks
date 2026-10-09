@@ -22,8 +22,8 @@ function rejectionFor(candidate: File): string | null {
   return null;
 }
 
-/** File choice, client-side checks and the upload itself. */
-export function useVideoUpload(onUploadSuccess?: (videoId: number) => void) {
+/** File choice, client-side checks and the upload itself, into `workspaceId` (null is Unsorted). */
+export function useVideoUpload(workspaceId: number | null, onUploadSuccess?: (videoId: number) => void) {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [percent, setPercent] = useState(0);
@@ -57,7 +57,7 @@ export function useVideoUpload(onUploadSuccess?: (videoId: number) => void) {
     setPercent(0);
 
     try {
-      const result = await videoService.uploadVideo(file, title.trim(), (pct, loaded) => {
+      const result = await videoService.uploadVideo(file, title.trim(), workspaceId, (pct, loaded) => {
         setPercent(pct);
         setSentBytes(loaded);
       });
@@ -76,7 +76,7 @@ export function useVideoUpload(onUploadSuccess?: (videoId: number) => void) {
     } finally {
       setUploading(false);
     }
-  }, [file, title, onUploadSuccess]);
+  }, [file, title, workspaceId, onUploadSuccess]);
 
   return {
     file,

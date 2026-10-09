@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useEffectEvent, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ApiError } from '@/services/api';
 import { videoService } from '@/services/videoService';
 import type { VideoInfo } from '@/types/api';
@@ -12,20 +12,15 @@ const messageOf = (err: unknown, fallback: string) =>
   err instanceof ApiError ? err.message : fallback;
 
 /**
- * The lecture library. Polls only while something is still being processed,
- * then stops.
+ * The lecture library, every subject at once. Polls only while something is
+ * still being processed, then stops.
  */
-export function useVideoLibrary(
-  refreshTrigger?: number,
-  onVideosChange?: (videos: VideoInfo[]) => void,
-) {
+export function useVideoLibrary(refreshTrigger?: number) {
   const [videos, setVideos] = useState<VideoInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [reloadCount, setReloadCount] = useState(0);
-
-  const notify = useEffectEvent((next: VideoInfo[]) => onVideosChange?.(next));
 
   useEffect(() => {
     let cancelled = false;
@@ -34,7 +29,6 @@ export function useVideoLibrary(
       .then((result) => {
         if (cancelled) return;
         setVideos(result.videos);
-        notify(result.videos);
         setError(null);
       })
       .catch((err: unknown) => {
@@ -68,7 +62,27 @@ export function useVideoLibrary(
     }
   }, []);
 
+  /** Files a lecture under another subject. Shown at once; undone if the server refuses. */
+  const moveVideo = useCallback(
+    async (id: number, workspaceId: number | null) => {
+      const previous = videos.find((video) => video.id === id)?.workspace_id ?? null;
+      const place = (target: number | null) =>
+        setVideos((prev) =>
+          prev.map((video) => (video.id === id ? { ...video, workspace_id: target } : video)),
+        );
+
+      place(workspaceId);
+      try {
+        await videoService.moveVideo(id, workspaceId);
+      } catch (err) {
+        place(previous);
+        setError(messageOf(err, 'Could not move that lecture. Try again.'));
+      }
+    },
+    [videos],
+  );
+
   const clearError = useCallback(() => setError(null), []);
 
-  return { videos, loading, error, clearError, deletingId, deleteVideo };
+  return { videos, loading, error, clearError, deletingId, deleteVideo, moveVideo };
 }
