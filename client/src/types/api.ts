@@ -265,3 +265,74 @@ export interface CanvasSyncRequest {
   link?: { course_id: number; workspace_id: number | null }[];
   unlink?: number[];
 }
+
+export interface KeyTerm {
+  term: string;
+  definition: string;
+  /** Seconds into the lecture where it is explained, when that could be checked. */
+  start?: number | null;
+}
+
+export interface StudyGuide {
+  video_id: number;
+  summary: string;
+  key_terms: KeyTerm[];
+  outline: { start: number; title: string }[];
+  /** Set when the lecture was too long to read whole: the guide covers up to here. */
+  covered_until_s?: number | null;
+  cost_usd?: number | null;
+  created_at: string;
+}
+
+/** Where a practice item's answer comes from: a moment in a lecture or a page of a document. */
+export type PracticeSource = Pick<
+  Source,
+  'kind' | 'chunk_id' | 'video_id' | 'start' | 'end' | 'timestamp' | 'video' | 'document_id' | 'document_title' | 'page' | 'url'
+>;
+
+export type PracticeKind = 'questions' | 'flashcards';
+
+export interface PracticeItem {
+  question?: string;
+  answer?: string;
+  front?: string;
+  back?: string;
+  source: PracticeSource;
+}
+
+export interface PracticeSet {
+  id: number;
+  workspace_id: number;
+  kind: PracticeKind;
+  focus?: string | null;
+  items: PracticeItem[];
+  cost_usd?: number | null;
+  created_at: string;
+}
+
+export interface Deadline {
+  id: number;
+  workspace_id: number | null;
+  title: string;
+  due_at: string;
+  url?: string | null;
+  points_possible?: number | null;
+  is_quiz: boolean;
+}
+
+export interface SearchHit {
+  kind: 'video' | 'document';
+  chunk_id: number;
+  title: string;
+  /** Plain text; matches are wrapped in ⟦ and ⟧. */
+  snippet: string;
+  rank: number;
+  video_id?: number | null;
+  start?: number | null;
+  end?: number | null;
+  timestamp?: string | null;
+  document_id?: number | null;
+  page?: number | null;
+  page_label?: string | null;
+  url?: string | null;
+}

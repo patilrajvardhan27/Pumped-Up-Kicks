@@ -14,7 +14,7 @@ import {
   videosIn,
   type WorkspaceKey,
 } from '@/lib/workspaces';
-import type { CanvasStatus, ConversationItem, VideoInfo, WorkspaceDraft, WorkspaceInfo } from '@/types/api';
+import type { CanvasStatus, ConversationItem, Deadline, VideoInfo, WorkspaceDraft, WorkspaceInfo } from '@/types/api';
 import { CanvasEntry } from '../canvas/CanvasEntry';
 import { VIDEO_DRAG, carries, draggedId } from './dnd';
 import { WorkspaceEditor } from './WorkspaceEditor';
@@ -48,6 +48,8 @@ export interface WorkspaceSidebarProps {
   onReorder: (ids: number[]) => void;
   canvasStatus: CanvasStatus | null;
   onOpenCanvas: () => void;
+  /** Upcoming Canvas deadlines, every subject's, soonest first. */
+  deadlines: Deadline[];
 }
 
 /**
@@ -79,6 +81,7 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps) {
     onReorder,
     canvasStatus,
     onOpenCanvas,
+    deadlines,
   } = props;
 
   const modifier = useModifierLabel();
@@ -189,6 +192,7 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps) {
               shortcut={index < 9 ? index + 1 : undefined}
               videos={videosIn(videos, workspace.id)}
               documentCount={workspace.document_count}
+              deadlines={deadlines.filter((deadline) => deadline.workspace_id === workspace.id)}
               conversations={chatsIn(workspace.id)}
               onActivate={() => activate(workspace.id)}
               onToggle={() => toggle(workspace.id)}

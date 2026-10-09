@@ -7,6 +7,7 @@ import type { NewChatScope } from '@/hooks/useAskStream';
 import { useCanvas } from '@/hooks/useCanvas';
 import { useConversations } from '@/hooks/useConversations';
 import { useDocuments } from '@/hooks/useDocuments';
+import { useDeadlines } from '@/hooks/useStudy';
 import { useVideoLibrary } from '@/hooks/useVideoLibrary';
 import type { VideoPlayerHandle } from '@/hooks/useVideoPlayer';
 import { useWorkspaces } from '@/hooks/useWorkspaces';
@@ -29,6 +30,10 @@ import { CanvasDialog } from './canvas/CanvasDialog';
 import { ChatPanel } from './chat/ChatPanel';
 import { ConversationList } from './chat/ConversationList';
 import { CourseMaterial } from './documents/CourseMaterial';
+import { SearchCard } from './search/SearchCard';
+import { PanelTabs, type PanelTab } from './study/PanelTabs';
+import { PracticePanel } from './study/PracticePanel';
+import { StudyGuidePanel } from './study/StudyGuidePanel';
 import { SidebarDrawer } from './sidebar/SidebarDrawer';
 import { WorkspaceGlyph } from './sidebar/WorkspaceGlyph';
 import { WorkspaceSidebar, type WorkspaceSidebarProps } from './sidebar/WorkspaceSidebar';
@@ -36,6 +41,8 @@ import { UsageMeter } from './UsageMeter';
 import { VideoUpload } from './upload/VideoUpload';
 import { VideoList } from './video/VideoList';
 import { VideoPlayer } from './video/VideoPlayer';
+
+type Panel = 'chat' | 'guide' | 'practice';
 
 const ACTIVE_KEY = 'puk-active-subject-v1';
 const COLLAPSED_KEY = 'puk-sidebar-collapsed-v1';
@@ -79,6 +86,9 @@ export function Workspace() {
     setCanvasOpen(false);
     setReturnSeen(true);
   }, []);
+
+  const deadlines = useDeadlines(materialTrigger);
+  const [panel, setPanel] = useState<Panel>('chat');
 
   const documents = useDocuments(
     activeKey === 'all'
@@ -260,7 +270,17 @@ export function Workspace() {
     onReorder: subjects.reorder,
     canvasStatus: canvas.status,
     onOpenCanvas: openCanvas,
+    deadlines,
   };
+
+  // The study guide belongs to one lecture and practice to one subject, so
+  // each tab only exists while there is one to show.
+  const tabs: PanelTab<Panel>[] = [{ key: 'chat', label: 'Chat' }];
+  if (selectedVideo?.stage === 'ready') tabs.push({ key: 'guide', label: 'Study guide' });
+  if (activeSubject && !selectedVideo) tabs.push({ key: 'practice', label: 'Practice' });
+  const shownPanel = tabs.some((tab) => tab.key === panel) ? panel : 'chat';
+  const searchScope =
+    typeof activeKey === 'number' ? { workspaceId: activeKey } : activeKey === 'unsorted' ? { unsorted: true } : {};
 
   return (
     <>
@@ -290,6 +310,7 @@ export function Workspace() {
             <span className="ml-auto text-caption-sm text-mute-strong">Switch subject</span>
           </Button>
 
+          <SearchCard key={String(activeKey)} scope={searchScope} label={subjectName} onSeek={seekTo} />
           <VideoUpload
             workspaceId={typeof activeKey === 'number' ? activeKey : null}
             destination={typeof activeKey === 'number' ? subjectName : 'Unsorted'}
@@ -321,7 +342,7 @@ export function Workspace() {
 
         <Card
           as="section"
-          aria-label="Chat"
+          aria-label="Chat and study"
           className="flex min-h-[70dvh] min-w-0 flex-col gap-4 p-4 sm:p-6 lg:sticky lg:top-[calc(var(--spacing-nav)+0.25rem)] lg:h-[calc(100dvh-var(--spacing-nav)-1rem)] lg:min-h-0"
         >
           <VideoPlayer
@@ -330,17 +351,43 @@ export function Workspace() {
             citations={playerCitations}
             onClose={closePlayer}
           />
-          <ChatPanel
-            videos={videos}
-            scope={chatScope}
-            scopeLabel={scopeLabel}
-            hasContent={hasContent}
-            conversationId={conversationId}
-            onConversationStarted={setConversationId}
-            onTurnComplete={refreshThreads}
-            onSeek={seekTo}
-            onSourcesChange={setCitations}
-          />
+          <PanelTabs tabs={tabs} active={shownPanel} onChange={setPanel} label="Chat and study tools">
+            {/* The chat stays mounted behind the other tabs, so an answer still
+                being written isn't lost by looking at the study guide. */}
+            <div hidden={shownPanel !== 'chat'} className="flex min-h-0 flex-1 flex-col">
+              <ChatPanel
+                videos={videos}
+                scope={chatScope}
+                scopeLabel={scopeLabel}
+                hasContent={hasContent}
+                conversationId={conversationId}
+                onConversationStarted={setConversationId}
+                onTurnComplete={refreshThreads}
+                onSeek={seekTo}
+                onSourcesChange={setCitations}
+              />
+            </div>
+            {shownPanel === 'guide' && selectedVideo && (
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                <StudyGuidePanel
+                  key={selectedVideo.id}
+                  videoId={selectedVideo.id}
+                  title={selectedVideo.title || selectedVideo.filename}
+                  onSeek={seekTo}
+                />
+              </div>
+            )}
+            {shownPanel === 'practice' && activeSubject && (
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                <PracticePanel
+                  key={activeSubject.id}
+                  workspaceId={activeSubject.id}
+                  subject={activeSubject.name}
+                  onSeek={seekTo}
+                />
+              </div>
+            )}
+          </PanelTabs>
         </Card>
       </main>
 
