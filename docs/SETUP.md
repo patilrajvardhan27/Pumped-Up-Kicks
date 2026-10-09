@@ -70,6 +70,24 @@ Open http://localhost:3000. With `AUTH_MODE=dev` there's no sign-in — every
 request acts as one built-in user. The header shows a **DEV MODE** chip so you
 can't ship that by accident.
 
+### Tests
+
+```bash
+cd server
+pip install -r requirements-dev.txt
+python -m pytest tests evals
+```
+
+The tests that touch the database create and migrate their own databases
+(`kicks_test` and `kicks_test_migrations`) on the same Postgres, and are skipped
+if it isn't running. Point them elsewhere with `TEST_DATABASE_URL`. Nothing in
+them calls Claude, Canvas or the embedding model.
+
+```bash
+cd client
+npm run lint && npx tsc --noEmit
+```
+
 ### Set a spend cap now
 
 In the Anthropic Console → Limits, set a monthly cap. Do this before anything is
