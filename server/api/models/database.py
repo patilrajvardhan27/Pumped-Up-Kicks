@@ -1,7 +1,8 @@
 """
-Postgres schema. Users own workspaces (one per subject) and videos; videos own
-chunks and conversations; conversations own messages; messages cite chunks.
-A video or conversation with no workspace is shown as "Unsorted".
+Postgres schema. Users own workspaces (one per subject), videos and documents
+(course material imported from Canvas); videos and documents own chunks;
+conversations own messages; messages cite chunks. A video, document or
+conversation with no workspace is shown as "Unsorted".
 
 Every user-facing read filters on user_id — see api/deps.py, which is the only
 place a request-scoped session is handed out.
@@ -11,6 +12,7 @@ from datetime import datetime
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -25,6 +27,7 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
     func,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, relationship, sessionmaker
 
@@ -75,6 +78,11 @@ class Workspace(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "name", name="uq_workspaces_user_name"),
         Index("ix_workspaces_user_position", "user_id", "position"),
+        # A course feeds exactly one subject.
+        Index(
+            "uq_workspaces_user_canvas_course", "user_id", "canvas_course_id",
+            unique=True, postgresql_where=text("canvas_course_id is not null"),
+        ),
     )
 
     def __repr__(self) -> str:
@@ -127,25 +135,172 @@ class Video(Base):
         return f"<Video(id={self.id}, user={self.user_id!r}, stage={self.stage!r})>"
 
 
+class Document(Base):
+    """
+    Course material imported from Canvas: a file (PDF, PPTX, DOCX), a page, the
+    syllabus, an announcement or an assignment's description. Chunked and
+    embedded like a transcript, with a page or slide number where a lecture
+    chunk has a timestamp.
+    """
+
+    __tablename__ = "documents"
+
+    id = Column(BigInteger, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    workspace_id = Column(
+        BigInteger, ForeignKey("workspaces.id", ondelete="SET NULL"), nullable=True
+    )
+
+    source = Column(String, nullable=False)
+    canvas_course_id = Column(BigInteger, nullable=True)
+    canvas_id = Column(BigInteger, nullable=True)
+
+    title = Column(String, nullable=False)
+    mime_type = Column(String, nullable=True)
+    # Where the student opens it: the item in Canvas, never a raw download link.
+    url = Column(String, nullable=True)
+    # As Canvas reports it. An unchanged timestamp means the item is not
+    # downloaded or embedded again on the next sync.
+    updated_at = Column(DateTime(timezone=True), nullable=True)
+    content_hash = Column(String, nullable=True)
+
+    module_name = Column(String, nullable=True)
+    module_position = Column(Integer, nullable=True)
+    num_pages = Column(Integer, nullable=True)
+    num_chunks = Column(Integer, nullable=False, default=0)
+
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    synced_at = Column(DateTime(timezone=True), nullable=True)
+
+    chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        CheckConstraint(
+            "source in ('canvas_file', 'canvas_page', 'canvas_syllabus', "
+            "'canvas_announcement', 'canvas_assignment')",
+            name="ck_documents_source",
+        ),
+        UniqueConstraint(
+            "user_id", "source", "canvas_course_id", "canvas_id", name="uq_documents_canvas_item"
+        ),
+        Index("ix_documents_user_workspace", "user_id", "workspace_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<Document(id={self.id}, user={self.user_id!r}, source={self.source!r})>"
+
+
+class Deadline(Base):
+    """An assignment due date from Canvas. Title and date only: never the work itself."""
+
+    __tablename__ = "deadlines"
+
+    id = Column(BigInteger, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    workspace_id = Column(
+        BigInteger, ForeignKey("workspaces.id", ondelete="SET NULL"), nullable=True
+    )
+
+    canvas_course_id = Column(BigInteger, nullable=False)
+    canvas_assignment_id = Column(BigInteger, nullable=False)
+    title = Column(String, nullable=False)
+    due_at = Column(DateTime(timezone=True), nullable=False)
+    url = Column(String, nullable=True)
+    points_possible = Column(Float, nullable=True)
+    # Quizzes keep their date only; their content is never imported.
+    is_quiz = Column(Boolean, nullable=False, default=False)
+    updated_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "canvas_course_id", "canvas_assignment_id", name="uq_deadlines_canvas_item"
+        ),
+        Index("ix_deadlines_user_workspace_due", "user_id", "workspace_id", "due_at"),
+    )
+
+
+class CanvasConnection(Base):
+    """
+    One student's link to their school's Canvas. Tokens are stored encrypted
+    (api/services/canvas_auth.py), are never sent to the client, and are never
+    logged. Sync progress lives here so the client can poll it, as it polls a
+    lecture's pipeline.
+    """
+
+    __tablename__ = "canvas_connections"
+
+    id = Column(BigInteger, primary_key=True)
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+
+    base_url = Column(String, nullable=False)
+    auth_type = Column(String, nullable=False)
+    access_token_enc = Column(Text, nullable=False)
+    refresh_token_enc = Column(Text, nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    canvas_user_id = Column(BigInteger, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    sync_stage = Column(String, nullable=False, default="idle", server_default="idle")
+    sync_progress = Column(Integer, nullable=False, default=0, server_default="0")
+    sync_detail = Column(String, nullable=True)
+    sync_error = Column(Text, nullable=True)
+    sync_started_at = Column(DateTime(timezone=True), nullable=True)
+    sync_finished_at = Column(DateTime(timezone=True), nullable=True)
+    # JSON: what the last sync added, updated, left alone, removed and skipped.
+    sync_summary = Column(Text, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("auth_type in ('oauth', 'personal_token')", name="ck_canvas_auth_type"),
+        CheckConstraint(
+            "sync_stage in ('idle', 'queued', 'syncing', 'ready', 'failed')",
+            name="ck_canvas_sync_stage",
+        ),
+    )
+
+    def __repr__(self) -> str:
+        # Deliberately leaves the tokens out.
+        return f"<CanvasConnection(user={self.user_id!r}, base_url={self.base_url!r})>"
+
+
 class Chunk(Base):
-    """A passage of transcript with its embedding. user_id is denormalised so
-    the vector search can filter by owner without a join."""
+    """
+    A passage with its embedding, from exactly one lecture (with timestamps) or
+    one document (with a page or slide number, where the format has pages).
+    user_id is denormalised so the vector search can filter by owner without a
+    join.
+    """
 
     __tablename__ = "chunks"
 
     id = Column(BigInteger, primary_key=True)
-    video_id = Column(BigInteger, ForeignKey("videos.id", ondelete="CASCADE"), nullable=False)
+    video_id = Column(BigInteger, ForeignKey("videos.id", ondelete="CASCADE"), nullable=True)
+    document_id = Column(
+        BigInteger, ForeignKey("documents.id", ondelete="CASCADE"), nullable=True
+    )
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     text = Column(Text, nullable=False)
-    start_s = Column(Float, nullable=False)
-    end_s = Column(Float, nullable=False)
+    start_s = Column(Float, nullable=True)
+    end_s = Column(Float, nullable=True)
+    page = Column(Integer, nullable=True)
     embedding = Column(Vector(settings.embedding_dim), nullable=False)
 
     video = relationship("Video", back_populates="chunks")
+    document = relationship("Document", back_populates="chunks")
 
     __table_args__ = (
+        CheckConstraint(
+            "(video_id is null) <> (document_id is null)", name="ck_chunks_one_parent"
+        ),
+        CheckConstraint(
+            "video_id is null or (start_s is not null and end_s is not null)",
+            name="ck_chunks_video_times",
+        ),
         Index("ix_chunks_user_video", "user_id", "video_id"),
+        Index("ix_chunks_user_document", "user_id", "document_id"),
         # HNSW is overkill below ~100k rows but costs little; an exact scan is
         # the fallback the planner picks anyway when the filter is selective.
         Index(
@@ -253,6 +408,9 @@ class MessageSource(Base):
     )
     chunk_id = Column(BigInteger, ForeignKey("chunks.id", ondelete="CASCADE"), primary_key=True)
     similarity = Column(REAL, nullable=True)
+    # 1-based place in the list the model was given. An answer cites document
+    # passages by it ([Doc 3]), so the order has to survive a reload.
+    position = Column(Integer, nullable=True)
 
     message = relationship("Message", back_populates="sources")
     chunk = relationship("Chunk")
