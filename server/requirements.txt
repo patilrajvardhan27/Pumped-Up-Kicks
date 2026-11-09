@@ -29,7 +29,7 @@ boto3>=1.43.126,<2
 
 # --- embeddings: ONNX, no torch ---
 fastembed>=0.9.1,<0.10
-numpy>=2.3.5,<2.4
+numpy>=2.5.4,<2.6
 
 # --- answer generation ---
 anthropic>=2.6.0,<3
