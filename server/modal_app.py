@@ -21,7 +21,7 @@ app = modal.App(APP_NAME)
 image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("ffmpeg")
-    .pip_install("faster-whisper==1.1.0", "boto3==1.43.111")
+    .pip_install("faster-whisper==1.1.0", "boto3==1.43.111", "requests>=2.32")
     .run_commands(
         "python -c \"from faster_whisper import WhisperModel; "
         f"WhisperModel('{WHISPER_MODEL}', device='cpu', compute_type='int8')\""

@@ -72,7 +72,7 @@ Ingestion would become queue-driven: each stage a job whose state lives in Postg
 
 Kubernetes solves coordination problems (many services, many teams, bursty fleets) that this project does not have. It adds a control plane to pay for, upgrades, and networking to debug. The standard ingress controller, ingress-nginx, was retired by the Kubernetes project in March 2026; the replacement is the Gateway API.
 
-The only workloads shaped like Kubernetes ones are the GPU and ingestion workers (queue-driven, bursty, scale to zero), and Modal already covers them. Control-plane fees start when the cluster exists: AKS has a free tier, GKE charges $0.10 an hour offset by a monthly credit, EKS charges about $73 a month.
+The only workloads shaped like Kubernetes ones are the GPU and ingestion workers (queue-driven, bursty, scale to zero), and Modal already covers them. Control-plane fees start when the cluster exists: GKE charges $0.10 an hour offset by a monthly credit, EKS charges about $73 a month.
 
 Current hosting (implemented): Vercel for the client, Railway for the API, Neon for Postgres, Cloudflare R2 for objects, Modal for transcription, Clerk for auth. A cluster of 3 nodes with a highly available database and GPU burst is roughly $300 to $600 a month before LLM spend **(estimate)**. To learn Kubernetes without paying, write manifests and run them on `kind` or `k3d`.
 
@@ -116,7 +116,6 @@ Before phase 4, put the product in front of 10 students who are not friends. If 
 Checked 6 October 2026. Secondary sources are marked; confirm them on the vendor's pricing page before spending.
 
 - ingress-nginx retirement: https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/
-- AKS Free and Standard tiers: https://learn.microsoft.com/azure/aks/free-standard-pricing-tiers
 - EKS control-plane price (secondary): https://cloudburn.io/blog/amazon-eks-pricing
 - GKE free-tier credit and fee (secondary): https://cast.ai/blog/gke-pricing-explained-how-to-choose-the-right-plan-for-you/
 - Anthropic, Contextual Retrieval: https://www.anthropic.com/news/contextual-retrieval
