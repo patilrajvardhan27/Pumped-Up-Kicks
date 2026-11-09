@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { site } from '@/lib/site';
 import { ContactLine, LegalBody, LegalHeader, LegalSection, List, Operator, P, Strong } from './prose';
 
@@ -44,6 +45,13 @@ export function TermsContent() {
             <li>probe, copy or reverse engineer the service, or access data that is not yours;</li>
             <li>use the service in a way that breaks your school&rsquo;s academic integrity rules.</li>
           </List>
+          <P>
+            The{' '}
+            <Link href="/acceptable-use" className="text-link-blue underline">
+              acceptable use and academic integrity policy
+            </Link>{' '}
+            explains these rules in more detail and forms part of these terms.
+          </P>
         </LegalSection>
 
         <LegalSection id="ai" title="AI answers can be wrong">
@@ -71,8 +79,9 @@ export function TermsContent() {
 
         <LegalSection id="ending" title="Ending your use">
           <P>
-            You can delete your lectures and stop using the service at any time. We may suspend or end access if you
-            break these terms or put the service or other people at risk.
+            You can delete your lectures, download your data, or delete your whole account at any time from Your data
+            in the workspace. We may suspend or end access if you break these terms or put the service or other people
+            at risk.
           </P>
         </LegalSection>
 

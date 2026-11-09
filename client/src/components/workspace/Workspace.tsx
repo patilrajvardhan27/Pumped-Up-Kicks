@@ -33,6 +33,7 @@ import { SearchCard } from './search/SearchCard';
 import { PanelTabs, type PanelTab } from './study/PanelTabs';
 import { PracticePanel } from './study/PracticePanel';
 import { StudyGuidePanel } from './study/StudyGuidePanel';
+import { TranscriptPanel } from './transcript/TranscriptPanel';
 import { SidebarDrawer } from './sidebar/SidebarDrawer';
 import { WorkspaceGlyph } from './sidebar/WorkspaceGlyph';
 import { WorkspaceSidebar, type WorkspaceSidebarProps } from './sidebar/WorkspaceSidebar';
@@ -41,7 +42,7 @@ import { VideoUpload } from './upload/VideoUpload';
 import { VideoList } from './video/VideoList';
 import { VideoPlayer } from './video/VideoPlayer';
 
-type Panel = 'chat' | 'guide' | 'practice';
+type Panel = 'chat' | 'guide' | 'transcript' | 'practice';
 
 const ACTIVE_KEY = STORAGE_KEYS.activeSubject;
 const COLLAPSED_KEY = STORAGE_KEYS.sidebarCollapsed;
@@ -274,7 +275,9 @@ export function Workspace() {
   // The study guide belongs to one lecture and practice to one subject, so
   // each tab only exists while there is one to show.
   const tabs: PanelTab<Panel>[] = [{ key: 'chat', label: 'Chat' }];
-  if (selectedVideo?.stage === 'ready') tabs.push({ key: 'guide', label: 'Study guide' });
+  if (selectedVideo?.stage === 'ready') {
+    tabs.push({ key: 'guide', label: 'Study guide' }, { key: 'transcript', label: 'Transcript' });
+  }
   if (activeSubject && !selectedVideo) tabs.push({ key: 'practice', label: 'Practice' });
   const shownPanel = tabs.some((tab) => tab.key === panel) ? panel : 'chat';
   const searchScope =
@@ -374,6 +377,9 @@ export function Workspace() {
                   onSeek={seekTo}
                 />
               </div>
+            )}
+            {shownPanel === 'transcript' && selectedVideo && (
+              <TranscriptPanel key={selectedVideo.id} videoId={selectedVideo.id} onSeek={seekTo} />
             )}
             {shownPanel === 'practice' && activeSubject && (
               <div className="min-h-0 flex-1 overflow-y-auto pr-1">

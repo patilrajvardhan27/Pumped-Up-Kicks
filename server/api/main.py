@@ -15,7 +15,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from api.config import settings
 from api.models.database import get_engine
-from api.routes import canvas, chat, documents, search, study, videos, workspaces
+from api.routes import account, canvas, chat, documents, search, study, videos, workspaces
 from api.services.errors import GENERIC_MESSAGE, new_request_id, request_id
 
 log = logging.getLogger("api")
@@ -258,6 +258,7 @@ app.include_router(documents.router)
 app.include_router(canvas.router)
 app.include_router(study.router)
 app.include_router(search.router)
+app.include_router(account.router)
 
 
 @app.get("/")

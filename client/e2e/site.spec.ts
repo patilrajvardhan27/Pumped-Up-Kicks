@@ -69,7 +69,7 @@ test.describe('other routes', () => {
 });
 
 test.describe('accessibility', () => {
-  for (const path of ['/', '/privacy', '/terms']) {
+  for (const path of ['/', '/privacy', '/terms', '/acceptable-use', '/cookies', '/security', '/app/account']) {
     test(`${path} has no serious or critical axe violations`, async ({ page }) => {
       await page.goto(path);
       await page.waitForLoadState('networkidle');

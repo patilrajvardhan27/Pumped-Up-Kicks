@@ -18,6 +18,7 @@ interface AnalyticsEvents {
   lecture_uploaded: { size_mb: number };
   question_asked: { scope: 'lecture' | 'subject' | 'library' | 'thread' };
   citation_clicked: { source: 'answer' | 'timeline' };
+  notes_exported: Record<string, never>;
 }
 
 let client: PostHog | null = null;

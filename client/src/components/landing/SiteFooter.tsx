@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ConsentSettingsButton } from '@/components/consent/ConsentBanner';
 import { Wordmark } from '@/components/ui/Wordmark';
+import { LEGAL_PAGES } from '@/lib/legal';
 
 const LINK =
   'inline-flex min-h-10 items-center rounded-sm text-body-sm text-body hover:text-ink hover:underline';
@@ -20,12 +21,11 @@ export function SiteFooter() {
           <Link href="/app" className={LINK}>
             Workspace
           </Link>
-          <Link href="/privacy" className={LINK}>
-            Privacy
-          </Link>
-          <Link href="/terms" className={LINK}>
-            Terms
-          </Link>
+          {LEGAL_PAGES.map((page) => (
+            <Link key={page.path} href={page.path} className={LINK}>
+              {page.label}
+            </Link>
+          ))}
           <ConsentSettingsButton className={LINK} />
         </nav>
       </div>

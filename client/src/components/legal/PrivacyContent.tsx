@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { site } from '@/lib/site';
 import { ContactLine, LegalBody, LegalHeader, LegalSection, List, Operator, P, Strong } from './prose';
 
@@ -109,7 +110,11 @@ export function PrivacyContent() {
           </List>
           <P>
             You can change your mind at any time with &ldquo;Cookie settings&rdquo; in the footer. Declining stops
-            analytics and clears the analytics id.
+            analytics and clears the analytics id. The{' '}
+            <Link href="/cookies" className="text-link-blue underline">
+              cookie policy
+            </Link>{' '}
+            lists every entry.
           </P>
         </LegalSection>
 
@@ -120,23 +125,30 @@ export function PrivacyContent() {
             sign-in at once and asks Canvas to revoke it; you can choose to delete everything imported from Canvas
             at the same time, or delete imported items later. Deleting a subject never deletes what is in it: its
             lectures and material move to Unsorted. Account details stay while your account is
-            open. Ask us to delete your account and we will remove your data, apart from anything the law requires us
-            to keep. Backups can hold copies for a short time afterwards.
+            open. Deleting your account from <Strong>Your data</Strong> in the workspace removes all of it at once and
+            revokes Canvas access, apart from anything the law requires us to keep. Backups can hold copies for a short
+            time afterwards.
           </P>
         </LegalSection>
 
         <LegalSection id="rights" title="Your rights">
           <P>
             Depending on where you live, you can ask to see, correct, export or delete your data, object to how it is
-            used, and withdraw consent you gave. You can also complain to your local data protection authority.
+            used, and withdraw consent you gave. You can download or delete everything yourself from{' '}
+            <Strong>Your data</Strong> in the workspace; for anything else, contact us. You can also complain to your
+            local data protection authority.
           </P>
         </LegalSection>
 
         <LegalSection id="security" title="Security">
           <P>
             Traffic is encrypted in transit. Every database query is limited to the signed-in account, and video links
-            are signed and expire. No system is perfectly secure, so keep your sign-in details private and tell us if
-            you suspect a problem.
+            are signed and expire, and idle sessions sign out after 30 minutes. No system is perfectly secure, so keep
+            your sign-in details private and tell us if you suspect a problem. Details are on the{' '}
+            <Link href="/security" className="text-link-blue underline">
+              security page
+            </Link>
+            .
           </P>
         </LegalSection>
 

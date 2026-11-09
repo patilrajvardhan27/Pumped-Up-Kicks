@@ -278,9 +278,9 @@ For each course a student chooses: files (PDF, PowerPoint, Word), pages, the syl
 - [ ] Signed up as a second user and confirmed the first user's lectures are not visible
 - [ ] `CANVAS_TOKEN_KEY` set, `CANVAS_ALLOW_PERSONAL_TOKENS` unset, and each school's redirect URI matches `PUBLIC_API_URL` exactly
 - [ ] `/docs` and `/openapi.json` return 404 on the production API
-- [ ] `NEXT_PUBLIC_OPERATOR_NAME` and `NEXT_PUBLIC_CONTACT_EMAIL` set, so the privacy policy and terms name a responsible party
+- [ ] `NEXT_PUBLIC_OPERATOR_NAME` and `NEXT_PUBLIC_CONTACT_EMAIL` set, so the legal pages and `/.well-known/security.txt` name a responsible party and contact
 - [ ] Neon backups on (the free tier's history is short)
-- [ ] `pip-audit -r requirements.txt` and `npm audit` reviewed
+- [ ] `pip-audit -r requirements.txt` and `npm audit` reviewed (CI runs both on every push)
 
 ## 9. Costs at 50 users
 

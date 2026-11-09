@@ -1,0 +1,25 @@
+# Weekly update proposals for every dependency manifest, grouped so minor and
+# patch bumps arrive as one pull request per ecosystem. Security fixes are
+# raised as soon as an advisory is published, regardless of this schedule.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /client
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: pip
+    directory: /server
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

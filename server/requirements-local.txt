@@ -5,4 +5,4 @@
 
 -r requirements.txt
 
-openai-whisper
+openai-whisper>=20250625

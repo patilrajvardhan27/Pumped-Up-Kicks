@@ -10,6 +10,7 @@ import type { SeekHandler } from '@/types/chat';
 import { ChatComposer } from './ChatComposer';
 import { ChatEmptyState } from './ChatEmptyState';
 import { ChatTurn } from './ChatTurn';
+import { ExportNotesButton } from './ExportNotesButton';
 
 interface ChatPanelProps {
   /** Every lecture, so citations from any of them can be placed on a timeline. */
@@ -100,6 +101,8 @@ export function ChatPanel({
           {stream.quotaError}
         </Alert>
       )}
+
+      <ExportNotesButton turns={turns} title={scopeLabel} disabled={stream.busy} />
 
       <ChatComposer
         placeholder={hasContent ? `Ask ${scopeLabel}…` : 'Add a lecture first'}

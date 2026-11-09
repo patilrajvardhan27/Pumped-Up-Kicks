@@ -109,6 +109,7 @@ class Settings(BaseSettings):
     # Requests per minute per user on the endpoints that cost money. 0 turns one off.
     rate_limit_chat_per_minute: int = 20
     rate_limit_upload_per_minute: int = 10
+    rate_limit_account_per_minute: int = 5
     max_question_chars: int = 2000
     max_title_chars: int = 200
     max_workspaces_per_user: int = 50

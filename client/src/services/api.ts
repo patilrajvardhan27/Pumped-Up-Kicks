@@ -1,6 +1,6 @@
 import { currentToken } from '@/lib/authToken';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export const API_ENDPOINTS = {
   CHAT_STREAM: `${API_BASE_URL}/api/chat/stream`,
@@ -9,6 +9,7 @@ export const API_ENDPOINTS = {
   CONVERSATION: (id: number) => `${API_BASE_URL}/api/chat/conversations/${id}`,
   VIDEOS_LIST: `${API_BASE_URL}/api/videos`,
   VIDEOS_PLAYBACK: (id: number) => `${API_BASE_URL}/api/videos/${id}/playback`,
+  VIDEOS_TRANSCRIPT: (id: number) => `${API_BASE_URL}/api/videos/${id}/transcript`,
   VIDEOS_DELETE: (id: number) => `${API_BASE_URL}/api/videos/${id}`,
   VIDEOS_PRESIGN: `${API_BASE_URL}/api/videos/presign`,
   VIDEOS_COMPLETE: (id: number) => `${API_BASE_URL}/api/videos/${id}/complete`,
@@ -56,7 +57,7 @@ function messageFrom(detail: unknown): string | null {
   return null;
 }
 
-async function toError(response: Response, fallback: string): Promise<ApiError> {
+export async function toError(response: Response, fallback: string): Promise<ApiError> {
   try {
     const body: { detail?: unknown } = await response.json();
     return new ApiError(messageFrom(body.detail) ?? fallback, response.status);
@@ -66,7 +67,7 @@ async function toError(response: Response, fallback: string): Promise<ApiError> 
 }
 
 /** Attaches the Clerk session token when there is one. */
-async function authHeaders(base: Record<string, string> = {}): Promise<Record<string, string>> {
+export async function authHeaders(base: Record<string, string> = {}): Promise<Record<string, string>> {
   const token = await currentToken();
   return token ? { ...base, Authorization: `Bearer ${token}` } : base;
 }

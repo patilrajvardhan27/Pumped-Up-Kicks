@@ -15,7 +15,7 @@ export const site = {
   operator: process.env.NEXT_PUBLIC_OPERATOR_NAME?.trim() || null,
   contactEmail: process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || null,
   /** Bump when either legal page changes in substance. */
-  legalUpdated: '9 October 2026',
+  legalUpdated: '9 November 2026',
   /** The same date, machine readable, for the sitemap. */
-  legalUpdatedIso: '2026-10-09',
+  legalUpdatedIso: '2026-11-09',
 } as const;

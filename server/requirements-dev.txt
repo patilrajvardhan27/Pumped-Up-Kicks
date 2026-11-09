@@ -2,3 +2,4 @@
 # The database tests need Postgres with pgvector; see tests/support.py.
 -r requirements.txt
 pytest
+pip-audit>=2.10.1

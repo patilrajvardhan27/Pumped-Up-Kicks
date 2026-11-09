@@ -12,10 +12,11 @@ from api.config import settings
 from api.deps import Ctx, RequestContext
 from api.models.database import Conversation, Video, get_session
 from api.routes.workspaces import owned_workspace
+from api.services.cleanup import purge_video_files
 from api.services.ratelimit import rate_limit
 from api.services.signing import SignatureError, sign, verify
 from api.services.storage import UploadTooLarge, get_storage, safe_key
-from api.services.video_processor import STAGE_LABELS, process_video, transcript_path
+from api.services.video_processor import STAGE_LABELS, process_video
 
 router = APIRouter(prefix="/api/videos", tags=["videos"])
 log = logging.getLogger(__name__)
@@ -470,17 +471,7 @@ def delete_video(video_id: int, ctx: RequestContext = Ctx):
     video = _owned_video(ctx, video_id)
     filename = video.filename
 
-    try:
-        get_storage().delete(video.storage_key)
-    except Exception as e:
-        log.warning("Could not remove object %s: %s", video.storage_key, e)
-
-    # The local backend also keeps the transcript on disk. Deleting a lecture
-    # promises to delete its transcript too (see the privacy policy).
-    try:
-        transcript_path(video.storage_key).unlink(missing_ok=True)
-    except OSError as e:
-        log.warning("Could not remove transcript for %s: %s", video.storage_key, e)
+    purge_video_files(video)
 
     # Chunks and conversations cascade from the foreign keys.
     ctx.db.delete(video)

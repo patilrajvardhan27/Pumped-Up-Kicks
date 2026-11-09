@@ -1,3 +1,4 @@
+import type { TranscriptResponse } from '@/types/transcript';
 import { apiClient, API_ENDPOINTS } from './api';
 import type {
   PlaybackResponse,
@@ -19,6 +20,11 @@ class VideoService {
   }
 
   /** A short-lived URL a <video> element can load and seek within. */
+  /** The lecture as timestamped text. Costs nothing: no AI call is made. */
+  async getTranscript(id: number): Promise<TranscriptResponse> {
+    return apiClient.get<TranscriptResponse>(API_ENDPOINTS.VIDEOS_TRANSCRIPT(id));
+  }
+
   async getPlaybackUrl(id: number): Promise<PlaybackResponse> {
     return apiClient.get<PlaybackResponse>(API_ENDPOINTS.VIDEOS_PLAYBACK(id));
   }

@@ -30,6 +30,7 @@ from api.routes.workspaces import color_for, owned_workspace
 from api.services import canvas_auth, canvas_sync, net_guard
 from api.services.canvas_auth import CanvasAuthError
 from api.services.canvas_client import CanvasClient, CanvasError
+from api.services.cleanup import revoke_canvas
 from api.services.ratelimit import rate_limit
 
 router = APIRouter(prefix="/api/canvas", tags=["canvas"])
@@ -327,11 +328,7 @@ def disconnect(delete_material: bool = False, ctx: RequestContext = Ctx):
     delete_material=true the imported documents and deadlines go too.
     """
     connection = _required(ctx)
-    if connection.auth_type == "oauth":
-        try:
-            canvas_auth.revoke(connection.base_url, canvas_auth.decrypt_token(connection.access_token_enc))
-        except CanvasAuthError:
-            pass
+    revoke_canvas(connection)
 
     _unlink_all(ctx.db, ctx.user_id)
     ctx.db.delete(connection)
