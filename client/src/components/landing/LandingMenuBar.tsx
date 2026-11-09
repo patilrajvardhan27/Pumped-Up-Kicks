@@ -6,7 +6,7 @@ import { NavMenu } from './NavMenu';
 import { SECTION_ITEMS } from './nav-data';
 
 const LINK =
-  'inline-flex h-9 items-center rounded-md px-2.5 text-body-xs font-semibold text-ink transition-transform hover:bg-surface-soft active:scale-95';
+  'inline-flex h-9 items-center rounded-md px-2.5 text-body-sm-strong text-ink transition-transform hover:bg-surface-soft active:translate-y-px';
 
 export function LandingMenuBar() {
   return (
@@ -17,8 +17,9 @@ export function LandingMenuBar() {
             <ServerStatus compact />
           </div>
           <ButtonLink href="/app" size="sm" data-track="nav-open-workspace">
-            <span className="sm:hidden">Open</span>
-            <span className="hidden sm:inline">Open the workspace</span>
+            <span>
+              Open<span className="max-sm:sr-only"> workspace</span>
+            </span>
           </ButtonLink>
           <div className="md:hidden">
             <NavMenu

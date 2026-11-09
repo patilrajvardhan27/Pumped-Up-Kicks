@@ -2,19 +2,25 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { Alert } from '@/components/ui/Alert';
-import { useAskStream } from '@/hooks/useAskStream';
+import { SkeletonLines } from '@/components/ui/Skeleton';
+import { type NewChatScope, useAskStream } from '@/hooks/useAskStream';
 import { useChatThread } from '@/hooks/useChatThread';
 import type { Source, VideoInfo } from '@/types/api';
 import type { SeekHandler } from '@/types/chat';
 import { ChatComposer } from './ChatComposer';
 import { ChatEmptyState } from './ChatEmptyState';
-import { ChatToolbar } from './ChatToolbar';
 import { ChatTurn } from './ChatTurn';
+import { ExportNotesButton } from './ExportNotesButton';
 
 interface ChatPanelProps {
+  /** Every lecture, so citations from any of them can be placed on a timeline. */
   videos: VideoInfo[];
-  /** Lecture the conversation is scoped to; null means all lectures. */
-  videoId: number | null;
+  /** What a new chat searches. */
+  scope: NewChatScope;
+  /** The open lecture or subject, as the student would name it. */
+  scopeLabel: string;
+  /** Whether anything in scope is ready to be asked. */
+  hasContent: boolean;
   conversationId: number | null;
   onConversationStarted: (id: number) => void;
   onTurnComplete: () => void;
@@ -25,7 +31,9 @@ interface ChatPanelProps {
 
 export function ChatPanel({
   videos,
-  videoId,
+  scope,
+  scopeLabel,
+  hasContent,
   conversationId,
   onConversationStarted,
   onTurnComplete,
@@ -35,7 +43,7 @@ export function ChatPanel({
   const thread = useChatThread(conversationId);
   const { turns } = thread;
   const stream = useAskStream({
-    videoId,
+    scope,
     conversationId,
     append: thread.append,
     patch: thread.patch,
@@ -65,20 +73,16 @@ export function ChatPanel({
     if (latestSources) onSourcesChange?.(latestSources);
   }, [latestSources, onSourcesChange]);
 
-  const hasContent = videos.some((video) => video.stage === 'ready');
-  const scopeLabel = videoId
-    ? videos.find((video) => video.id === videoId)?.title || 'this lecture'
-    : 'all your lectures';
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="min-h-0 flex-1 overflow-y-auto pr-1" tabIndex={-1}>
         {thread.loading ? (
-          <p className="py-6 text-body-xs text-mute-strong">Loading chat…</p>
+          <SkeletonLines label="Loading chat" lines={4} className="py-6" />
         ) : turns.length === 0 ? (
           <ChatEmptyState
             hasContent={hasContent}
-            scoped={videoId != null}
+            scope={scope.scope ?? 'all'}
             scopeLabel={scopeLabel}
             onAsk={stream.ask}
           />
@@ -98,13 +102,7 @@ export function ChatPanel({
         </Alert>
       )}
 
-      <ChatToolbar
-        turns={turns}
-        scoped={videoId != null}
-        scopeLabel={scopeLabel}
-        busy={stream.busy}
-        onAsk={stream.ask}
-      />
+      <ExportNotesButton turns={turns} title={scopeLabel} disabled={stream.busy} />
 
       <ChatComposer
         placeholder={hasContent ? `Ask ${scopeLabel}…` : 'Add a lecture first'}

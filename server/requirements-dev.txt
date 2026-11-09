@@ -1,10 +1,5 @@
-# Tests and dependency auditing. Not needed to run the API.
-#
-#   pip install -r requirements-dev.txt
-#   python -m pytest
-#   pip-audit -r requirements.txt
-
+# Test runner. Every test module also runs on its own: python -m tests.<module>
+# The database tests need Postgres with pgvector; see tests/support.py.
 -r requirements.txt
-
-pytest>=9.2.0
+pytest
 pip-audit>=2.10.1

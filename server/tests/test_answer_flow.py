@@ -8,7 +8,7 @@ from api.services.lecture_rag_service import LectureRAGService
 
 SOURCE = {
     "chunk_id": 1, "video_id": 1, "text": "recurrence saves information", "start": 479.0, "end": 559.0,
-    "timestamp": "7:59 - 9:19", "video": "Lecture", "video_duration": 600.0, "similarity": 0.37,
+    "timestamp": "7:59 - 9:19", "video": "Lecture", "video_filename": "l.mp4", "video_duration": 600.0, "similarity": 0.37,
 }
 USAGE = {"input_tokens": 100, "output_tokens": 5, "cache_read_tokens": 0, "cache_write_tokens": 0, "model": "m", "cost_usd": 0.001}
 
@@ -17,17 +17,17 @@ class FakeClaude:
     def __init__(self, pieces):
         self.pieces = pieces
 
-    def stream(self, system, user, max_tokens=None):
-        self.system = system
+    def stream(self, system, user):
         for piece in self.pieces:
             yield {"type": "delta", "text": piece}
         yield {"type": "done", "text": "".join(self.pieces).strip(), "usage": USAGE}
 
 
-def run(pieces, sources=(SOURCE,), mode="ask"):
+def run(pieces, sources=(SOURCE,)):
     service = LectureRAGService()
+    service.retrieve = lambda *a, **k: list(sources)
     rag_module.get_claude_client = lambda: FakeClaude(pieces)
-    events = list(service.stream_answer("q", list(sources), mode))
+    events = list(service.stream_answer(db=None, user_id="u", question="q"))
     deltas = "".join(e["text"] for e in events if e["type"] == "delta")
     done = next(e for e in events if e["type"] == "done")
     return events, deltas, done
@@ -61,7 +61,7 @@ def test_partial_answer_that_starts_with_not_is_kept():
 
 def test_no_indexed_lectures_is_unchanged():
     events, _, done = run(["unused"], sources=())
-    assert "No lecture content is indexed" in done["answer"] and done["sources"] == []
+    assert "Nothing is indexed here yet" in done["answer"] and done["sources"] == []
 
 
 def test_cache_key_changes_with_prompt_version():
@@ -74,20 +74,6 @@ def test_cache_key_changes_with_prompt_version():
     finally:
         coverage.PROMPT_VERSION = saved
         rag_module.PROMPT_VERSION = saved
-
-
-LATER = {**SOURCE, "chunk_id": 2, "start": 1200.0, "end": 1275.0, "timestamp": "20:00 - 21:15"}
-
-
-def test_study_tool_sends_only_the_passages_it_cites():
-    events, _, done = run(["## Recurrence\n- saves information [8:10]"], sources=(SOURCE, LATER), mode="notes")
-    first = next(e for e in events if e["type"] == "sources")
-    assert first["sources"] == [], "the whole lecture is never streamed to the client"
-    assert done["sources"] == [SOURCE], "only the cited passage is kept"
-
-
-def test_cache_key_differs_between_modes():
-    assert LectureRAGService.cache_key("q", [SOURCE], "m", "notes") != LectureRAGService.cache_key("q", [SOURCE], "m")
 
 
 if __name__ == "__main__":

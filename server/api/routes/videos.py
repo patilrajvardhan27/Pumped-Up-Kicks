@@ -1,49 +1,298 @@
-"""Video library: uploads, processing status, transcripts and deletion."""
-from typing import Optional
+"""Video library: presigned uploads, processing status, playback, deletion."""
+import logging
+from pathlib import Path
+from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse, RedirectResponse
+from pydantic import BaseModel, Field
 
 from api.config import settings
-from api.deps import Ctx, RequestContext, owned
-from api.models.database import Video
-from api.schemas.videos import (
-    PresignRequest,
-    PresignResponse,
-    TranscriptLine,
-    TranscriptResponse,
-    UploadResponse,
-    VideoInfo,
-    VideoListResponse,
-)
-from api.services.lecture_rag_service import get_rag_service
-from api.services.pipeline import purge_files, run_pipeline
+from api.deps import Ctx, RequestContext
+from api.models.database import Conversation, Video, get_session
+from api.routes.workspaces import owned_workspace
+from api.services.cleanup import purge_video_files
 from api.services.ratelimit import rate_limit
-from api.services.storage import get_storage, safe_key
-from api.services.uploads import check_size, claim_filename, validate_filename
+from api.services.signing import SignatureError, sign, verify
+from api.services.storage import UploadTooLarge, get_storage, safe_key
+from api.services.video_processor import STAGE_LABELS, process_video
 
 router = APIRouter(prefix="/api/videos", tags=["videos"])
+log = logging.getLogger(__name__)
 
-upload_limit = rate_limit("upload", settings.rate_limit_upload_per_minute)
+ALLOWED_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm", ".m4v"}
+CONTENT_TYPES = {
+    ".mp4": "video/mp4", ".m4v": "video/mp4", ".mov": "video/quicktime",
+    ".mkv": "video/x-matroska", ".webm": "video/webm", ".avi": "video/x-msvideo",
+}
 
 
-def _create(ctx: RequestContext, filename: str, title: Optional[str], size: Optional[int]) -> Video:
+class VideoInfo(BaseModel):
+    id: int
+    workspace_id: Optional[int] = None
+    filename: str
+    title: Optional[str]
+    duration: Optional[float]
+    uploaded_at: str
+    file_size: Optional[int]
+    stage: str
+    stage_label: str
+    progress: int
+    error_message: Optional[str] = None
+    num_segments: Optional[int] = None
+    num_chunks: Optional[int] = None
+
+
+class VideoListResponse(BaseModel):
+    total: int
+    videos: List[VideoInfo]
+
+
+class PresignRequest(BaseModel):
+    filename: str = Field(..., min_length=1, max_length=255)
+    content_type: Optional[str] = Field(None, max_length=255)
+    title: Optional[str] = Field(None, max_length=settings.max_title_chars)
+    file_size: Optional[int] = Field(None, ge=1)
+    # The subject to file the lecture under; null leaves it in Unsorted.
+    workspace_id: Optional[int] = None
+
+
+class PresignResponse(BaseModel):
+    """When upload_url is null the client posts to /upload instead."""
+    video_id: int
+    upload_url: Optional[str]
+    method: str
+
+
+class UploadResponse(BaseModel):
+    message: str
+    video_id: int
+    filename: str
+    status: str
+
+
+class MoveRequest(BaseModel):
+    """Null moves the lecture to Unsorted."""
+    workspace_id: Optional[int] = None
+
+
+class PlaybackResponse(BaseModel):
+    """A URL a <video> element can load directly, and when it stops working."""
+    url: str
+    expires_in: int
+    duration: Optional[float] = None
+    content_type: str
+
+
+def _to_info(video: Video) -> VideoInfo:
+    return VideoInfo(
+        id=video.id,
+        workspace_id=video.workspace_id,
+        filename=video.filename,
+        title=video.title or video.filename,
+        duration=video.duration_s,
+        uploaded_at=video.created_at.isoformat(),
+        file_size=video.file_size,
+        stage=video.stage,
+        stage_label=STAGE_LABELS.get(video.stage, video.stage),
+        progress=video.progress,
+        error_message=video.error_message,
+        num_segments=video.num_segments,
+        num_chunks=video.num_chunks,
+    )
+
+
+def _validate_filename(filename: str) -> str:
+    ext = Path(filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{ext or filename}'. "
+                   f"Use one of: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+        )
+    return ext
+
+
+def _claim_filename(ctx: RequestContext, filename: str) -> None:
+    existing = (
+        ctx.db.query(Video)
+        .filter(Video.user_id == ctx.user_id, Video.filename == filename)
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=f"You already have a lecture named '{filename}'. "
+                   "Rename it, or delete the existing one.",
+        )
+
+
+def _too_large() -> str:
+    return f"That file is larger than the {settings.max_upload_bytes // (1024 ** 3)} GB limit."
+
+
+def _discard(ctx: RequestContext, video: Video) -> None:
+    """Drop a reservation whose upload can't be used, and its object."""
+    try:
+        get_storage().delete(video.storage_key)
+    except Exception:
+        log.warning("Could not remove object %s", video.storage_key, exc_info=True)
+    ctx.db.delete(video)
+    ctx.db.commit()
+
+
+# --- background work --------------------------------------------------------
+
+
+def run_pipeline(video_id: int) -> None:
+    """Runs after the response is sent, on its own session."""
+    db = get_session()
+    video = None
+    try:
+        video = db.get(Video, video_id)
+        if video is None:
+            print(f"[Pipeline] video {video_id} vanished before processing")
+            return
+
+        def on_stage(stage: str, progress: int, extra: dict):
+            video.stage = stage
+            video.progress = progress
+            if extra.get("duration"):
+                video.duration_s = extra["duration"]
+            if extra.get("num_segments") is not None:
+                video.num_segments = extra["num_segments"]
+            if extra.get("num_chunks") is not None:
+                video.num_chunks = extra["num_chunks"]
+            if stage == "failed":
+                video.error_message = extra.get("error")
+            elif stage == "ready":
+                video.error_message = None
+            db.commit()
+            print(f"[Pipeline] video={video_id} stage={stage} {progress}%")
+
+        process_video(db, video, on_stage=on_stage)
+
+    except Exception:
+        log.exception("Pipeline failed for video %s", video_id)
+        if video is not None:
+            try:
+                # A commit that failed leaves the session unusable until it is
+                # rolled back, so without this the failure below was never saved
+                # and the lecture stayed on "Transcribing" forever.
+                db.rollback()
+                video.stage = "failed"
+                video.progress = 100
+                video.error_message = "Processing failed. Try uploading again."
+                db.commit()
+            except Exception:
+                print(f"[Pipeline] could not record the failure of video={video_id}")
+    finally:
+        db.close()
+
+
+# --- routes -----------------------------------------------------------------
+
+
+@router.get("", response_model=VideoListResponse)
+def list_videos(limit: int = Query(50, ge=1, le=100), ctx: RequestContext = Ctx):
+    videos = (
+        ctx.db.query(Video)
+        .filter(Video.user_id == ctx.user_id)
+        .order_by(Video.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return VideoListResponse(total=len(videos), videos=[_to_info(v) for v in videos])
+
+
+def _owned_video(ctx: RequestContext, video_id: int) -> Video:
+    video = (
+        ctx.db.query(Video)
+        .filter(Video.id == video_id, Video.user_id == ctx.user_id)
+        .first()
+    )
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    return video
+
+
+@router.post(
+    "/presign",
+    response_model=PresignResponse,
+    dependencies=[rate_limit("upload", settings.rate_limit_upload_per_minute)],
+)
+def presign_upload(request: PresignRequest, ctx: RequestContext = Ctx):
+    """
+    Reserve a library slot and hand back a URL to upload to.
+
+    On R2 the browser PUTs straight to storage, so a 4 GB lecture never passes
+    through this server.
+    """
+    ext = _validate_filename(request.filename)
+    _claim_filename(ctx, request.filename)
+    if request.workspace_id is not None:
+        owned_workspace(ctx, request.workspace_id)
+
+    if request.file_size and request.file_size > settings.max_upload_bytes:
+        raise HTTPException(status_code=413, detail=_too_large())
+
+    if settings.storage_backend == "r2" and not request.file_size:
+        raise HTTPException(status_code=400, detail="The file size is needed to start an upload.")
+
+    key = safe_key(ctx.user_id, request.filename)
+    content_type = request.content_type or CONTENT_TYPES.get(ext, "application/octet-stream")
+
     video = Video(
         user_id=ctx.user_id,
-        filename=filename,
-        title=title or filename,
-        storage_key=safe_key(ctx.user_id, filename),
-        file_size=size,
+        workspace_id=request.workspace_id,
+        filename=request.filename,
+        title=request.title or request.filename,
+        storage_key=key,
+        file_size=request.file_size,
         stage="queued",
         progress=0,
     )
     ctx.db.add(video)
     ctx.db.commit()
     ctx.db.refresh(video)
-    return video
+
+    upload_url = get_storage().presign_upload(key, content_type, request.file_size)
+
+    return PresignResponse(
+        video_id=video.id,
+        upload_url=upload_url,
+        method="PUT" if upload_url else "POST",
+    )
 
 
-def _queued(video: Video, background_tasks: BackgroundTasks) -> UploadResponse:
+@router.post("/{video_id}/complete", response_model=UploadResponse)
+def complete_upload(
+    video_id: int, background_tasks: BackgroundTasks, ctx: RequestContext = Ctx
+):
+    """Called once the browser's direct upload finishes. Starts processing."""
+    video = _owned_video(ctx, video_id)
+    storage = get_storage()
+
+    if not storage.exists(video.storage_key):
+        raise HTTPException(
+            status_code=400,
+            detail="The upload didn't arrive in storage. Try uploading again.",
+        )
+
+    actual = storage.size(video.storage_key)
+    if actual is not None and actual > settings.max_upload_bytes:
+        _discard(ctx, video)
+        raise HTTPException(status_code=413, detail=_too_large())
+    if video.file_size is None:
+        video.file_size = actual
+
+    video.stage = "queued"
+    video.progress = 0
+    ctx.db.commit()
+
     background_tasks.add_task(run_pipeline, video.id)
+
     return UploadResponse(
         message=f"'{video.filename}' uploaded. Transcription starts now.",
         video_id=video.id,
@@ -52,109 +301,180 @@ def _queued(video: Video, background_tasks: BackgroundTasks) -> UploadResponse:
     )
 
 
-@router.get("", response_model=VideoListResponse)
-def list_videos(limit: int = Query(50, ge=1, le=200), ctx: RequestContext = Ctx):
-    videos = (
-        ctx.db.query(Video)
-        .filter(Video.user_id == ctx.user_id)
-        .order_by(Video.created_at.desc())
-        .limit(limit)
-        .all()
-    )
-    return VideoListResponse(total=len(videos), videos=[VideoInfo.of(v) for v in videos])
-
-
-@router.post("/presign", response_model=PresignResponse, dependencies=[upload_limit])
-def presign_upload(request: PresignRequest, ctx: RequestContext = Ctx):
-    """
-    Reserve a library slot and hand back a URL to upload to.
-
-    On R2 the browser PUTs straight to storage, so a 4 GB lecture never passes
-    through this server. The size the browser reports is only a first check;
-    /complete measures the stored object.
-    """
-    content_type = validate_filename(request.filename)
-    check_size(request.file_size)
-    claim_filename(ctx, request.filename)
-
-    video = _create(ctx, request.filename, request.title, request.file_size)
-    return PresignResponse(
-        video_id=video.id,
-        upload_url=get_storage().presign_upload(video.storage_key, content_type),
-        content_type=content_type,
-    )
-
-
-@router.post("/{video_id}/complete", response_model=UploadResponse)
-def complete_upload(video_id: int, background_tasks: BackgroundTasks, ctx: RequestContext = Ctx):
-    """Called once the browser's direct upload finishes. Starts processing."""
-    video = owned(ctx, Video, video_id, "Video")
-    storage = get_storage()
-
-    size = storage.size(video.storage_key)
-    if size is None:
-        raise HTTPException(status_code=400, detail="The upload didn't arrive in storage. Try uploading again.")
-    try:
-        check_size(size)
-    except HTTPException:
-        # A presigned PUT cannot cap its own size, so an oversized object is caught here.
-        purge_files(video)
-        ctx.db.delete(video)
-        ctx.db.commit()
-        raise
-
-    video.file_size = size
-    video.stage, video.progress = "queued", 0
-    ctx.db.commit()
-    return _queued(video, background_tasks)
-
-
-@router.post("/upload", response_model=UploadResponse, dependencies=[upload_limit])
+@router.post(
+    "/upload",
+    response_model=UploadResponse,
+    dependencies=[rate_limit("upload", settings.rate_limit_upload_per_minute)],
+)
 async def upload_video(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     title: Optional[str] = Form(None, max_length=settings.max_title_chars),
+    workspace_id: Optional[int] = Form(None),
     ctx: RequestContext = Ctx,
 ):
-    """Direct upload through the API, used by the local storage backend."""
-    validate_filename(file.filename)
-    claim_filename(ctx, file.filename)
+    """
+    Direct upload through the API. Used by the local backend, and as a fallback
+    when presigning isn't available.
+    """
+    _validate_filename(file.filename)
+    _claim_filename(ctx, file.filename)
+    if workspace_id is not None:
+        owned_workspace(ctx, workspace_id)
 
     key = safe_key(ctx.user_id, file.filename)
     storage = get_storage()
-    written = storage.save_stream(key, file.file)
-    try:
-        check_size(written)
-    except HTTPException:
-        storage.delete(key)
-        raise
 
-    return _queued(_create(ctx, file.filename, title, written), background_tasks)
+    try:
+        written = await run_in_threadpool(
+            storage.save_stream, key, file.file, settings.max_upload_bytes
+        )
+    except UploadTooLarge:
+        raise HTTPException(status_code=413, detail=_too_large())
+
+    video = Video(
+        user_id=ctx.user_id,
+        workspace_id=workspace_id,
+        filename=file.filename,
+        title=title or file.filename,
+        storage_key=key,
+        file_size=written,
+        stage="queued",
+        progress=0,
+    )
+    ctx.db.add(video)
+    ctx.db.commit()
+    ctx.db.refresh(video)
+
+    background_tasks.add_task(run_pipeline, video.id)
+
+    return UploadResponse(
+        message=f"'{file.filename}' uploaded. Transcription starts now.",
+        video_id=video.id,
+        filename=file.filename,
+        status="queued",
+    )
 
 
 @router.get("/{video_id}", response_model=VideoInfo)
 def get_video(video_id: int, ctx: RequestContext = Ctx):
-    return VideoInfo.of(owned(ctx, Video, video_id, "Video"))
+    return _to_info(_owned_video(ctx, video_id))
 
 
-@router.get("/{video_id}/transcript", response_model=TranscriptResponse)
-def get_transcript(video_id: int, ctx: RequestContext = Ctx):
-    """The lecture as readable text with timestamps. Costs no AI tokens."""
-    video = owned(ctx, Video, video_id, "Video")
-    lines = get_rag_service().transcript(ctx.db, ctx.user_id, video.id)
-    return TranscriptResponse(
-        video_id=video.id,
-        title=video.title or video.filename,
-        lines=[TranscriptLine(**line) for line in lines],
+@router.get("/{video_id}/status", response_model=VideoInfo)
+def get_video_status(video_id: int, ctx: RequestContext = Ctx):
+    """Polled by the client while a lecture is being prepared."""
+    video = _owned_video(ctx, video_id)
+    ctx.db.refresh(video)
+    return _to_info(video)
+
+
+@router.put("/{video_id}/workspace", response_model=VideoInfo)
+def move_video(video_id: int, request: MoveRequest, ctx: RequestContext = Ctx):
+    """File a lecture under another subject, or under none (Unsorted)."""
+    video = _owned_video(ctx, video_id)
+    if request.workspace_id is not None:
+        owned_workspace(ctx, request.workspace_id)
+
+    video.workspace_id = request.workspace_id
+
+    # Threads about this one lecture are filed with it, so they move too. Their
+    # updated_at is kept, so a move does not reshuffle the recent chats.
+    ctx.db.query(Conversation).filter(
+        Conversation.user_id == ctx.user_id,
+        Conversation.video_id == video.id,
+        Conversation.scope == "video",
+    ).update(
+        {
+            Conversation.workspace_id: request.workspace_id,
+            Conversation.updated_at: Conversation.updated_at,
+        },
+        synchronize_session=False,
     )
+    ctx.db.commit()
+    ctx.db.refresh(video)
+    return _to_info(video)
+
+
+@router.get("/{video_id}/playback", response_model=PlaybackResponse)
+def playback_url(request: Request, video_id: int, ctx: RequestContext = Ctx):
+    """
+    A time-limited URL the player can stream from, so a citation can seek to it.
+
+    On R2 this is a presigned URL. Locally it is a signed link to /file/...
+    either way the credential travels in the URL, because a <video> element
+    cannot send an Authorization header.
+    """
+    video = _owned_video(ctx, video_id)
+    ext = Path(video.filename).suffix.lower()
+
+    if settings.storage_backend == "local":
+        token = sign(video.storage_key, ctx.user_id)
+        url = str(
+            request.url_for("serve_local_file", storage_key=video.storage_key)
+            .include_query_params(token=token)
+        )
+    else:
+        url = get_storage().presign_download(video.storage_key)
+
+    return PlaybackResponse(
+        url=url,
+        expires_in=settings.presign_expiry_seconds,
+        duration=video.duration_s,
+        content_type=CONTENT_TYPES.get(ext, "video/mp4"),
+    )
+
+
+@router.get("/file/{storage_key:path}", name="serve_local_file")
+def serve_local_file(storage_key: str, token: str = ""):
+    """
+    Streams a lecture from the local backend.
+
+    Authenticated by the signed `token` rather than a header, since this URL is
+    loaded by the browser's media element. Starlette's FileResponse answers
+    Range requests, which is what makes seeking work.
+    """
+    try:
+        user_id = verify(token, storage_key)
+    except SignatureError as e:
+        log.info("Refused media link: %s", e)
+        raise HTTPException(status_code=403, detail="This link isn't valid or has expired. Reload the page.")
+
+    db = get_session()
+    try:
+        video = (
+            db.query(Video)
+            .filter(Video.storage_key == storage_key, Video.user_id == user_id)
+            .first()
+        )
+        if not video:
+            raise HTTPException(status_code=404, detail="Video not found")
+        filename = video.filename
+    finally:
+        db.close()
+
+    storage = get_storage()
+    if settings.storage_backend != "local":
+        return RedirectResponse(storage.presign_download(storage_key))
+
+    path = storage.local_path(storage_key)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File is missing from storage")
+
+    ext = Path(filename).suffix.lower()
+    return FileResponse(path, media_type=CONTENT_TYPES.get(ext, "video/mp4"))
 
 
 @router.delete("/{video_id}")
 def delete_video(video_id: int, ctx: RequestContext = Ctx):
-    """Removes the file, its transcript, its chunks and any chats about it."""
-    video = owned(ctx, Video, video_id, "Video")
+    """Removes the object, its chunks, and any conversations about it."""
+    video = _owned_video(ctx, video_id)
     filename = video.filename
-    purge_files(video)
-    ctx.db.delete(video)  # chunks and conversations cascade from the foreign keys
+
+    purge_video_files(video)
+
+    # Chunks and conversations cascade from the foreign keys.
+    ctx.db.delete(video)
     ctx.db.commit()
+
     return {"message": f"'{filename}' deleted."}

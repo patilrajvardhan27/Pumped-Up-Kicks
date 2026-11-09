@@ -1,7 +1,6 @@
 import { currentToken } from '@/lib/authToken';
-import { saveBlob } from '@/lib/download';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export const API_ENDPOINTS = {
   CHAT_STREAM: `${API_BASE_URL}/api/chat/stream`,
@@ -10,13 +9,28 @@ export const API_ENDPOINTS = {
   CONVERSATION: (id: number) => `${API_BASE_URL}/api/chat/conversations/${id}`,
   VIDEOS_LIST: `${API_BASE_URL}/api/videos`,
   VIDEOS_PLAYBACK: (id: number) => `${API_BASE_URL}/api/videos/${id}/playback`,
+  VIDEOS_TRANSCRIPT: (id: number) => `${API_BASE_URL}/api/videos/${id}/transcript`,
   VIDEOS_DELETE: (id: number) => `${API_BASE_URL}/api/videos/${id}`,
   VIDEOS_PRESIGN: `${API_BASE_URL}/api/videos/presign`,
   VIDEOS_COMPLETE: (id: number) => `${API_BASE_URL}/api/videos/${id}/complete`,
   VIDEOS_UPLOAD: `${API_BASE_URL}/api/videos/upload`,
-  VIDEOS_TRANSCRIPT: (id: number) => `${API_BASE_URL}/api/videos/${id}/transcript`,
-  ACCOUNT: `${API_BASE_URL}/api/account`,
-  ACCOUNT_EXPORT: `${API_BASE_URL}/api/account/export`,
+  VIDEOS_MOVE: (id: number) => `${API_BASE_URL}/api/videos/${id}/workspace`,
+  WORKSPACES: `${API_BASE_URL}/api/workspaces`,
+  WORKSPACE: (id: number) => `${API_BASE_URL}/api/workspaces/${id}`,
+  WORKSPACES_ORDER: `${API_BASE_URL}/api/workspaces/order`,
+  DOCUMENTS: `${API_BASE_URL}/api/documents`,
+  DOCUMENT: (id: number) => `${API_BASE_URL}/api/documents/${id}`,
+  CANVAS_CONNECTION: `${API_BASE_URL}/api/canvas/connection`,
+  CANVAS_OAUTH_START: `${API_BASE_URL}/api/canvas/oauth/start`,
+  CANVAS_OAUTH_COMPLETE: `${API_BASE_URL}/api/canvas/oauth/complete`,
+  CANVAS_TOKEN: `${API_BASE_URL}/api/canvas/token`,
+  CANVAS_COURSES: `${API_BASE_URL}/api/canvas/courses`,
+  CANVAS_SYNC: `${API_BASE_URL}/api/canvas/sync`,
+  STUDY_GUIDE: (videoId: number) => `${API_BASE_URL}/api/videos/${videoId}/study-guide`,
+  PRACTICE: (workspaceId: number) => `${API_BASE_URL}/api/workspaces/${workspaceId}/practice`,
+  PRACTICE_SET: (id: number) => `${API_BASE_URL}/api/practice/${id}`,
+  DEADLINES: `${API_BASE_URL}/api/deadlines`,
+  SEARCH: `${API_BASE_URL}/api/search`,
   HEALTH: `${API_BASE_URL}/health`,
 } as const;
 
@@ -43,7 +57,7 @@ function messageFrom(detail: unknown): string | null {
   return null;
 }
 
-async function toError(response: Response, fallback: string): Promise<ApiError> {
+export async function toError(response: Response, fallback: string): Promise<ApiError> {
   try {
     const body: { detail?: unknown } = await response.json();
     return new ApiError(messageFrom(body.detail) ?? fallback, response.status);
@@ -53,40 +67,60 @@ async function toError(response: Response, fallback: string): Promise<ApiError> 
 }
 
 /** Attaches the Clerk session token when there is one. */
-async function authHeaders(base: Record<string, string> = {}): Promise<Record<string, string>> {
+export async function authHeaders(base: Record<string, string> = {}): Promise<Record<string, string>> {
   const token = await currentToken();
   return token ? { ...base, Authorization: `Bearer ${token}` } : base;
 }
 
 class ApiClient {
-  /** One JSON request. Every verb goes through here, so auth and errors are handled once. */
-  private async request<T>(method: 'GET' | 'POST' | 'DELETE', endpoint: string, data?: unknown): Promise<T> {
+  async get<T>(endpoint: string): Promise<T> {
     const response = await fetch(endpoint, {
-      method,
-      headers: await authHeaders(data === undefined ? {} : { 'Content-Type': 'application/json' }),
-      body: data === undefined ? undefined : JSON.stringify(data),
+      method: 'GET',
+      headers: await authHeaders({ 'Content-Type': 'application/json' }),
     });
-    if (!response.ok) throw await toError(response, method === 'DELETE' ? 'Delete failed' : 'Request failed');
+
+    if (!response.ok) throw await toError(response, 'Request failed');
     return response.json();
   }
 
-  get<T>(endpoint: string): Promise<T> {
-    return this.request<T>('GET', endpoint);
+  async post<T>(endpoint: string, data: unknown): Promise<T> {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: await authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) throw await toError(response, 'Request failed');
+    return response.json();
   }
 
-  post<T>(endpoint: string, data: unknown): Promise<T> {
-    return this.request<T>('POST', endpoint, data);
+  async put<T>(endpoint: string, data: unknown): Promise<T> {
+    return this.send<T>('PUT', endpoint, data);
   }
 
-  delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>('DELETE', endpoint);
+  async patch<T>(endpoint: string, data: unknown): Promise<T> {
+    return this.send<T>('PATCH', endpoint, data);
   }
 
-  /** Fetch an authenticated file and hand it to the browser as a download. */
-  async download(endpoint: string, filename: string): Promise<void> {
-    const response = await fetch(endpoint, { headers: await authHeaders() });
-    if (!response.ok) throw await toError(response, 'Download failed');
-    saveBlob(await response.blob(), filename);
+  private async send<T>(method: 'PUT' | 'PATCH', endpoint: string, data: unknown): Promise<T> {
+    const response = await fetch(endpoint, {
+      method,
+      headers: await authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) throw await toError(response, 'Request failed');
+    return response.json();
+  }
+
+  async delete<T>(endpoint: string): Promise<T> {
+    const response = await fetch(endpoint, {
+      method: 'DELETE',
+      headers: await authHeaders(),
+    });
+
+    if (!response.ok) throw await toError(response, 'Delete failed');
+    return response.json();
   }
 
   /** POST a JSON body and read back a server-sent event stream. */
@@ -104,7 +138,7 @@ class ApiClient {
     });
 
     if (!response.ok) throw await toError(response, 'Request failed');
-    if (!response.body) throw new ApiError('This browser cannot read streamed responses.', 0);
+    if (!response.body) throw new ApiError('This browser cannot read streamed answers. Try a current version of Chrome, Firefox or Safari.', 0);
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -124,7 +158,7 @@ class ApiClient {
         try {
           onEvent(JSON.parse(line.slice(5).trim()) as E);
         } catch {
-          // Partial frame — keep reading.
+          // Partial frame - keep reading.
         }
       }
     }
@@ -156,7 +190,7 @@ class ApiClient {
         xhr.status >= 200 && xhr.status < 300
           ? resolve()
           : reject(new ApiError(`Storage rejected the upload (${xhr.status})`, xhr.status));
-      xhr.onerror = () => reject(new ApiError('Lost connection during upload.', 0));
+      xhr.onerror = () => reject(new ApiError('Lost connection during upload. Check your network and try again.', 0));
       xhr.onabort = () => reject(new ApiError('Upload cancelled.', 0));
 
       signal?.addEventListener('abort', () => xhr.abort());
@@ -164,7 +198,7 @@ class ApiClient {
     });
   }
 
-  /** Multipart upload through the API — used by the local storage backend. */
+  /** Multipart upload through the API - used by the local storage backend. */
   async upload<T>(
     endpoint: string,
     file: File,
@@ -193,7 +227,7 @@ class ApiClient {
           try {
             resolve(JSON.parse(xhr.responseText) as T);
           } catch {
-            reject(new ApiError('The server sent a response we could not read.', xhr.status));
+            reject(new ApiError('The server sent a response we could not read. Try again.', xhr.status));
           }
           return;
         }
@@ -204,7 +238,7 @@ class ApiClient {
         }
       };
 
-      xhr.onerror = () => reject(new ApiError('Lost connection during upload.', 0));
+      xhr.onerror = () => reject(new ApiError('Lost connection during upload. Check your network and try again.', 0));
       xhr.send(formData);
     });
   }

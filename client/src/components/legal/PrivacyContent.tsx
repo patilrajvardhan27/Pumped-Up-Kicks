@@ -27,17 +27,23 @@ export function PrivacyContent() {
               index of that transcript (lists of numbers that let us find passages by meaning).
             </li>
             <li>
+              <Strong>Canvas, only if you connect it.</Strong> The sign-in Canvas gives us for your account, stored
+              encrypted and never shown back to you or anyone else. From the courses you choose to import: files
+              (PDF, PowerPoint, Word), pages, the syllabus, announcements, module names, and assignment descriptions
+              and due dates, plus a search index of that text. We never import quizzes or exam questions, grades,
+              submissions, or anything about other students.
+            </li>
+            <li>
               <Strong>Your questions and answers.</Strong> Your chats, the excerpts each answer cited, and the tokens
-              and cost each answer used.
+              and cost each answer used. Study guides and practice sets you make, with what each cost.
             </li>
             <li>
               <Strong>Usage.</Strong> How many questions you have asked this month, how many were answered from cache,
               and your spend against your plan limit.
             </li>
             <li>
-              <Strong>Technical data.</Strong> Your IP address, request logs and error logs, kept by us and our
-              hosting provider for security and debugging. Errors you see carry a short reference so we can find the
-              matching log entry without asking for anything else.
+              <Strong>Technical data.</Strong> Your IP address and request logs, kept by our hosting provider for
+              security and debugging.
             </li>
             <li>
               <Strong>Analytics, only if you accept.</Strong> Pages you visit, and a few named actions such as
@@ -51,28 +57,16 @@ export function PrivacyContent() {
         <LegalSection id="use" title="How we use it">
           <List>
             <li>To transcribe your recordings, index them and answer your questions.</li>
+            <li>
+              To import the Canvas courses you choose and keep them up to date when you sync. We only read from
+              Canvas; we never post, submit or change anything there.
+            </li>
             <li>To apply the usage limits of your plan and to keep the service secure.</li>
             <li>To understand which features are used and fix what is broken, if you accepted analytics.</li>
           </List>
           <P>
-            We do not sell your data, and we do not use your lectures or chats to train AI models. Answers are
-            written automatically, but nothing about you is decided automatically: no grades, no eligibility, no
-            profiling.
+            We do not sell your data, and we do not use your lectures or chats to train AI models.
           </P>
-        </LegalSection>
-
-        <LegalSection id="bases" title="Our legal bases">
-          <List>
-            <li>
-              <Strong>To provide the service you asked for</Strong>: your account, lectures, transcripts and chats.
-            </li>
-            <li>
-              <Strong>Legitimate interests</Strong>: security logs, abuse prevention and usage limits.
-            </li>
-            <li>
-              <Strong>Consent</Strong>: analytics. You can withdraw it at any time.
-            </li>
-          </List>
         </LegalSection>
 
         <LegalSection id="sharing" title="Who else receives it">
@@ -82,10 +76,14 @@ export function PrivacyContent() {
               <Strong>Clerk</Strong> handles sign-in and holds your account details.
             </li>
             <li>
-              <Strong>Anthropic</Strong> receives your question and the transcript text needed to answer it, so Claude
-              can write the answer: a few matching excerpts for a typed question, or the selected lecture&rsquo;s
-              transcript for a study tool such as revision notes. It does not receive your video or audio, and under
-              its commercial terms it does not train on this data.
+              <Strong>Anthropic</Strong> receives your question and the few transcript or course-material excerpts
+              that matched it, so Claude can write the answer. When you ask for a study guide, it receives that
+              one lecture&rsquo;s full transcript; for practice questions or flashcards, a selection of passages
+              from that subject. It never receives your video, your audio or whole course files.
+            </li>
+            <li>
+              <Strong>Your school&rsquo;s Canvas</Strong> receives our requests to read the courses you connected, made
+              with your permission. Your school already holds that material; we do not send it anything else.
             </li>
             <li>
               <Strong>PostHog</Strong> receives analytics events, only if you accepted.
@@ -95,32 +93,41 @@ export function PrivacyContent() {
               If transcription runs on a cloud GPU worker, that provider briefly processes your audio.
             </li>
           </List>
-          <P>
-            Some of these providers are based in the United States, so your data may be processed outside your
-            country. Where the law requires it, transfers rely on safeguards such as standard contractual clauses.
-            We may also disclose data when the law requires it.
-          </P>
+          <P>We may also disclose data when the law requires it.</P>
         </LegalSection>
 
         <LegalSection id="cookies" title="Cookies and local storage">
+          <List>
+            <li>
+              <Strong>Always on, needed to work.</Strong> Clerk&rsquo;s session cookies keep you signed in. Small
+              entries in your browser&rsquo;s local storage remember your analytics choice, which subject you had
+              open, and whether the subject list is collapsed.
+            </li>
+            <li>
+              <Strong>Only if you accept.</Strong> PostHog stores an anonymous id in your browser so repeat visits
+              can be counted together.
+            </li>
+          </List>
           <P>
-            Sign-in cookies and a few local storage entries are needed for the workspace to work. Analytics cookies are
-            set only if you accept them, and &ldquo;Cookie settings&rdquo; in the footer changes your choice at any
-            time. The{' '}
+            You can change your mind at any time with &ldquo;Cookie settings&rdquo; in the footer. Declining stops
+            analytics and clears the analytics id. The{' '}
             <Link href="/cookies" className="text-link-blue underline">
               cookie policy
             </Link>{' '}
-            lists every one.
+            lists every entry.
           </P>
         </LegalSection>
 
         <LegalSection id="retention" title="How long we keep it">
           <P>
             Videos, transcripts, search indexes and chats stay until you delete them. Deleting a lecture removes the
-            file, its transcript, its index entries and the chats about it. Account details stay while your account is
-            open. Deleting your account from <Strong>Your data</Strong> in the workspace removes all of it at once,
-            apart from anything the law requires us to keep. Backups can hold copies for up to 30 days afterwards, and
-            security logs are kept for up to 90 days.
+            file, its transcript, its index entries and the chats about it. Disconnecting Canvas deletes the stored
+            sign-in at once and asks Canvas to revoke it; you can choose to delete everything imported from Canvas
+            at the same time, or delete imported items later. Deleting a subject never deletes what is in it: its
+            lectures and material move to Unsorted. Account details stay while your account is
+            open. Deleting your account from <Strong>Your data</Strong> in the workspace removes all of it at once and
+            revokes Canvas access, apart from anything the law requires us to keep. Backups can hold copies for a short
+            time afterwards.
           </P>
         </LegalSection>
 
@@ -135,9 +142,9 @@ export function PrivacyContent() {
 
         <LegalSection id="security" title="Security">
           <P>
-            Traffic is encrypted in transit. Every database query is limited to the signed-in account, video links are
-            signed and expire, and idle sessions sign out after 30 minutes. No system is perfectly secure, so keep your
-            sign-in details private and tell us if you suspect a problem. Details are on the{' '}
+            Traffic is encrypted in transit. Every database query is limited to the signed-in account, and video links
+            are signed and expire, and idle sessions sign out after 30 minutes. No system is perfectly secure, so keep
+            your sign-in details private and tell us if you suspect a problem. Details are on the{' '}
             <Link href="/security" className="text-link-blue underline">
               security page
             </Link>

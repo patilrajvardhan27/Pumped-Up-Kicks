@@ -6,6 +6,7 @@ with nothing configured: auth falls back to a single dev user, storage to the
 local disk, transcription to an in-process Whisper run. Setting the corresponding
 env vars switches each one to its production backend independently.
 """
+import json
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -17,10 +18,6 @@ SERVER_DIR = Path(__file__).parent.parent
 DEFAULT_SECRET_KEY = "dev-insecure-change-me"
 
 
-def _csv(value: str) -> list[str]:
-    return [item.strip() for item in value.split(",") if item.strip()]
-
-
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=SERVER_DIR / ".env",
@@ -28,9 +25,10 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # "production" turns on the strict checks below, HSTS, generic error
-    # messages and hides the interactive API docs.
-    environment: Literal["development", "production"] = "development"
+    # -- environment -----------------------------------------------------
+    # Anything but "development" is treated as production: no dev auth, no API
+    # docs, HSTS on, and a real SECRET_KEY and ALLOWED_HOSTS are required.
+    env: str = "production"
 
     # -- database --------------------------------------------------------
     # Postgres with the pgvector extension. Local default matches the
@@ -44,14 +42,12 @@ class Settings(BaseSettings):
     puk_claude_max_tokens: int = 2000
 
     # -- auth ------------------------------------------------------------
-    # "dev" trusts a single built-in user and requires no Clerk account.
     # "clerk" verifies a real Clerk session JWT against their JWKS.
-    auth_mode: Literal["dev", "clerk"] = "dev"
+    # "dev" trusts a single built-in user and requires no Clerk account; it is
+    # only accepted when ENV=development.
+    auth_mode: Literal["dev", "clerk"] = "clerk"
     clerk_jwks_url: str | None = None
     clerk_issuer: str | None = None
-    # Origins allowed to present a session token (the token's `azp` claim).
-    # Comma separated, e.g. https://kicks.example.com. Empty skips the check.
-    clerk_authorized_parties: str = ""
     dev_user_id: str = "dev_user"
     dev_user_email: str = "dev@localhost"
 
@@ -79,10 +75,6 @@ class Settings(BaseSettings):
     # -- retrieval -------------------------------------------------------
     default_top_k: int = 5
     max_context_tokens: int = 12000
-    # Study tools (notes, key terms, quiz) read the whole lecture, not the top
-    # few passages, so they get a larger budget.
-    study_context_tokens: int = 30000
-    study_max_tokens: int = 4000
 
     # -- quotas ----------------------------------------------------------
     # Monthly ceilings per plan, in USD of Claude spend. A user at their cap
@@ -90,6 +82,28 @@ class Settings(BaseSettings):
     free_plan_monthly_usd: float = 1.00
     pro_plan_monthly_usd: float = 20.00
     max_upload_bytes: int = 4 * 1024 * 1024 * 1024
+    # Indexed passages per account, lectures and imported course material
+    # together. Imports stop at the limit; see api/services/quota.py.
+    free_plan_max_chunks: int = 10_000
+    pro_plan_max_chunks: int = 100_000
+
+    # -- Canvas ----------------------------------------------------------
+    # Every school runs its own Canvas, and each school's admin issues the
+    # developer key (OAuth client) for it. JSON, keyed by the school's address:
+    #   {"https://canvas.example.edu": {"client_id": "...", "client_secret": "..."}}
+    canvas_oauth_clients: str = ""
+    # Lets a developer connect with a personal access token instead of OAuth.
+    # Local testing only: Canvas's API policy forbids multi-user apps from
+    # asking users for one, so this refuses to start with AUTH_MODE=clerk.
+    canvas_allow_personal_tokens: bool = False
+    # Fernet key(s) that encrypt stored Canvas tokens, comma separated, the
+    # first one used for new tokens. Required with AUTH_MODE=clerk.
+    canvas_token_key: str | None = None
+    canvas_max_file_bytes: int = 50 * 1024 * 1024
+    # Where this API and the web app are reached from a browser: the OAuth
+    # redirect comes back to the first and then sends the student to the second.
+    public_api_url: str = "http://localhost:8000"
+    public_app_url: str = "http://localhost:3000"
 
     # -- abuse limits ----------------------------------------------------
     # Requests per minute per user on the endpoints that cost money. 0 turns one off.
@@ -98,47 +112,92 @@ class Settings(BaseSettings):
     rate_limit_account_per_minute: int = 5
     max_question_chars: int = 2000
     max_title_chars: int = 200
+    max_workspaces_per_user: int = 50
 
     # -- web -------------------------------------------------------------
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
+    # Host names this API answers to, comma separated. Required outside
+    # development; development allows any host when it is left empty.
+    allowed_hosts: str = ""
 
     # Signs the short-lived media URLs a <video> element loads directly.
     # Override in production: a known secret means anyone can mint playback links.
     secret_key: str = DEFAULT_SECRET_KEY
 
+    @property
+    def is_development(self) -> bool:
+        return self.env.strip().lower() == "development"
+
     @model_validator(mode="after")
-    def _safe_for_real_users(self):
-        problems = []
-        # Real sign-in means real users: a published default key lets anyone
-        # forge playback links to any lecture.
-        if self.auth_mode == "clerk" and self.secret_key == DEFAULT_SECRET_KEY:
-            problems.append(
+    def _environment_is_safe(self):
+        if self.is_development:
+            return self
+        if self.auth_mode == "dev":
+            raise ValueError("AUTH_MODE=dev is only allowed with ENV=development.")
+        # A published default key lets anyone forge playback links to any lecture.
+        if self.secret_key == DEFAULT_SECRET_KEY:
+            raise ValueError(
                 "SECRET_KEY is still the development default. Generate one with "
-                "`python -c \"import secrets;print(secrets.token_urlsafe(32))\"`."
+                "`python -c \"import secrets;print(secrets.token_urlsafe(32))\"` "
+                "and set it in server/.env."
             )
-        if self.is_production:
-            if self.auth_mode != "clerk":
-                problems.append("AUTH_MODE must be 'clerk' in production.")
-            if not (self.clerk_jwks_url and self.clerk_issuer):
-                problems.append("CLERK_JWKS_URL and CLERK_ISSUER are required in production.")
-            insecure = [o for o in self.cors_origin_list if not o.startswith("https://")]
-            if insecure:
-                problems.append(f"CORS_ORIGINS must all be https:// in production: {insecure}")
-        if problems:
-            raise ValueError(" ".join(problems))
+        if not self.allowed_host_list:
+            raise ValueError("ALLOWED_HOSTS is not set. List the host names this API is served on.")
+        return self
+
+    @model_validator(mode="after")
+    def _clerk_needs_issuer(self):
+        if self.auth_mode == "clerk" and not self.is_development:
+            if not self.clerk_jwks_url or not self.clerk_issuer:
+                raise ValueError("AUTH_MODE=clerk needs CLERK_JWKS_URL and CLERK_ISSUER.")
+        return self
+
+    @model_validator(mode="after")
+    def _canvas_settings_are_safe(self):
+        if self.canvas_allow_personal_tokens and self.auth_mode == "clerk":
+            raise ValueError(
+                "CANVAS_ALLOW_PERSONAL_TOKENS is for local testing only. Canvas's API "
+                "policy forbids asking real users for access tokens; use OAuth "
+                "(CANVAS_OAUTH_CLIENTS) with AUTH_MODE=clerk."
+            )
+        canvas_enabled = bool(self.canvas_oauth_clients) or self.canvas_allow_personal_tokens
+        if canvas_enabled and self.auth_mode == "clerk" and not self.canvas_token_key:
+            raise ValueError(
+                "CANVAS_TOKEN_KEY is not set. Generate one with `python -c \"from "
+                "cryptography.fernet import Fernet;print(Fernet.generate_key().decode())\"`."
+            )
+        self.canvas_oauth_client_map  # fails here, at startup, on malformed JSON
         return self
 
     @property
-    def is_production(self) -> bool:
-        return self.environment == "production"
-
-    @property
-    def clerk_authorized_party_list(self) -> list[str]:
-        return _csv(self.clerk_authorized_parties)
+    def canvas_oauth_client_map(self) -> dict[str, dict[str, str]]:
+        """CANVAS_OAUTH_CLIENTS parsed, keyed by the school's address without a trailing slash."""
+        if not self.canvas_oauth_clients.strip():
+            return {}
+        try:
+            raw = json.loads(self.canvas_oauth_clients)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"CANVAS_OAUTH_CLIENTS is not valid JSON: {e.msg}") from None
+        clients = {}
+        for url, client in raw.items():
+            if not isinstance(client, dict) or not client.get("client_id") or not client.get("client_secret"):
+                raise ValueError(f"CANVAS_OAUTH_CLIENTS entry for {url} needs client_id and client_secret.")
+            clients[url.strip().lower().rstrip("/")] = {
+                "client_id": str(client["client_id"]),
+                "client_secret": str(client["client_secret"]),
+            }
+        return clients
 
     @property
     def cors_origin_list(self) -> list[str]:
-        return _csv(self.cors_origins)
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def allowed_host_list(self) -> list[str]:
+        hosts = [h.strip() for h in self.allowed_hosts.split(",") if h.strip()]
+        if not hosts and self.is_development:
+            return ["*"]
+        return hosts
 
     @property
     def uploads_dir(self) -> Path:
@@ -154,6 +213,9 @@ class Settings(BaseSettings):
 
     def plan_limit_usd(self, plan: str) -> float:
         return self.pro_plan_monthly_usd if plan == "pro" else self.free_plan_monthly_usd
+
+    def plan_max_chunks(self, plan: str) -> int:
+        return self.pro_plan_max_chunks if plan == "pro" else self.free_plan_max_chunks
 
 
 @lru_cache

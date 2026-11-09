@@ -6,6 +6,7 @@ development, and a Modal serverless GPU function for production. Both drive the
 same stage/progress fields, so the UI never knows which one ran.
 """
 import json
+import logging
 import re
 import subprocess
 import sys
@@ -16,19 +17,12 @@ from typing import Callable, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 SERVER_DIR = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(SERVER_DIR / "src"))
+log = logging.getLogger(__name__)
 
 from api.config import settings
 from api.models.database import Video
 from api.services.indexer import index_transcript
 from api.services.storage import get_storage
-
-NO_SPEECH = "No speech was found in this recording."
-MISSING_FILE = "Uploaded file is missing from storage. Upload it again."
-# Messages written for students, safe to show as they are in production.
-USER_SAFE = {NO_SPEECH, MISSING_FILE}
-
-STAGES = ("queued", "transcribing", "indexing", "ready", "failed")
 
 STAGE_LABELS = {
     "queued": "Queued",
@@ -53,8 +47,8 @@ def probe_duration(path: Path) -> Optional[float]:
         )
         if result.returncode == 0 and result.stdout.strip():
             return round(float(result.stdout.strip()), 2)
-    except Exception as e:
-        print(f"[Probe] Could not read duration: {e}")
+    except Exception:
+        log.warning("Could not read duration", exc_info=True)
     return None
 
 
@@ -67,7 +61,7 @@ _EXCEPTION_LINE = re.compile(r"^[\w.]*(Error|Exception|Interrupt)\b")
 
 
 def failure_reason(returncode: int, stderr: str) -> str:
-    """One line a student can act on, from a failed transcription process."""
+    """One line for the log, from a failed transcription process."""
     if returncode < 0:
         return ("the transcription was stopped before it finished, usually because the "
                 "server restarted. Delete this lecture and upload it again.")
@@ -87,20 +81,20 @@ def transcribe_local(storage_key: str) -> Dict:
     storage = get_storage()
     try:
         local_path = storage.local_path(storage_key)
-    except Exception as e:
-        return {"status": "error", "message": f"Could not read the uploaded file: {e}"}
+    except Exception:
+        log.exception("Could not open the uploaded file")
+        return {"status": "error", "message": "Could not read the uploaded file."}
 
     if not local_path.exists():
-        return {"status": "error", "message": MISSING_FILE}
+        return {"status": "error", "message": "Uploaded file is missing from storage."}
 
-    python_path = str(SERVER_DIR / "venv" / "bin" / "python3")
     script = SERVER_DIR / "scripts" / "transcribe_video.py"
 
     print(f"[Transcribe:local] {local_path.name}")
     started = time.time()
 
     result = subprocess.run(
-        [python_path, str(script), str(local_path)],
+        [sys.executable, str(script), str(local_path)],
         capture_output=True, text=True, timeout=3600,
     )
 
@@ -111,8 +105,10 @@ def transcribe_local(storage_key: str) -> Dict:
 
     if result.returncode != 0:
         # The full traceback is in the server log above.
-        reason = failure_reason(result.returncode, result.stderr or "")
-        return {"status": "error", "message": f"Transcription failed: {reason}"[:500]}
+        log.error("Transcription failed: %s", failure_reason(result.returncode, result.stderr or ""))
+        if result.returncode < 0:
+            return {"status": "error", "message": "The transcription was interrupted. Delete this lecture and upload it again."}
+        return {"status": "error", "message": "Transcription failed. Try uploading again."}
 
     segments_file = transcript_path(storage_key)
     if not segments_file.exists():
@@ -139,7 +135,8 @@ def transcribe_modal(storage_key: str) -> Dict:
         result = fn.remote(storage_key)
 
         if result.get("status") != "success":
-            return {"status": "error", "message": result.get("message", "Modal job failed")}
+            log.error("Modal job failed: %s", result.get("message"))
+            return {"status": "error", "message": "Transcription failed. Try again later."}
 
         return {
             "status": "success",
@@ -148,13 +145,11 @@ def transcribe_modal(storage_key: str) -> Dict:
             "duration": result.get("duration"),
         }
 
-    except Exception as e:
+    except Exception:
+        log.exception("Modal transcription dispatch failed")
         return {
             "status": "error",
-            "message": (
-                f"Could not reach the Modal transcription worker: {e}. "
-                "Check `modal deploy modal_app.py` has run."
-            ),
+            "message": "Could not reach the transcription worker. Try again later.",
         }
 
 
@@ -207,12 +202,13 @@ def process_video(
 
     try:
         num_chunks = index_transcript(db, video_id, user_id, segments)
-    except Exception as e:
-        report("failed", 100, error=f"Indexing failed: {e}")
-        return {"overall_status": "error", "message": str(e)}
+    except Exception:
+        log.exception("Indexing failed for video %s", video_id)
+        report("failed", 100, error="Building the search index failed. Try uploading again.")
+        return {"overall_status": "error", "message": "Indexing failed"}
 
     if num_chunks == 0:
-        report("failed", 100, error=NO_SPEECH)
+        report("failed", 100, error="No speech was found in this recording.")
         return {"overall_status": "error", "message": "No speech found"}
 
     report("ready", 100, num_chunks=num_chunks)

@@ -1,0 +1,7 @@
+{
+  "id": 101,
+  "name": "PHYS 2210: Thermodynamics",
+  "course_code": "PHYS 2210",
+  "workflow_state": "available",
+  "syllabus_body": "<h2>Course goals</h2><p>Understand the <strong>laws of thermodynamics</strong> and apply them to heat engines.</p><script>alert('x')</script><p>Office hours: Tuesdays 2pm in Duane G2B.</p>"
+}

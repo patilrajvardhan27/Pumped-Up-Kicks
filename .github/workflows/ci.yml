@@ -11,6 +11,17 @@ permissions:
 jobs:
   server:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://postgres@127.0.0.1:5432/kicks_test
     defaults:
       run:
         working-directory: server
@@ -22,7 +33,7 @@ jobs:
           cache: pip
           cache-dependency-path: server/requirements*.txt
       - run: pip install -r requirements-dev.txt
-      - run: python -m pytest -q tests evals
+      - run: python -m pytest -q
       - run: pip-audit -r requirements.txt
 
   client:

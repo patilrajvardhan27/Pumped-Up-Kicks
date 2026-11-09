@@ -2,10 +2,35 @@ import type { Icon, IconProps } from '@phosphor-icons/react';
 import {
   ArrowRightIcon as PhArrowRight,
   ArrowsHorizontalIcon,
+  ArrowDownIcon as PhArrowDown,
+  ArrowUpIcon as PhArrowUp,
+  AtomIcon,
+  BookOpenIcon,
   BooksIcon,
   BrainIcon as PhBrain,
   ArrowLeftIcon as PhArrowLeft,
+  ArrowSquareOutIcon,
+  CalendarBlankIcon,
+  ChartLineIcon,
+  ClipboardTextIcon,
+  CodeIcon as PhCode,
   CompassIcon,
+  DnaIcon,
+  FileDocIcon,
+  FilePdfIcon,
+  FlaskIcon,
+  FunctionIcon,
+  GlobeHemisphereWestIcon,
+  GraduationCapIcon,
+  MegaphoneIcon,
+  MusicNotesIcon,
+  PaletteIcon,
+  PencilSimpleIcon,
+  PresentationIcon,
+  ScalesIcon,
+  SidebarSimpleIcon,
+  StackIcon,
+  TrayIcon,
   CookieIcon as PhCookie,
   FileTextIcon,
   ShieldCheckIcon,
@@ -62,6 +87,11 @@ export const DisclosureIcon = wrap(CaretRightIcon);
 export const MenuIcon = wrap(ListIcon);
 export const DragIcon = wrap(ArrowsHorizontalIcon);
 export const SpinnerIcon = wrap(CircleNotchIcon, 'bold', 'animate-spin');
+export const EditIcon = wrap(PencilSimpleIcon);
+export const MoveUpIcon = wrap(PhArrowUp);
+export const MoveDownIcon = wrap(PhArrowDown);
+export const SidebarIcon = wrap(SidebarSimpleIcon);
+export const ExternalIcon = wrap(ArrowSquareOutIcon);
 
 // Features
 export const UploadIcon = wrap(UploadSimpleIcon, 'duotone');
@@ -78,3 +108,29 @@ export const PreviewIcon = wrap(MonitorPlayIcon, 'duotone');
 export const PrivacyIcon = wrap(ShieldCheckIcon, 'duotone');
 export const TermsIcon = wrap(FileTextIcon, 'duotone');
 export const LostIcon = wrap(CompassIcon, 'duotone');
+export const AllLecturesIcon = wrap(StackIcon, 'duotone');
+export const UnsortedIcon = wrap(TrayIcon, 'duotone');
+export const CanvasIcon = wrap(GraduationCapIcon, 'duotone');
+export const DeadlineIcon = wrap(CalendarBlankIcon, 'duotone');
+
+// Kinds of imported course material.
+export const PdfIcon = wrap(FilePdfIcon);
+export const SlidesIcon = wrap(PresentationIcon);
+export const WordIcon = wrap(FileDocIcon);
+export const PageIcon = wrap(FileTextIcon);
+export const AnnouncementIcon = wrap(MegaphoneIcon);
+export const AssignmentIcon = wrap(ClipboardTextIcon);
+
+// Subject icons, drawn white on the subject's colour tile.
+export const SubjectBookIcon = wrap(BookOpenIcon);
+export const SubjectFlaskIcon = wrap(FlaskIcon);
+export const SubjectFunctionIcon = wrap(FunctionIcon);
+export const SubjectCodeIcon = wrap(PhCode);
+export const SubjectGlobeIcon = wrap(GlobeHemisphereWestIcon);
+export const SubjectAtomIcon = wrap(AtomIcon);
+export const SubjectDnaIcon = wrap(DnaIcon);
+export const SubjectChartIcon = wrap(ChartLineIcon);
+export const SubjectPaletteIcon = wrap(PaletteIcon);
+export const SubjectMusicIcon = wrap(MusicNotesIcon);
+export const SubjectScalesIcon = wrap(ScalesIcon);
+export const SubjectBrainIcon = wrap(PhBrain);

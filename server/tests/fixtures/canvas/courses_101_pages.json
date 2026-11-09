@@ -1,0 +1,41 @@
+{
+  "pages": [
+    [
+      {
+        "page_id": 3001,
+        "url": "week-1-overview",
+        "title": "Week 1 overview",
+        "created_at": "2026-08-20T16:00:00Z",
+        "updated_at": "2026-08-25T16:00:00Z",
+        "hide_from_students": false,
+        "editing_roles": "teachers",
+        "published": true,
+        "front_page": false,
+        "locked_for_user": false
+      }
+    ],
+    [
+      {
+        "page_id": 3002,
+        "url": "lab-safety",
+        "title": "Lab safety",
+        "created_at": "2026-08-20T16:00:00Z",
+        "updated_at": "2026-08-21T16:00:00Z",
+        "hide_from_students": false,
+        "published": true,
+        "front_page": false,
+        "locked_for_user": false
+      },
+      {
+        "page_id": 3003,
+        "url": "next-week",
+        "title": "Next week (locked)",
+        "created_at": "2026-08-20T16:00:00Z",
+        "updated_at": "2026-08-21T16:00:00Z",
+        "published": true,
+        "locked_for_user": true,
+        "lock_explanation": "This page is locked until September 1."
+      }
+    ]
+  ]
+}

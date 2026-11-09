@@ -16,10 +16,9 @@ interface AnalyticsEvents {
   cta_clicked: { id: string };
   timeline_scrubbed: Record<string, never>;
   lecture_uploaded: { size_mb: number };
-  question_asked: { scope: 'lecture' | 'library' | 'thread'; mode: string };
-  notes_exported: Record<string, never>;
-  transcript_opened: Record<string, never>;
+  question_asked: { scope: 'lecture' | 'subject' | 'library' | 'thread' };
   citation_clicked: { source: 'answer' | 'timeline' };
+  notes_exported: Record<string, never>;
 }
 
 let client: PostHog | null = null;
@@ -64,13 +63,28 @@ function purgeStoredIds(): void {
   } catch {
     // Storage is blocked, so there is nothing stored to remove.
   }
-  document.cookie
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+  const names = document.cookie
     .split(';')
     .map((cookie) => cookie.split('=')[0].trim())
-    .filter(isPosthogKey)
-    .forEach((name) => {
-      document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax`;
-    });
+    .filter(isPosthogKey);
+  for (const name of names) {
+    // A cookie only goes if the Domain matches how it was set, so try the
+    // host itself and then each parent: a.b.com, .a.b.com, .b.com.
+    for (const domain of [null, ...cookieDomains(window.location.hostname)]) {
+      const scope = domain ? `; Domain=${domain}` : '';
+      document.cookie = `${name}=; Max-Age=0; Path=/${scope}; SameSite=Lax${secure}`;
+    }
+  }
+}
+
+/** The host and each parent suffix with at least two labels, e.g. a.b.com gives a.b.com and .b.com. */
+function cookieDomains(host: string): string[] {
+  if (/^[\d.]+$/.test(host) || host.includes(':')) return [];
+  const labels = host.split('.');
+  const out = [host];
+  for (let i = 1; i < labels.length - 1; i += 1) out.push(`.${labels.slice(i).join('.')}`);
+  return out;
 }
 
 /** Stop capturing and remove everything PostHog stored about this browser. */

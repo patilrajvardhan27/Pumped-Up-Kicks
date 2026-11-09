@@ -1,9 +1,11 @@
 /*
- * Design tokens, taken from DESIGN.md. Every colour, type role, radius and
- * motion value used by a component is defined here and nowhere else.
+ * Design tokens. Every colour, type role, radius and motion value used by a
+ * component is defined here and nowhere else.
  *
  * The default Tailwind palette, radii, shadows and type scale are cleared so
- * an off-system value fails to compile instead of slipping in.
+ * an off-system value fails to compile instead of slipping in. Light theme
+ * only. Contrast of every text and UI pairing below was checked against WCAG
+ * AA: 4.5:1 for text, 3:1 for borders, focus rings and other UI.
  */
 @theme {
   --color-*: initial;
@@ -13,148 +15,141 @@
   --ease-*: initial;
   --animate-*: initial;
 
-  /* Brand */
-  --color-primary: #f7a501;
-  --color-primary-pressed: #dd9001;
-  --color-primary-active: #b17816;
-  --color-on-primary: #23251d;
+  /* Accent: one cobalt, used for the primary action, links and focus. */
+  --color-primary: #2346c8;
+  --color-primary-pressed: #1b38a3;
+  --color-primary-active: #152d85;
+  --color-on-primary: #ffffff;
+  /* The same accent lightened for text and icons that sit on dark surfaces. */
+  --color-accent-on-dark: #8fa5f0;
+  /* Info callouts, highlights and quoted blocks. */
+  --color-accent-soft: #e1e7fa;
 
   /* Surfaces */
-  --color-canvas: #eeefe9;
-  --color-surface-soft: #e5e7e0;
+  --color-canvas: #eef0ec;
   --color-surface-card: #ffffff;
-  --color-surface-doc: #fcfcfa;
-  --color-surface-dark: #23251d;
-  --color-hairline: #bfc1b7;
-  --color-hairline-soft: #dcdfd2;
+  --color-surface-soft: #e4e8e3;
+  --color-surface-doc: #fafbf9;
+  --color-surface-dark: #1d2421;
   --color-on-dark: #ffffff;
+  --color-mute-on-dark: #aeb7b1;
+
+  /* Lines. Hairline is decoration; hairline-strong is 3:1 and carries control edges. */
+  --color-hairline: #c3c9c3;
+  --color-hairline-soft: #dbdfdb;
+  --color-hairline-strong: #6a726c;
 
   /* Text */
-  --color-ink: #23251d;
-  --color-body: #4d4f46;
-  --color-charcoal: #33342d;
-  --color-mute: #6c6e63;
-  --color-ash: #9b9c92;
-  --color-stone: #b6b7af;
+  --color-ink: #1d2421;
+  --color-body: #454d48;
+  --color-mute-strong: #515955;
+  --color-disabled: #8b938d;
 
-  /* Semantic */
-  --color-link-blue: #1d4ed8;
-  --color-link-teal: #1078a3;
-  --color-accent-blue: #2c84e0;
-  --color-accent-blue-soft: #dceaf6;
-  --color-accent-red: #cd4239;
-  --color-accent-red-soft: #f7d6d3;
-  --color-accent-green: #2c8c66;
-  --color-accent-green-soft: #d9eddf;
-  --color-accent-purple: #7c44a6;
-  --color-accent-purple-soft: #e7d8ee;
-
-  /*
-   * Focus rings need 3:1 against whatever is behind them. The blue from DESIGN.md
-   * (accent-blue) misses that on the wallpaper (2.49:1) and on soft surfaces, so
-   * light surfaces use the darker link blue (3.5:1 or better everywhere) and only
-   * dark surfaces, where the dark blue would vanish, keep the lighter one (4.05:1).
-   */
-  --color-focus: var(--color-link-blue);
-  --color-focus-on-dark: var(--color-accent-blue);
-
-  /*
-   * Derived for WCAG AA. DESIGN.md's mute (4.49:1 on canvas), accent-red
-   * (4.10:1) and hairline (1.58:1) miss the thresholds for small text and
-   * control boundaries, so these darker steps carry those jobs.
-   */
-  --color-mute-strong: #5f6157;
+  /* Semantic. Info is the accent tint above. */
+  --color-success: #1b7347;
+  --color-success-soft: #d9eee2;
   --color-danger: #b3352d;
-  --color-hairline-strong: #85877c;
+  --color-danger-soft: #f8dedb;
 
   /*
-   * The desktop the app sits on. Not in DESIGN.md: a muted olive green drawn
-   * from the same family as the ink, with a deeper step for its texture.
+   * Focus rings need 3:1 against whatever is behind them. The cobalt accent
+   * clears that on every light surface including the wallpaper (4.0:1 at the
+   * lowest); on dark surfaces the lightened accent does (6.6:1).
    */
+  --color-focus: var(--color-primary);
+  --color-focus-on-dark: var(--color-accent-on-dark);
+
+  /* The desktop the app sits on: a muted olive with a deeper step for its texture. */
   --color-wallpaper: #c9d5b6;
   --color-wallpaper-deep: #b3c29c;
 
-  /* Type */
-  --text-display-xl: 2.25rem;
-  --text-display-xl--line-height: 1.5;
-  --text-display-xl--font-weight: 700;
-  --text-display-md: 1.75rem;
-  --text-display-md--line-height: 1.5;
-  --text-display-md--font-weight: 700;
-  /* DESIGN.md asks for 800; IBM Plex Sans Variable stops at 700. */
-  --text-display-lg: 1.5rem;
-  --text-display-lg--line-height: 1.33;
-  --text-display-lg--font-weight: 700;
-  --text-display-lg--letter-spacing: -0.6px;
-  --text-heading-lg: 1.3125rem;
-  --text-heading-lg--line-height: 1.4;
-  --text-heading-lg--font-weight: 700;
-  --text-heading-lg--letter-spacing: -0.5px;
-  --text-heading-md: 1.25rem;
-  --text-heading-md--line-height: 1.4;
-  --text-heading-md--font-weight: 700;
-  --text-heading-sm: 1.125rem;
-  --text-heading-sm--line-height: 1.56;
-  --text-heading-sm--font-weight: 600;
-  --text-body-md: 1rem;
-  --text-body-md--line-height: 1.5;
-  --text-body-md--font-weight: 400;
-  --text-body-strong: 1rem;
-  --text-body-strong--line-height: 1.5;
-  --text-body-strong--font-weight: 600;
-  --text-body-sm: 0.9375rem;
-  --text-body-sm--line-height: 1.71;
-  --text-body-sm--font-weight: 400;
-  --text-body-sm-strong: 0.9375rem;
-  --text-body-sm-strong--line-height: 1.71;
-  --text-body-sm-strong--font-weight: 600;
-  --text-body-xs: 0.875rem;
-  --text-body-xs--line-height: 1.43;
-  --text-body-xs--font-weight: 500;
-  --text-caption-md: 0.875rem;
-  --text-caption-md--line-height: 1.71;
-  --text-caption-md--font-weight: 700;
-  --text-caption-sm: 0.8125rem;
-  --text-caption-sm--line-height: 1.5;
-  --text-caption-sm--font-weight: 500;
-  --text-utility-xs: 0.75rem;
-  --text-utility-xs--line-height: 1.33;
-  --text-utility-xs--font-weight: 700;
-  --text-button-md: 0.875rem;
-  --text-button-md--line-height: 1.5;
-  --text-button-md--font-weight: 700;
-  --text-button-sm: 0.8125rem;
-  --text-button-sm--line-height: 1;
-  --text-button-sm--font-weight: 500;
-  --text-code-sm: 0.875rem;
-  --text-code-sm--line-height: 1.43;
-  --text-code-sm--font-weight: 400;
-  --text-code-xs: 0.8125rem;
-  --text-code-xs--line-height: 1.43;
-  --text-code-xs--font-weight: 500;
-
-  /* Shape */
-  --radius-xs: 2px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  /* Beyond DESIGN.md's scale: the desktop window only. */
-  --radius-xl: 16px;
+  /* Subject tiles. Six hues, each with 4.5:1 or better under white. */
+  --color-tile-blue: #2346c8;
+  --color-tile-green: #1b7347;
+  --color-tile-red: #b3352d;
+  --color-tile-purple: #7a3f9a;
+  --color-tile-teal: #0e7078;
+  --color-tile-olive: #5f6b2a;
 
   /*
-   * Elevation. DESIGN.md keeps cards flat; the one exception is the window
-   * floating over the wallpaper, which gets a soft shadow tinted with the ink.
+   * Type: one ladder of 12, 13, 14, 16, 18, 21, 25, 30 and 36px. Each role
+   * carries its own weight, line height and tracking, so components never set
+   * those on their own.
    */
+  --text-display-xl: 2.25rem;
+  --text-display-xl--line-height: 1.15;
+  --text-display-xl--font-weight: 700;
+  --text-display-xl--letter-spacing: -0.025em;
+  --text-display-lg: 1.875rem;
+  --text-display-lg--line-height: 1.2;
+  --text-display-lg--font-weight: 700;
+  --text-display-lg--letter-spacing: -0.02em;
+  --text-display-md: 1.5625rem;
+  --text-display-md--line-height: 1.25;
+  --text-display-md--font-weight: 700;
+  --text-display-md--letter-spacing: -0.015em;
+  --text-heading-lg: 1.3125rem;
+  --text-heading-lg--line-height: 1.3;
+  --text-heading-lg--font-weight: 650;
+  --text-heading-lg--letter-spacing: -0.01em;
+  --text-heading-sm: 1.125rem;
+  --text-heading-sm--line-height: 1.4;
+  --text-heading-sm--font-weight: 600;
+  --text-heading-sm--letter-spacing: -0.005em;
+  --text-body-md: 1rem;
+  --text-body-md--line-height: 1.55;
+  --text-body-md--font-weight: 400;
+  --text-body-strong: 1rem;
+  --text-body-strong--line-height: 1.55;
+  --text-body-strong--font-weight: 600;
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.5;
+  --text-body-sm--font-weight: 400;
+  --text-body-sm-strong: 0.875rem;
+  --text-body-sm-strong--line-height: 1.5;
+  --text-body-sm-strong--font-weight: 600;
+  --text-caption-sm: 0.8125rem;
+  --text-caption-sm--line-height: 1.45;
+  --text-caption-sm--font-weight: 450;
+  --text-utility-xs: 0.75rem;
+  --text-utility-xs--line-height: 1.35;
+  --text-utility-xs--font-weight: 600;
+  --text-utility-xs--letter-spacing: 0.04em;
+  --text-button-md: 0.875rem;
+  --text-button-md--line-height: 1.25;
+  --text-button-md--font-weight: 600;
+  --text-button-sm: 0.8125rem;
+  --text-button-sm--line-height: 1.25;
+  --text-button-sm--font-weight: 600;
+  --text-code-sm: 0.875rem;
+  --text-code-sm--line-height: 1.45;
+  --text-code-sm--font-weight: 500;
+  --text-code-xs: 0.8125rem;
+  --text-code-xs--line-height: 1.45;
+  --text-code-xs--font-weight: 400;
+
+  /*
+   * Shape. sm: inputs, chips and inline buttons. md: cards and buttons.
+   * xl: windows only. Pills and avatars use rounded-full.
+   */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-xl: 16px;
+
+  /* The only shadow: a window floating over the wallpaper, and the consent banner. */
   --shadow-window:
     0 1px 2px color-mix(in srgb, var(--color-ink) 12%, transparent),
     0 16px 48px -8px color-mix(in srgb, var(--color-ink) 38%, transparent);
 
   /* Layout */
   --container-page: 80rem;
+  --container-banner: 26rem;
   --spacing-nav: 4rem;
   --spacing-section: 5rem;
   --spacing-section-md: 4rem;
   --spacing-section-sm: 3rem;
+  /* The 3px bar of a timeline marker. */
+  --spacing-tick: 3px;
 
   /* Layers: the sticky nav is the only raised layer in the app. */
   --z-nav: 20;
@@ -175,7 +170,13 @@
   --animate-spin: spin 0.8s linear infinite;
 }
 
+/* Reading widths, used through the measure and measure-narrow utilities. */
+:root {
+  --measure: 65ch;
+  --measure-narrow: 52ch;
+}
+
 @theme inline {
-  --font-sans: var(--font-plex), "IBM Plex Sans", -apple-system, system-ui, sans-serif;
-  --font-mono: var(--font-source-code), "Source Code Pro", ui-monospace, monospace;
+  --font-sans: var(--font-geist), -apple-system, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }

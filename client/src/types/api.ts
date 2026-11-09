@@ -1,13 +1,24 @@
+/** One cited passage: from a lecture (with timestamps) or a course document (with a page or slide). */
 export interface Source {
+  kind?: 'video' | 'document';
   chunk_id?: number;
   video_id?: number;
   text: string;
+  /** "12:04 - 13:19" for a lecture; "p. 4", "slide 4" or "" for a document. */
   timestamp: string;
+  /** The source's display name: the lecture or document title. */
   video: string;
   start?: number;
   end?: number;
   similarity?: number;
   video_duration?: number;
+  document_id?: number;
+  document_title?: string;
+  page?: number | null;
+  /** Where to open a document: the item in Canvas. */
+  url?: string | null;
+  /** How the answer cites a document passage, such as "Doc 3". */
+  ref?: string | null;
 }
 
 export interface Usage {
@@ -19,7 +30,7 @@ export interface Usage {
   cost_usd: number;
 }
 
-export interface Quota {
+interface Quota {
   plan: string;
   spent_usd: number;
   limit_usd: number;
@@ -28,14 +39,18 @@ export interface Quota {
   exhausted: boolean;
 }
 
-/** "ask" answers a typed question; the others are one-click study tools. */
-export type ChatMode = 'ask' | 'notes' | 'terms' | 'quiz';
+/**
+ * What a chat searches: one lecture, one subject (a null workspace_id means
+ * the Unsorted lectures), or every lecture.
+ */
+export type ChatScope = 'video' | 'workspace' | 'all';
 
 export interface ChatRequest {
   question: string;
-  mode?: ChatMode;
   conversation_id?: number;
+  scope?: ChatScope;
   video_id?: number;
+  workspace_id?: number | null;
   top_k?: number;
 }
 
@@ -54,7 +69,7 @@ export type StreamEvent =
     }
   | { type: 'error'; message: string };
 
-export interface MessageItem {
+interface MessageItem {
   id: number;
   role: 'user' | 'assistant';
   content: string;
@@ -67,7 +82,10 @@ export interface MessageItem {
 export interface ConversationItem {
   id: number;
   title?: string | null;
+  scope: ChatScope;
   video_id?: number | null;
+  /** The subject the thread is filed under; null is Unsorted (or, for scope 'all', none). */
+  workspace_id?: number | null;
   video_title?: string | null;
   created_at: string;
   updated_at: string;
@@ -78,17 +96,31 @@ export interface ConversationDetail extends ConversationItem {
   messages: MessageItem[];
 }
 
+/** Indexed passages (lectures and imported course material) against the plan's allowance. */
+interface ContentQuota {
+  used_chunks: number;
+  limit_chunks: number;
+  remaining_chunks: number;
+  percent_used: number;
+}
+
 export interface UsageSummary {
   questions_asked: number;
   cache_hits: number;
   total_cost_usd: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  model: string;
   quota: Quota;
+  content: ContentQuota;
 }
 
 export type VideoStage = 'queued' | 'transcribing' | 'indexing' | 'ready' | 'failed';
 
 export interface VideoInfo {
   id: number;
+  /** The subject this lecture is filed under; null is Unsorted. */
+  workspace_id: number | null;
   filename: string;
   title?: string;
   duration?: number;
@@ -98,6 +130,7 @@ export interface VideoInfo {
   stage_label: string;
   progress: number;
   error_message?: string | null;
+  num_segments?: number | null;
   num_chunks?: number | null;
 }
 
@@ -109,8 +142,9 @@ export interface VideoListResponse {
 export interface PresignResponse {
   video_id: number;
   upload_url: string | null;
-  /** Must be sent unchanged with the upload: it is part of the signed URL. */
-  content_type: string;
+  /** Older servers also send `storage_key`; nothing here reads it. */
+  storage_key?: string;
+  method: 'PUT' | 'POST';
 }
 
 export interface PlaybackResponse {
@@ -127,20 +161,179 @@ export interface UploadResponse {
   status: string;
 }
 
-export interface TranscriptLine {
-  start: number;
-  end: number;
-  text: string;
+/** Keys into a fixed palette; lib/workspaces.ts maps them onto design tokens. */
+export type WorkspaceColor = 'blue' | 'green' | 'red' | 'purple' | 'teal' | 'olive';
+
+export type WorkspaceIcon =
+  | 'book'
+  | 'flask'
+  | 'function'
+  | 'code'
+  | 'globe'
+  | 'atom'
+  | 'dna'
+  | 'chart'
+  | 'palette'
+  | 'music'
+  | 'scales'
+  | 'brain';
+
+/** A subject: a named group of lectures and the chats about them. */
+export interface WorkspaceInfo {
+  id: number;
+  name: string;
+  color: WorkspaceColor;
+  icon: WorkspaceIcon;
+  position: number;
+  canvas_course_id?: number | null;
+  video_count: number;
+  /** Course material imported from Canvas. */
+  document_count: number;
+  created_at: string;
 }
 
-export interface TranscriptResponse {
-  video_id: number;
+export interface WorkspaceDraft {
+  name: string;
+  color: WorkspaceColor;
+  icon: WorkspaceIcon;
+}
+
+type DocumentSource =
+  | 'canvas_file'
+  | 'canvas_page'
+  | 'canvas_syllabus'
+  | 'canvas_announcement'
+  | 'canvas_assignment';
+
+/** Course material imported from Canvas. */
+export interface DocumentInfo {
+  id: number;
+  workspace_id: number | null;
+  source: DocumentSource;
   title: string;
-  lines: TranscriptLine[];
+  mime_type?: string | null;
+  url?: string | null;
+  module_name?: string | null;
+  module_position?: number | null;
+  num_pages?: number | null;
+  num_chunks: number;
+  updated_at?: string | null;
 }
 
-export interface HealthResponse {
-  status: 'ok' | 'degraded';
-  database: 'ok' | 'unreachable';
-  ready: boolean;
+type CanvasSyncStage = 'idle' | 'queued' | 'syncing' | 'ready' | 'failed';
+
+interface CanvasSyncSummary {
+  added: number;
+  updated: number;
+  unchanged: number;
+  removed: number;
+  deadlines: number;
+  skipped: string[];
+}
+
+interface CanvasSync {
+  stage: CanvasSyncStage;
+  progress: number;
+  detail?: string | null;
+  error?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  summary?: CanvasSyncSummary | null;
+}
+
+/** Never carries a token: the server keeps those to itself. */
+export interface CanvasStatus {
+  connected: boolean;
+  base_url?: string | null;
+  auth_type?: 'oauth' | 'personal_token' | null;
+  connected_at?: string | null;
+  sync?: CanvasSync | null;
+  /** Schools this server has a developer key for. */
+  schools: string[];
+  personal_tokens_allowed: boolean;
+}
+
+export interface CanvasCourse {
+  id: number;
+  name: string;
+  course_code?: string | null;
+  term?: string | null;
+  workspace_id?: number | null;
+}
+
+export interface CanvasSyncRequest {
+  /** workspace_id null creates a subject named after the course. */
+  link?: { course_id: number; workspace_id: number | null }[];
+  unlink?: number[];
+}
+
+interface KeyTerm {
+  term: string;
+  definition: string;
+  /** Seconds into the lecture where it is explained, when that could be checked. */
+  start?: number | null;
+}
+
+export interface StudyGuide {
+  video_id: number;
+  summary: string;
+  key_terms: KeyTerm[];
+  outline: { start: number; title: string }[];
+  /** Set when the lecture was too long to read whole: the guide covers up to here. */
+  covered_until_s?: number | null;
+  cost_usd?: number | null;
+  created_at: string;
+}
+
+/** Where a practice item's answer comes from: a moment in a lecture or a page of a document. */
+export type PracticeSource = Pick<
+  Source,
+  'kind' | 'chunk_id' | 'video_id' | 'start' | 'end' | 'timestamp' | 'video' | 'document_id' | 'document_title' | 'page' | 'url'
+>;
+
+export type PracticeKind = 'questions' | 'flashcards';
+
+export interface PracticeItem {
+  question?: string;
+  answer?: string;
+  front?: string;
+  back?: string;
+  source: PracticeSource;
+}
+
+export interface PracticeSet {
+  id: number;
+  workspace_id: number;
+  kind: PracticeKind;
+  focus?: string | null;
+  items: PracticeItem[];
+  cost_usd?: number | null;
+  created_at: string;
+}
+
+export interface Deadline {
+  id: number;
+  workspace_id: number | null;
+  title: string;
+  due_at: string;
+  url?: string | null;
+  points_possible?: number | null;
+  is_quiz: boolean;
+}
+
+export interface SearchHit {
+  kind: 'video' | 'document';
+  chunk_id: number;
+  title: string;
+  /** Plain text; matches are wrapped in ⟦ and ⟧. */
+  snippet: string;
+  rank: number;
+  video_id?: number | null;
+  start?: number | null;
+  end?: number | null;
+  timestamp?: string | null;
+  document_id?: number | null;
+  page?: number | null;
+  page_label?: string | null;
+  url?: string | null;
 }

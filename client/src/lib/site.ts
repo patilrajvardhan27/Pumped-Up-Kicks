@@ -16,7 +16,6 @@ export const site = {
   contactEmail: process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || null,
   /** Bump when either legal page changes in substance. */
   legalUpdated: '9 November 2026',
+  /** The same date, machine readable, for the sitemap. */
   legalUpdatedIso: '2026-11-09',
 } as const;
-
-export const pageTitle = (title: string) => `${title} | ${site.name}`;

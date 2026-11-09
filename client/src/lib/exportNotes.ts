@@ -11,7 +11,7 @@ export function turnsToMarkdown(title: string, turns: Turn[]): string {
     .map((turn) => {
       const sources = turn.sources.length
         ? '\n\nSources:\n' +
-          turn.sources.map((source) => `- ${source.video}, ${source.timestamp}`).join('\n')
+          turn.sources.map((source) => `- ${[source.video, source.timestamp].filter(Boolean).join(', ')}`).join('\n')
         : '';
       return `## ${turn.question}\n\n${turn.answer.trim()}${sources}`;
     });

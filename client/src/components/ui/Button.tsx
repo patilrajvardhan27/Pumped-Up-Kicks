@@ -28,13 +28,13 @@ const FACE: Record<Variant, string> = {
 };
 
 const SIZE: Record<Size, string> = {
-  sm: 'h-8 px-3 text-button-sm',
-  md: 'h-10 px-4 text-button-md',
+  sm: 'h-9 px-3 text-button-sm sm:h-8',
+  md: 'h-11 px-4 text-button-md sm:h-10',
 };
 
 function edgeClasses({ variant = 'primary', block }: StyleProps, className?: string) {
   return cn(
-    'group/btn mt-0.5 inline-flex shrink-0 rounded-md align-middle no-underline',
+    'group/btn mt-0.5 inline-flex shrink-0 rounded-md align-middle no-underline active:translate-y-px',
     'disabled:bg-transparent',
     EDGE[variant],
     block && 'flex w-full',
@@ -50,7 +50,7 @@ function Face({ variant = 'primary', size = 'md', children }: StyleProps & { chi
         '-translate-y-0.5 transition-transform',
         'group-hover/btn:-translate-y-[3px] group-active/btn:translate-y-0',
         'group-disabled/btn:translate-y-0 group-disabled/btn:border-transparent',
-        'group-disabled/btn:bg-surface-soft group-disabled/btn:text-ash',
+        'group-disabled/btn:bg-surface-soft group-disabled/btn:text-disabled',
         FACE[variant],
         SIZE[size],
       )}

@@ -9,7 +9,7 @@ import { useSyncExternalStore } from 'react';
  * 'pending' only exists on the server and during hydration, before the stored
  * choice can be read, so the banner never flashes for someone who already chose.
  */
-export type Consent = 'granted' | 'denied' | 'unset';
+type Consent = 'granted' | 'denied' | 'unset';
 type ConsentState = Consent | 'pending';
 
 const KEY = 'puk-consent-v1';

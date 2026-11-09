@@ -1,0 +1,65 @@
+[
+  {
+    "id": 8001,
+    "name": "Problem set 1",
+    "description": "<p>Show that the efficiency of a Carnot engine depends only on the reservoir temperatures.</p>",
+    "due_at": "2026-10-20T05:59:59Z",
+    "points_possible": 20.0,
+    "course_id": 101,
+    "html_url": "https://canvas.test.edu/courses/101/assignments/8001",
+    "submission_types": [
+      "online_upload"
+    ],
+    "has_submitted_submissions": true,
+    "published": true,
+    "locked_for_user": false,
+    "updated_at": "2026-09-01T12:00:00Z",
+    "is_quiz_assignment": false
+  },
+  {
+    "id": 8002,
+    "name": "Quiz 1: First law",
+    "description": "<p>Question 1: what is the internal energy of an ideal gas?</p>",
+    "due_at": "2026-10-15T05:59:59Z",
+    "points_possible": 10.0,
+    "course_id": 101,
+    "html_url": "https://canvas.test.edu/courses/101/assignments/8002",
+    "submission_types": [
+      "online_quiz"
+    ],
+    "quiz_id": 61,
+    "is_quiz_assignment": true,
+    "published": true,
+    "locked_for_user": false,
+    "updated_at": "2026-09-01T12:00:00Z"
+  },
+  {
+    "id": 8003,
+    "name": "Midterm exam (New Quizzes)",
+    "description": "<p>Exam questions live in the quiz engine.</p>",
+    "due_at": "2026-10-28T05:59:59Z",
+    "points_possible": 100.0,
+    "course_id": 101,
+    "submission_types": [
+      "external_tool"
+    ],
+    "is_quiz_lti_assignment": true,
+    "published": true,
+    "locked_for_user": false,
+    "updated_at": "2026-09-01T12:00:00Z"
+  },
+  {
+    "id": 8004,
+    "name": "Reading reflection",
+    "description": "<p>Write a paragraph on what surprised you in chapter 2.</p>",
+    "due_at": null,
+    "points_possible": 5.0,
+    "course_id": 101,
+    "submission_types": [
+      "online_text_entry"
+    ],
+    "published": true,
+    "locked_for_user": false,
+    "updated_at": "2026-09-01T12:00:00Z"
+  }
+]

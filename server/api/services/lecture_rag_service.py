@@ -1,51 +1,50 @@
 """
-Lecture Q&A: gather passages of a user's own lectures, then let Claude answer
-using only those.
+Lecture Q&A: retrieve the relevant passages of a user's own lectures and course
+material, then let Claude answer using only those.
 
 The whole multi-tenancy story is the `where Chunk.user_id == user_id` below:
-one user can never read another's lecture, and the filter is applied inside the
-vector search rather than after it.
+one user can never retrieve another's lecture, and the filter is applied inside
+the vector search rather than after it. The conversation's scope (one lecture,
+one subject, Unsorted, or everything) narrows the search further and never
+widens it.
 """
 import hashlib
-import sys
+import logging
 import time
-from pathlib import Path
 from typing import Dict, Iterator, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-SERVER_DIR = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(SERVER_DIR / "src"))
+from api.config import settings
+from api.models.database import Chunk, Document, Video
+from api.services.claude_client import (
+    ClaudeUsage,
+    describe_api_error,
+    get_claude_client,
+)
+from api.services.coverage import MESSAGE as NOT_COVERED_MESSAGE
+from api.services.coverage import PROMPT_VERSION, CoverageGate, is_not_covered
+from api.services.document_text import PPTX
+from api.services.embedder import get_embedder
+from api.services.scope import ALL, ChatScope
 
-from services.embeddings.embedder import get_embedder  # noqa: E402
-from services.llm.claude_client import ClaudeUsage, describe_api_error, get_claude_client  # noqa: E402
+log = logging.getLogger(__name__)
 
-from api.config import settings  # noqa: E402
-from api.errors import safe_detail  # noqa: E402
-from api.models.database import Chunk, Video  # noqa: E402
-from api.services.coverage import MESSAGE as NOT_COVERED_MESSAGE  # noqa: E402
-from api.services.coverage import PROMPT_VERSION, CoverageGate, is_not_covered  # noqa: E402
-from api.services.study import cited_sources, tool_for, transcript_lines  # noqa: E402
+SYSTEM_PROMPT = """You are a teaching assistant for a student reviewing their own recorded lectures and course material.
 
-SYSTEM_PROMPT = """You are a teaching assistant for a student reviewing their own recorded lectures.
-
-You answer only from the lecture excerpts you are given. Each excerpt is labelled with a timestamp and the video it came from.
+You answer only from the excerpts you are given. A lecture excerpt is labelled with a timestamp and the lecture it came from. A course-material excerpt is labelled with a reference such as Doc 3, the document it came from, and its page or slide where it has one.
 
 Rules:
 - Ground every claim in the excerpts.
 - If the excerpts have nothing to do with the question, reply with exactly NOT_COVERED and nothing else. Do not say what the excerpts cover instead.
-- If they cover only part of the question, answer that part and say plainly which part the lectures do not address. Do not describe unrelated material.
-- Cite the timestamp in square brackets right after the claim it supports, like [12:04].
-- If the lecture gives several reasons, limitations, or examples, list all of them.
+- If they cover only part of the question, answer that part and say plainly which part the material does not address. Do not describe unrelated material.
+- Cite a lecture excerpt by its timestamp in square brackets right after the claim it supports, like [12:04].
+- Cite a course-material excerpt by its reference in square brackets, like [Doc 3]. One reference per pair of brackets.
+- When both lecture and course-material excerpts bear on the question, use and cite both.
+- If the material gives several reasons, limitations, or examples, list all of them.
 - Prefer the lecturer's own terminology over synonyms.
 - Be direct and concise. No preamble, no restating the question."""
-
-EMPTY_ANSWER = (
-    "No lecture content is indexed yet. Upload a video and wait for it to "
-    "finish processing, then ask again."
-)
-CLAUDE_UNAVAILABLE = "The answer service is busy or unavailable. Try again in a moment."
 
 
 def format_timestamp(seconds: float) -> str:
@@ -54,18 +53,42 @@ def format_timestamp(seconds: float) -> str:
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
 
 
-def to_source(chunk: Chunk, title: str, duration: Optional[float], similarity: Optional[float] = None) -> Dict:
-    """The one shape a passage takes on its way to the client."""
+def page_label(page: Optional[int], mime_type: Optional[str]) -> str:
+    """'slide 4' for a deck, 'p. 4' otherwise, '' when the format has no pages."""
+    if page is None:
+        return ""
+    return f"slide {page}" if mime_type == PPTX else f"p. {page}"
+
+
+def video_source(chunk: Chunk, filename: str, title: Optional[str], duration: Optional[float]) -> Dict:
     return {
+        "kind": "video",
         "chunk_id": chunk.id,
         "video_id": chunk.video_id,
         "text": chunk.text,
         "start": chunk.start_s,
         "end": chunk.end_s,
         "timestamp": f"{format_timestamp(chunk.start_s)} - {format_timestamp(chunk.end_s)}",
-        "video": title,
+        "video": title or filename,
+        "video_filename": filename,
         "video_duration": duration,
-        "similarity": similarity,
+    }
+
+
+def document_source(chunk: Chunk, document: Document, ref: Optional[str] = None) -> Dict:
+    label = page_label(chunk.page, document.mime_type)
+    return {
+        "kind": "document",
+        "chunk_id": chunk.id,
+        "document_id": document.id,
+        "text": chunk.text,
+        "page": chunk.page,
+        "timestamp": label,
+        # `video` is the name the citation list shows, kept for older clients.
+        "video": document.title,
+        "document_title": document.title,
+        "url": document.url,
+        "ref": ref,
     }
 
 
@@ -76,103 +99,214 @@ class LectureRAGService:
         self.model_name = settings.puk_claude_model
         self.embedding_model = settings.embedding_model
 
-    # -- gathering passages ------------------------------------------------
+    # -- retrieval --------------------------------------------------------
 
-    def _select(self, user_id: str, video_id: Optional[int], *columns):
+    def retrieve(
+        self,
+        db: Session,
+        user_id: str,
+        question: str,
+        scope: ChatScope = ALL,
+        top_k: Optional[int] = None,
+    ) -> List[Dict]:
+        """Nearest chunks belonging to this user, within the conversation's scope."""
+        k = top_k or settings.default_top_k
+        query_vector = get_embedder(self.embedding_model).embed_one(question)
+
+        distance = Chunk.embedding.cosine_distance(query_vector)
         stmt = (
-            select(Chunk, Video.filename, Video.title, Video.duration_s, *columns)
-            .join(Video, Video.id == Chunk.video_id)
+            select(Chunk, Video, Document, distance.label("distance"))
+            .outerjoin(Video, Video.id == Chunk.video_id)
+            .outerjoin(Document, Document.id == Chunk.document_id)
             .where(Chunk.user_id == user_id)
+            .order_by(distance)
+            .limit(k)
         )
-        return stmt.where(Chunk.video_id == video_id) if video_id is not None else stmt
+        if scope.kind == "video":
+            rows = db.execute(stmt.where(Chunk.video_id == scope.video_id)).all()
+        else:
+            if scope.kind == "workspace":
+                # A chunk has exactly one parent, so this is that parent's subject.
+                subject = func.coalesce(Video.workspace_id, Document.workspace_id)
+                stmt = stmt.where(
+                    subject.is_(None) if scope.workspace_id is None else subject == scope.workspace_id
+                )
+            rows = self._balanced(
+                db.execute(stmt.where(Chunk.video_id.is_not(None))).all(),
+                db.execute(stmt.where(Chunk.document_id.is_not(None))).all(),
+                k,
+            )
 
-    def retrieve(self, db: Session, user_id: str, question: str,
-                 video_id: Optional[int] = None, top_k: Optional[int] = None) -> List[Dict]:
-        """Nearest chunks belonging to this user, optionally within one lecture."""
-        vector = get_embedder(self.embedding_model).embed_one(question)
-        distance = Chunk.embedding.cosine_distance(vector).label("distance")
-        stmt = self._select(user_id, video_id, distance).order_by(distance)
-        rows = db.execute(stmt.limit(top_k or settings.default_top_k)).all()
-        return [
-            to_source(chunk, title or filename, duration, round(max(0.0, 1.0 - float(dist)), 4))
-            for chunk, filename, title, duration, dist in rows
-        ]
+        sources = []
+        for position, (chunk, video, document, dist) in enumerate(rows, start=1):
+            if document is not None:
+                source = document_source(chunk, document, ref=f"Doc {position}")
+            else:
+                source = video_source(chunk, video.filename, video.title, video.duration_s)
+            source["similarity"] = round(max(0.0, 1.0 - float(dist)), 4)
+            sources.append(source)
+        return sources
 
-    def lecture_passages(self, db: Session, user_id: str, video_id: int) -> List[Dict]:
-        """Every chunk of one lecture, in the order it was spoken."""
-        rows = db.execute(self._select(user_id, video_id).order_by(Chunk.start_s)).all()
-        return [to_source(chunk, title or filename, duration) for chunk, filename, title, duration in rows]
-
-    def transcript(self, db: Session, user_id: str, video_id: int) -> List[Dict]:
-        """The lecture as readable, de-duplicated lines with timestamps."""
-        return transcript_lines(self.lecture_passages(db, user_id, video_id))
-
-    def gather(self, db: Session, user_id: str, question: str, mode: str,
-               video_id: Optional[int], top_k: Optional[int]) -> List[Dict]:
-        if tool_for(mode) and video_id is not None:
-            return self.lecture_passages(db, user_id, video_id)
-        return self.retrieve(db, user_id, question, video_id, top_k)
+    @staticmethod
+    def _balanced(lectures: List, documents: List, k: int) -> List:
+        """
+        Merge the nearest lecture and document passages. Each kind keeps up to
+        a third of the places when it has candidates, so a subject's answer can
+        draw on (and cite) both even when one kind is more numerous; the rest
+        go to whichever passages are nearest. Rows are (chunk, video, document, distance).
+        """
+        reserve = max(1, k // 3)
+        kept = lectures[:reserve] + documents[:reserve]
+        rest = sorted(lectures[reserve:] + documents[reserve:], key=lambda row: row[-1])
+        return sorted(kept + rest[: max(0, k - len(kept))], key=lambda row: row[-1])[:k]
 
     # -- prompt assembly ---------------------------------------------------
 
-    @staticmethod
-    def build_user_message(question: str, sources: List[Dict], budget_tokens: int) -> str:
-        budget = budget_tokens * 4  # ~4 characters per token
+    def build_user_message(self, question: str, sources: List[Dict]) -> str:
+        budget = settings.max_context_tokens * 4  # ~4 characters per token
         parts, used = [], 0
+
         for i, src in enumerate(sources, 1):
-            block = f"[Excerpt {i} | {src['timestamp']} | {src['video']}]\n{src['text']}\n"
+            if src.get("kind") == "document":
+                where = f", {src['timestamp']}" if src.get("timestamp") else ""
+                block = f"[Doc {i} | {src['document_title']}{where}]\n{src['text']}\n"
+            else:
+                block = f"[Excerpt {i} | {src['timestamp']} | {src['video']}]\n{src['text']}\n"
             if used + len(block) > budget:
                 break
             parts.append(block)
             used += len(block)
-        return "Lecture excerpts:\n\n" + "\n".join(parts) + f"\n\nStudent's question: {question}"
+
+        return (
+            "Excerpts:\n\n"
+            + "\n".join(parts)
+            + f"\n\nStudent's question: {question}"
+        )
 
     @staticmethod
-    def cache_key(question: str, sources: List[Dict], model: str, mode: str = "ask") -> str:
+    def cache_key(question: str, sources: List[Dict], model: str, scope: ChatScope = ALL) -> str:
+        """
+        The chunk fingerprint already ties an answer to the excerpts it was
+        written from. The scope is in the key too, so an answer cached in one
+        subject is never served in another, even when both retrieve the same
+        passages (a lecture that moved between subjects, say).
+        """
         fingerprint = "|".join(str(s["chunk_id"]) for s in sources)
-        raw = f"{PROMPT_VERSION}::{model}::{mode}::{question.strip().lower()}::{fingerprint}"
+        raw = (
+            f"{PROMPT_VERSION}::{model}::{scope.cache_token}::"
+            f"{question.strip().lower()}::{fingerprint}"
+        )
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def empty_answer() -> str:
+        return (
+            "Nothing is indexed here yet. Upload a lecture or import course material "
+            "from Canvas, wait for it to finish processing, then ask again."
+        )
 
     # -- answering ---------------------------------------------------------
 
-    def _done(self, started: float, answer: str, sources: List[Dict], usage: Dict, **extra) -> Dict:
-        return {
-            "type": "done",
-            "answer": answer,
-            "sources": sources,
-            "num_sources": len(sources),
-            "response_time": round(time.time() - started, 2),
-            "usage": usage,
-            **extra,
-        }
-
-    def stream_answer(self, question: str, sources: List[Dict], mode: str = "ask") -> Iterator[Dict]:
-        """
-        Yields sources, then text deltas, then a final done/error event.
-
-        `sources` come from gather(); keeping that step outside lets the caller
-        check the answer cache before any tokens are spent.
-        """
+    def answer(
+        self,
+        db: Session,
+        user_id: str,
+        question: str,
+        scope: ChatScope = ALL,
+        top_k: Optional[int] = None,
+    ) -> Dict:
         started = time.time()
-        tool = tool_for(mode)
-        empty_usage = ClaudeUsage(model=self.model_name).to_dict()
-
-        # A study tool's passages are the whole lecture; only the cited ones are
-        # sent once the answer is known.
-        yield {"type": "sources", "sources": [] if tool else sources}
-
-        if not sources:
-            yield self._done(started, EMPTY_ANSWER, [], empty_usage)
-            return
-
-        system = f"{SYSTEM_PROMPT}\n\n{tool.instruction}" if tool else SYSTEM_PROMPT
-        budget = settings.study_context_tokens if tool else settings.max_context_tokens
-        max_tokens = settings.study_max_tokens if tool else None
-        message = self.build_user_message(question, sources, budget)
+        sources: List[Dict] = []
 
         try:
-            answer, usage, gate = "", empty_usage, CoverageGate()
-            for event in get_claude_client().stream(system, message, max_tokens=max_tokens):
+            sources = self.retrieve(db, user_id, question, scope, top_k)
+
+            if not sources:
+                return {
+                    "answer": self.empty_answer(),
+                    "sources": [],
+                    "response_time": round(time.time() - started, 2),
+                    "num_sources": 0,
+                    "usage": ClaudeUsage(model=self.model_name).to_dict(),
+                    "cache_hit": False,
+                }
+
+            result = get_claude_client().complete(
+                SYSTEM_PROMPT, self.build_user_message(question, sources)
+            )
+
+            if is_not_covered(result["text"]):
+                # Nothing relevant: one line, and none of the excerpts that happened
+                # to be nearest, so there is nothing to cite or to click.
+                return {
+                    "answer": NOT_COVERED_MESSAGE,
+                    "sources": [],
+                    "response_time": round(time.time() - started, 2),
+                    "num_sources": 0,
+                    "usage": result["usage"].to_dict(),
+                    "cache_hit": False,
+                    "not_covered": True,
+                }
+
+            return {
+                "answer": result["text"],
+                "sources": sources,
+                "response_time": round(time.time() - started, 2),
+                "num_sources": len(sources),
+                "usage": result["usage"].to_dict(),
+                "cache_hit": False,
+            }
+
+        except Exception as e:
+            message = describe_api_error(e)
+            return {
+                "answer": message,
+                "sources": sources,
+                "response_time": round(time.time() - started, 2),
+                "num_sources": len(sources),
+                "usage": ClaudeUsage(model=self.model_name).to_dict(),
+                "cache_hit": False,
+                "error": True,
+            }
+
+    def stream_answer(
+        self,
+        db: Session,
+        user_id: str,
+        question: str,
+        scope: ChatScope = ALL,
+        top_k: Optional[int] = None,
+    ) -> Iterator[Dict]:
+        """Yields sources, then text deltas, then a final done/error event."""
+        started = time.time()
+
+        try:
+            sources = self.retrieve(db, user_id, question, scope, top_k)
+        except Exception as e:
+            log.exception("Retrieval failed")
+            yield {"type": "error", "message": "Couldn't search your material. Try again."}
+            return
+
+        yield {"type": "sources", "sources": sources}
+
+        if not sources:
+            yield {
+                "type": "done",
+                "answer": self.empty_answer(),
+                "sources": [],
+                "num_sources": 0,
+                "response_time": round(time.time() - started, 2),
+                "usage": ClaudeUsage(model=self.model_name).to_dict(),
+            }
+            return
+
+        try:
+            answer, usage = "", ClaudeUsage(model=self.model_name).to_dict()
+            gate = CoverageGate()
+
+            for event in get_claude_client().stream(
+                SYSTEM_PROMPT, self.build_user_message(question, sources)
+            ):
                 if event["type"] == "delta":
                     text = gate.feed(event["text"])
                     if text:
@@ -183,18 +317,30 @@ class LectureRAGService:
             tail = gate.finish()
             if tail:
                 yield {"type": "delta", "text": tail}
+
+            if gate.not_covered or is_not_covered(answer):
+                yield {
+                    "type": "done",
+                    "answer": NOT_COVERED_MESSAGE,
+                    "sources": [],
+                    "num_sources": 0,
+                    "response_time": round(time.time() - started, 2),
+                    "usage": usage,
+                    "not_covered": True,
+                }
+                return
+
+            yield {
+                "type": "done",
+                "answer": answer,
+                "sources": sources,
+                "num_sources": len(sources),
+                "response_time": round(time.time() - started, 2),
+                "usage": usage,
+            }
+
         except Exception as e:
-            yield {"type": "error", "message": safe_detail(
-                e, "claude", CLAUDE_UNAVAILABLE, dev=describe_api_error(e))}
-            return
-
-        if gate.not_covered or is_not_covered(answer):
-            # Nothing relevant: one line, and none of the excerpts that happened
-            # to be nearest, so there is nothing to cite or to click.
-            yield self._done(started, NOT_COVERED_MESSAGE, [], usage, not_covered=True)
-            return
-
-        yield self._done(started, answer, cited_sources(answer, sources) if tool else sources, usage)
+            yield {"type": "error", "message": describe_api_error(e)}
 
 
 _rag_service: Optional[LectureRAGService] = None

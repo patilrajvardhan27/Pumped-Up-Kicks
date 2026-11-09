@@ -65,8 +65,8 @@ export function NavMenu({ trigger, label, menu, align = 'start', triggerClassNam
         aria-controls={panelId}
         onClick={() => setOpen((value) => !value)}
         className={cn(
-          'inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-body-xs font-semibold text-ink',
-          'transition-transform hover:bg-surface-soft active:scale-95',
+          'inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-body-sm-strong text-ink',
+          'transition-transform hover:bg-surface-soft active:translate-y-px',
           open && 'bg-surface-soft',
           triggerClassName,
         )}
@@ -98,7 +98,7 @@ export function NavMenu({ trigger, label, menu, align = 'start', triggerClassNam
                     <Icon className="size-5" />
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-body-xs font-semibold text-ink">{itemLabel}</span>
+                    <span className="block text-body-sm-strong text-ink">{itemLabel}</span>
                     <span className="block truncate text-caption-sm text-mute-strong">{description}</span>
                   </span>
                 </a>

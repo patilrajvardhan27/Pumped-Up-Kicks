@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { videoService } from '@/services/videoService';
-import type { TranscriptLine } from '@/types/api';
+import type { TranscriptLine } from '@/types/transcript';
 
 type State =
   | { status: 'loading'; lines: TranscriptLine[] }

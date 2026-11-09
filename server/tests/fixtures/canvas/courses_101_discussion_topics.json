@@ -1,0 +1,17 @@
+[
+  {
+    "id": 4001,
+    "title": "Room change for Thursday",
+    "message": "<p>Thursday's lecture moves to <b>Duane G1B30</b>.</p>",
+    "posted_at": "2026-09-01T15:00:00Z",
+    "delayed_post_at": null,
+    "last_reply_at": null,
+    "html_url": "https://canvas.test.edu/courses/101/discussion_topics/4001",
+    "discussion_type": "threaded",
+    "published": true,
+    "locked_for_user": false,
+    "is_announcement": true,
+    "user_name": "Prof. Example",
+    "read_state": "read"
+  }
+]

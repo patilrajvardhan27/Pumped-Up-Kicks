@@ -27,7 +27,7 @@ export function ConsentBanner() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 24 }}
           transition={{ duration: DURATION.base }}
-          className="card fixed inset-x-3 bottom-3 z-(--z-banner) flex flex-col gap-3 p-4 shadow-window sm:right-auto sm:bottom-5 sm:left-5 sm:w-[26rem]"
+          className="card fixed inset-x-3 bottom-3 z-(--z-banner) flex flex-col gap-3 p-4 shadow-window sm:right-auto sm:bottom-5 sm:left-5 sm:w-banner"
         >
           <div className="flex items-start gap-3">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-soft text-ink">
@@ -35,10 +35,10 @@ export function ConsentBanner() {
             </span>
             <div className="flex flex-col gap-1">
               <h2 className="text-body-strong text-ink">Count visits with PostHog?</h2>
-              <p className="text-body-xs font-normal text-body">
+              <p className="text-body-sm text-body">
                 Sign-in cookies are always on. With your OK we also measure which features get used.
                 Lecture and chat content is never sent, and screen recording is off.{' '}
-                <Link href="/privacy#cookies" className="text-link-blue underline">
+                <Link href="/privacy#cookies" className="text-primary underline">
                   Details
                 </Link>
               </p>

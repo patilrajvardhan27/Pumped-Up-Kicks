@@ -15,7 +15,9 @@ const ESSENTIAL: Entry[] = [
   { name: '__client_uat', kind: 'Cookie', setBy: 'Clerk', purpose: 'Tells the app when you last signed in or out, so every tab agrees.', lasts: 'Up to 1 year' },
   { name: '__client', kind: 'Cookie', setBy: 'Clerk (its own domain)', purpose: 'Keeps your sign-in. HttpOnly and Secure: page scripts cannot read it.', lasts: 'Until you sign out or the session ends' },
   { name: 'puk-consent-v1', kind: 'Local storage', setBy: site.name, purpose: 'Remembers whether you accepted analytics.', lasts: 'Until you clear it' },
-  { name: 'puk-last-activity', kind: 'Local storage', setBy: site.name, purpose: 'Time of your last click or key press, so idle sessions sign out after 30 minutes.', lasts: 'Until you clear it' },
+  { name: 'puk-last-active-v1', kind: 'Local storage', setBy: site.name, purpose: 'Time of your last click or key press, so idle sessions sign out after 30 minutes.', lasts: 'Cleared on sign-out' },
+  { name: 'puk-active-subject-v1', kind: 'Local storage', setBy: site.name, purpose: 'Reopens the subject you were last working in.', lasts: 'Cleared on sign-out' },
+  { name: 'puk-sidebar-collapsed-v1', kind: 'Local storage', setBy: site.name, purpose: 'Remembers whether you collapsed the sidebar.', lasts: 'Cleared on sign-out' },
 ];
 
 const OPTIONAL: Entry[] = [

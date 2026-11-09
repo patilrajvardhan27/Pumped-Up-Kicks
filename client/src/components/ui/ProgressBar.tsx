@@ -11,8 +11,8 @@ interface ProgressBarProps {
 
 const TONE = {
   primary: 'bg-primary',
-  success: 'bg-accent-green',
-  danger: 'bg-accent-red',
+  success: 'bg-success',
+  danger: 'bg-danger',
 };
 
 /**
@@ -29,7 +29,7 @@ export function ProgressBar({ value, label, tone = 'primary', busy = false }: Pr
       aria-valuenow={Math.round(clamped)}
       aria-valuemin={0}
       aria-valuemax={100}
-      className="h-2 overflow-hidden rounded-full bg-surface-dark"
+      className="h-2 overflow-hidden rounded-full bg-hairline"
     >
       <div
         className={cn('relative h-full overflow-hidden transition-transform duration-(--duration-base)', TONE[tone])}

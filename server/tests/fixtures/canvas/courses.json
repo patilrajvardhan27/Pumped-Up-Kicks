@@ -1,0 +1,70 @@
+{
+  "pages": [
+    [
+      {
+        "id": 101,
+        "name": "PHYS 2210: Thermodynamics",
+        "account_id": 1,
+        "uuid": "a1",
+        "course_code": "PHYS 2210",
+        "workflow_state": "available",
+        "enrollment_term_id": 12,
+        "term": {
+          "id": 12,
+          "name": "Fall 2026",
+          "start_at": "2026-08-24T06:00:00Z",
+          "end_at": "2026-12-18T07:00:00Z"
+        },
+        "enrollments": [
+          {
+            "type": "student",
+            "role": "StudentEnrollment",
+            "role_id": 3,
+            "user_id": 4471,
+            "enrollment_state": "active"
+          }
+        ],
+        "default_view": "modules",
+        "public_syllabus": false,
+        "hide_final_grades": false,
+        "apply_assignment_group_weights": false,
+        "time_zone": "America/Denver",
+        "blueprint": false,
+        "restrict_enrollments_to_course_dates": false
+      },
+      {
+        "id": 303,
+        "name": "Archived seminar",
+        "access_restricted_by_date": true
+      }
+    ],
+    [
+      {
+        "id": 202,
+        "name": "MATH 3130: Linear Algebra",
+        "account_id": 1,
+        "uuid": "b2",
+        "course_code": "MATH 3130",
+        "workflow_state": "available",
+        "enrollment_term_id": 12,
+        "term": {
+          "id": 12,
+          "name": "Fall 2026",
+          "start_at": "2026-08-24T06:00:00Z",
+          "end_at": "2026-12-18T07:00:00Z"
+        },
+        "enrollments": [
+          {
+            "type": "student",
+            "role": "StudentEnrollment",
+            "role_id": 3,
+            "user_id": 4471,
+            "enrollment_state": "active"
+          }
+        ],
+        "default_view": "wiki",
+        "time_zone": "America/Denver"
+      }
+    ]
+  ]
+}

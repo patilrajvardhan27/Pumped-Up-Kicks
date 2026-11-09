@@ -13,9 +13,9 @@ interface AlertProps {
 }
 
 const TONE: Record<Tone, string> = {
-  success: 'bg-accent-green-soft',
-  info: 'bg-accent-blue-soft',
-  danger: 'bg-accent-red-soft',
+  success: 'bg-success-soft',
+  info: 'bg-accent-soft',
+  danger: 'bg-danger-soft',
 };
 
 /** A tinted callout. Errors interrupt the screen reader; the rest wait their turn. */
@@ -26,8 +26,8 @@ export function Alert({ children, tone = 'info', title, onClose }: AlertProps) {
       className={cn('flex items-start gap-3 rounded-md py-3 pr-2 pl-4 text-ink', TONE[tone])}
     >
       <div className="min-w-0 flex-1 py-1">
-        {title && <p className="text-caption-md">{title}</p>}
-        <p className="break-words text-body-xs">{children}</p>
+        {title && <p className="text-body-sm-strong">{title}</p>}
+        <p className="break-words text-body-sm">{children}</p>
       </div>
       {onClose && (
         <IconButton aria-label="Dismiss" onClick={onClose} className="hover:bg-transparent">

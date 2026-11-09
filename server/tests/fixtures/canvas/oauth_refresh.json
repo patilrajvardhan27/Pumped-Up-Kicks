@@ -1,0 +1,9 @@
+{
+  "access_token": "1~refreshed-access-token",
+  "token_type": "Bearer",
+  "user": {
+    "id": 4471,
+    "name": "Test Student"
+  },
+  "expires_in": 3600
+}

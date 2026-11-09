@@ -1,6 +1,6 @@
 'use client';
 
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
+import { Show, SignInButton, UserButton } from '@clerk/nextjs';
 import { Badge } from '@/components/ui/Badge';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { authEnabled } from '@/lib/clerk';
@@ -24,17 +24,17 @@ export function UserBar() {
 
   return (
     <>
-      <SignedOut>
+      <Show when="signed-out">
         <SignInButton mode="modal">
           <Button variant="secondary" size="sm">
             Sign in
           </Button>
         </SignInButton>
-      </SignedOut>
-      <SignedIn>
+      </Show>
+      <Show when="signed-in">
         {yourData}
         <UserButton />
-      </SignedIn>
+      </Show>
     </>
   );
 }

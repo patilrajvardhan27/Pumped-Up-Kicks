@@ -171,7 +171,7 @@ export function HeroTimeline() {
             aria-hidden="true"
             className={cn(
               'stagger absolute -ml-px w-0.5 animate-mark-in rounded-full transition-transform',
-              mention.answer ? 'inset-y-0 -ml-0.5 w-1 bg-primary' : 'inset-y-5 bg-on-dark',
+              mention.answer ? 'inset-y-0 -ml-0.5 w-1 bg-accent-on-dark' : 'inset-y-5 bg-on-dark',
               focused === index && !mention.answer && 'scale-y-150',
             )}
             style={{ left: percent(positionOf(mention)), '--i': index } as CSSProperties}
@@ -187,7 +187,7 @@ export function HeroTimeline() {
           <span className="absolute top-9 bottom-0 -left-px w-0.5 bg-on-dark" />
           <m.span
             className={cn(
-              'absolute top-0 left-0 rounded-sm px-2 py-0.5 font-mono text-code-sm font-medium tabular-nums',
+              'absolute top-0 left-0 rounded-sm px-2 py-0.5 font-mono text-code-sm tabular-nums',
               focused === ANSWER_INDEX ? 'bg-primary text-on-primary' : 'bg-surface-dark text-on-dark',
             )}
             style={{ x: chipX }}

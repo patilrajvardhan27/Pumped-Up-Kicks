@@ -19,7 +19,7 @@ export interface NavItem {
 }
 
 /* The menu bar and the desktop icons are two views of the same destinations. */
-export const PIPELINE_ITEMS: NavItem[] = [
+const PIPELINE_ITEMS: NavItem[] = [
   { href: '#step-upload', label: 'Upload', description: 'Drop in a recording', Icon: UploadIcon },
   { href: '#step-transcribe', label: 'Transcribe', description: 'Timestamped text', Icon: WaveformIcon },
   { href: '#step-index', label: 'Index', description: 'Search by meaning', Icon: SearchIcon },

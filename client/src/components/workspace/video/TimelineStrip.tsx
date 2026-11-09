@@ -37,7 +37,7 @@ export function TimelineStrip({
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="eyebrow">Where this came from</p>
+      <p className="text-button-sm text-ink">Where this came from</p>
 
       {lectures.map((lecture) => {
         const marks = cited.filter(({ source }) => source.video === lecture);
@@ -69,10 +69,10 @@ export function TimelineStrip({
                     onClick={() => onSelect?.(index)}
                     aria-label={`Excerpt at ${source.timestamp} in ${lecture}`}
                     aria-pressed={active}
-                    className="group/mark focus-on-dark absolute inset-y-0 w-6 -translate-x-1/2 rounded-sm focus-visible:outline-offset-[-2px]"
+                    className="group/mark focus-on-dark absolute inset-y-0 w-6 -translate-x-1/2 rounded-sm focus-visible:outline-inset"
                     style={{ left: `${left}%` }}
                   >
-                    <span className="mx-auto block h-full w-[3px] rounded-full bg-stone transition-transform group-hover/mark:scale-x-150 group-active/mark:scale-y-90" />
+                    <span className="mx-auto block h-full w-tick rounded-full bg-hairline-strong transition-transform group-hover/mark:scale-x-150 group-active/mark:scale-y-90" />
                     {active && (
                       <m.span
                         layoutId={`${stripId}-${lecture}-lit`}

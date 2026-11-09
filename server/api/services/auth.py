@@ -5,7 +5,6 @@ In `dev` auth mode no token is required and every request resolves to a single
 built-in user, so the app runs on a laptop with no Clerk account. Switching
 AUTH_MODE to `clerk` turns on real verification with no other code change.
 """
-import logging
 import time
 from typing import Any, Dict, Optional
 
@@ -15,17 +14,13 @@ from jwt import PyJWKClient
 from api.config import settings
 
 
-log = logging.getLogger("kicks")
-
-INVALID = "Your session is not valid. Sign in again."
-
-
 class AuthError(Exception):
     """Raised when a request carries no usable identity."""
 
 
 _jwk_client: Optional[PyJWKClient] = None
 _jwk_client_created_at: float = 0.0
+_LEEWAY_SECONDS = 5
 _JWK_CLIENT_TTL = 3600  # refetch the key set hourly so rotations are picked up
 
 
@@ -33,10 +28,7 @@ def _get_jwk_client() -> PyJWKClient:
     global _jwk_client, _jwk_client_created_at
 
     if not settings.clerk_jwks_url:
-        raise AuthError(
-            "AUTH_MODE=clerk but CLERK_JWKS_URL is not set. "
-            "It looks like https://<your-app>.clerk.accounts.dev/.well-known/jwks.json"
-        )
+        raise AuthError("CLERK_JWKS_URL is not set.")
 
     expired = time.time() - _jwk_client_created_at > _JWK_CLIENT_TTL
     if _jwk_client is None or expired:
@@ -47,40 +39,39 @@ def _get_jwk_client() -> PyJWKClient:
 
 
 def verify_clerk_token(token: str) -> Dict[str, Any]:
-    """
-    Verify a Clerk session token's signature, expiry, issuer and origin.
-
-    Clerk session tokens live for about a minute and are refreshed by the
-    browser while the tab is in use, so an idle or signed-out session stops
-    working here within that minute. Messages stay generic; the reason a token
-    was rejected is logged, not returned.
-    """
+    """Verify a Clerk session token's signature, required claims, issuer and origin."""
     try:
         signing_key = _get_jwk_client().get_signing_key_from_jwt(token)
+        required = ["exp", "iat", "sub"]
+        if settings.clerk_issuer:
+            required.append("iss")
         claims = jwt.decode(
             token,
             signing_key.key,
             algorithms=["RS256"],
-            issuer=settings.clerk_issuer,
-            leeway=5,  # tolerate small clock drift between Clerk and this server
+            issuer=settings.clerk_issuer or None,
+            leeway=_LEEWAY_SECONDS,
             options={
-                "require": ["exp", "iat", "sub"],
+                "verify_signature": True,
+                "verify_exp": True,
                 "verify_iss": bool(settings.clerk_issuer),
-                # Clerk session tokens carry no `aud` by default; `azp` is checked below.
+                # Clerk session tokens carry no `aud` by default.
                 "verify_aud": False,
+                "require": required,
             },
         )
     except jwt.ExpiredSignatureError:
-        raise AuthError("Your session expired. Sign in again.")
-    except jwt.InvalidTokenError as e:
-        log.info("[Auth] rejected token: %s", e)
-        raise AuthError(INVALID)
+        raise AuthError("Session token expired.")
+    except jwt.PyJWTError as e:
+        raise AuthError(f"Invalid session token: {e}")
 
-    parties = settings.clerk_authorized_party_list
-    if parties and claims.get("azp") not in parties:
-        # A valid token minted for a different site must not open this API.
-        log.info("[Auth] rejected token from azp=%r", claims.get("azp"))
-        raise AuthError(INVALID)
+    # `azp` is the origin that asked Clerk for the token; it has to be ours.
+    azp = claims.get("azp")
+    if azp and azp not in settings.cors_origin_list:
+        raise AuthError(f"Session token was issued for an unknown origin: {azp}")
+
+    if not claims.get("sub"):
+        raise AuthError("Session token has no subject claim.")
 
     return claims
 

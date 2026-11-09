@@ -35,6 +35,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Editor and tool instruction files are local, not part of the project.
-AGENTS.md
-CLAUDE.md
+# playwright
+/test-results/
+/playwright-report/
