@@ -21,7 +21,7 @@ app = modal.App(APP_NAME)
 image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("ffmpeg")
-    .pip_install("faster-whisper==1.1.0", "boto3==1.35.36")
+    .pip_install("faster-whisper==1.1.0", "boto3==1.43.111")
     .run_commands(
         "python -c \"from faster_whisper import WhisperModel; "
         f"WhisperModel('{WHISPER_MODEL}', device='cpu', compute_type='int8')\""
@@ -84,7 +84,9 @@ def transcribe_from_r2(storage_key: str) -> dict:
         }
 
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        # The worker's log has the detail; the API shows its own wording.
+        print(f"[Transcribe] failed: {type(e).__name__}: {e}")
+        return {"status": "error", "message": "Transcription failed."}
 
     finally:
         if os.path.exists(local_path):

@@ -41,7 +41,7 @@ export function VideoUpload({ workspaceId, destination, onUploadSuccess }: Video
         <span className="text-caption-sm text-mute-strong">MP4, MOV, MKV, WEBM</span>
       </div>
       <p className="-mt-2 truncate text-caption-sm text-body">
-        Files into <span className="font-bold text-ink">{destination}</span>
+        Files into <span className="text-body-sm-strong text-ink">{destination}</span>
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">

@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes } from 'react';
+import type { InputHTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -8,28 +8,34 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   labelHidden?: boolean;
   helperText?: string;
   error?: string;
+  /** An icon drawn inside the left edge of the field. */
+  leading?: ReactNode;
 }
 
-export function Input({ label, id, labelHidden, helperText, error, className, ...rest }: InputProps) {
+export function Input({ label, id, labelHidden, helperText, error, leading, className, ...rest }: InputProps) {
   const noteId = error || helperText ? `${id}-note` : undefined;
 
   return (
     <div className={cn('flex min-w-0 flex-col gap-2', className)}>
-      <label htmlFor={id} className={labelHidden ? 'sr-only' : 'text-caption-md text-ink'}>
+      <label htmlFor={id} className={labelHidden ? 'sr-only' : 'text-body-sm-strong text-ink'}>
         {label}
       </label>
-      <input
-        id={id}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={noteId}
-        className={cn(
-          'h-10 w-full rounded-md border bg-surface-card px-3 text-body-md text-ink',
-          'placeholder:text-mute-strong focus-visible:border-accent-blue',
-          'disabled:bg-surface-soft disabled:text-mute-strong',
-          error ? 'border-danger' : 'border-hairline-strong',
-        )}
-        {...rest}
-      />
+      <span className="relative flex items-center">
+        {leading && <span className="pointer-events-none absolute left-3 flex text-mute-strong">{leading}</span>}
+        <input
+          id={id}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={noteId}
+          className={cn(
+            'h-11 w-full rounded-sm border bg-surface-card px-3 text-body-md text-ink sm:h-10',
+            Boolean(leading) && 'pl-9',
+            'placeholder:text-mute-strong focus-visible:border-focus',
+            'disabled:bg-surface-soft disabled:text-mute-strong',
+            error ? 'border-danger' : 'border-hairline-strong',
+          )}
+          {...rest}
+        />
+      </span>
       {error ? (
         <p id={noteId} className="text-caption-sm text-danger">
           {error}

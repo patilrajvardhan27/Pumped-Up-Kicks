@@ -15,20 +15,15 @@ been checked here:
 import json
 import random
 import re
-import sys
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-SERVER_DIR = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(SERVER_DIR / "src"))
-
-from services.llm.claude_client import get_claude_client  # noqa: E402
-
-from api.models.database import Chunk, Document, Video  # noqa: E402
+from api.models.database import Chunk, Document, Video
+from api.services.claude_client import describe_api_error, get_claude_client
+from api.services.errors import PublicError
 from api.services.lecture_rag_service import (  # noqa: E402
     document_source,
     format_timestamp,
@@ -87,7 +82,7 @@ PRACTICE_KINDS = {
 }
 
 
-class StudyError(Exception):
+class StudyError(PublicError):
     """The guide or set could not be made. The message is safe to show."""
 
 
@@ -133,8 +128,6 @@ def _text(value, limit: int) -> str:
 
 
 def _call(system: str, user: str, max_tokens: int) -> Generated:
-    from services.llm.claude_client import describe_api_error
-
     try:
         result = get_claude_client().complete(system, user, max_tokens=max_tokens)
     except Exception as e:

@@ -9,7 +9,7 @@ strip survives a reload.
 import json
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -25,6 +25,7 @@ from api.models.database import (
     get_session,
 )
 from api.routes.workspaces import owned_workspace
+from api.services.errors import public_message
 from api.services.lecture_rag_service import get_rag_service
 from api.services.quota import QuotaExceeded, enforce, get_content_status, get_quota
 from api.services.ratelimit import rate_limit
@@ -116,14 +117,6 @@ class ConversationItem(BaseModel):
 
 class ConversationDetail(ConversationItem):
     messages: List[MessageItem] = []
-
-
-class HealthResponse(BaseModel):
-    status: str
-    documents_indexed: int
-    embedding_model: str
-    llm_model: str
-    vector_store: str
 
 
 class UsageSummary(BaseModel):
@@ -414,9 +407,7 @@ def chat_stream(request: ChatRequest, ctx: RequestContext = Ctx):
                 _persist_turn(db, conversation, question, result, cache_hit=False)
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': public_message(e, 'Something went wrong while answering. Try again.')})}\n\n"
         finally:
             db.close()
 
@@ -432,7 +423,7 @@ def list_conversations(
     video_id: Optional[int] = None,
     workspace_id: Optional[int] = None,
     unsorted: bool = False,
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=100),
     ctx: RequestContext = Ctx,
 ):
     """
@@ -516,8 +507,3 @@ def get_usage(ctx: RequestContext = Ctx):
         quota=get_quota(ctx.db, ctx.user).to_dict(),
         content=get_content_status(ctx.db, ctx.user).to_dict(),
     )
-
-
-@router.get("/health", response_model=HealthResponse)
-def health_check(ctx: RequestContext = Ctx):
-    return HealthResponse(**get_rag_service().stats(ctx.db, ctx.user_id))

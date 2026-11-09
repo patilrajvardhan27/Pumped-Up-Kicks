@@ -3,9 +3,10 @@ Canvas: connect (OAuth2, or a personal token in local development), choose
 which courses feed which subjects, sync, and disconnect.
 
 Nothing here ever returns a token. The OAuth callback is the one route without
-an Authorization header (it is a browser redirect from Canvas), so, like the
-signed media route in videos.py, it opens its own session and takes the user
-from the signed `state` instead.
+an Authorization header (it is a browser redirect from Canvas), so it saves
+nothing: it checks the signed `state` and hands the code on to the web app. The
+signed-in app then posts the code to /oauth/complete, which checks that the
+state was issued to that same user and has not been used before.
 """
 import json
 from datetime import datetime, timedelta, timezone
@@ -24,7 +25,6 @@ from api.models.database import (
     Deadline,
     Document,
     Workspace,
-    get_session,
 )
 from api.routes.workspaces import color_for, owned_workspace
 from api.services import canvas_auth, canvas_sync, net_guard
@@ -68,6 +68,11 @@ class StartRequest(BaseModel):
 
 class StartResponse(BaseModel):
     authorize_url: str
+
+
+class CompleteRequest(BaseModel):
+    code: str = Field(..., min_length=1, max_length=2048)
+    state: str = Field(..., min_length=1, max_length=2048)
 
 
 class TokenRequest(BaseModel):
@@ -241,33 +246,53 @@ def start_oauth(request: StartRequest, ctx: RequestContext = Ctx):
         base_url = net_guard.normalize_https_origin(request.base_url)
     except net_guard.UnsafeAddress as e:
         raise HTTPException(status_code=400, detail=str(e))
+    nonce = canvas_auth.new_nonce()
     try:
-        return StartResponse(authorize_url=canvas_auth.authorize_url(ctx.user_id, base_url))
+        url = canvas_auth.authorize_url(ctx.user_id, base_url, nonce)
     except CanvasAuthError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    canvas_auth.remember_nonce(ctx.db, ctx.user_id, nonce)
+    return StartResponse(authorize_url=url)
 
 
 @router.get("/oauth/callback", include_in_schema=False)
 def oauth_callback(state: str = "", code: str = "", error: str = ""):
-    """Canvas sends the browser here. Finish the exchange, then send the student back to the app."""
+    """
+    Canvas sends the browser here. Nothing is saved: the state is checked and the
+    code goes to the web app, which finishes the sign-in as the signed-in user.
+    """
     try:
-        user_id, base_url = canvas_auth.read_state(state)
+        canvas_auth.read_state(state)
     except CanvasAuthError:
-        return _app_redirect(canvas="error", reason="The Canvas sign-in link expired. Try again.")
+        return _app_redirect(canvas_error="invalid")
 
     if error or not code:
-        return _app_redirect(canvas="denied")
+        return _app_redirect(canvas_error="denied")
 
-    db = get_session()
+    return _app_redirect(canvas_code=code, canvas_state=state)
+
+
+@router.post(
+    "/oauth/complete",
+    response_model=ConnectionStatus,
+    dependencies=[rate_limit("canvas", 20)],
+)
+def complete_oauth(request: CompleteRequest, ctx: RequestContext = Ctx):
+    """Finish a Canvas sign-in: trade the code for tokens, for the user the sign-in was started by."""
     try:
-        grant = canvas_auth.exchange_code(base_url, code)
-        _save_connection(db, user_id, base_url, "oauth", grant)
-    except CanvasAuthError as e:
-        return _app_redirect(canvas="error", reason=str(e))
-    finally:
-        db.close()
+        user_id, base_url, nonce = canvas_auth.read_state_with_nonce(request.state)
+    except CanvasAuthError:
+        raise HTTPException(status_code=400, detail="The Canvas sign-in link expired. Try again.")
+    if user_id != ctx.user_id:
+        raise HTTPException(status_code=403, detail="This sign-in belongs to another account.")
+    if not canvas_auth.consume_nonce(ctx.db, ctx.user_id, nonce):
+        raise HTTPException(status_code=400, detail="That Canvas sign-in was already used or has expired. Start again.")
 
-    return _app_redirect(canvas="connected")
+    try:
+        grant = canvas_auth.exchange_code(base_url, request.code)
+    except CanvasAuthError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return _status(_save_connection(ctx.db, ctx.user_id, base_url, "oauth", grant))
 
 
 @router.post(

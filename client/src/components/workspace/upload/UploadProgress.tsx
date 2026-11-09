@@ -11,7 +11,7 @@ export function UploadProgress({ percent, sentBytes, totalBytes }: UploadProgres
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-caption-md text-ink">Uploading</span>
+        <span className="text-body-sm-strong text-ink">Uploading</span>
         <span className="font-mono text-code-xs tabular-nums text-mute-strong">
           {formatBytes(sentBytes, 1)} / {totalBytes ? formatBytes(totalBytes, 1) : '-'} ({percent}%)
         </span>

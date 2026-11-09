@@ -21,6 +21,7 @@ export const API_ENDPOINTS = {
   DOCUMENT: (id: number) => `${API_BASE_URL}/api/documents/${id}`,
   CANVAS_CONNECTION: `${API_BASE_URL}/api/canvas/connection`,
   CANVAS_OAUTH_START: `${API_BASE_URL}/api/canvas/oauth/start`,
+  CANVAS_OAUTH_COMPLETE: `${API_BASE_URL}/api/canvas/oauth/complete`,
   CANVAS_TOKEN: `${API_BASE_URL}/api/canvas/token`,
   CANVAS_COURSES: `${API_BASE_URL}/api/canvas/courses`,
   CANVAS_SYNC: `${API_BASE_URL}/api/canvas/sync`,
@@ -136,7 +137,7 @@ class ApiClient {
     });
 
     if (!response.ok) throw await toError(response, 'Request failed');
-    if (!response.body) throw new ApiError('This browser cannot read streamed responses.', 0);
+    if (!response.body) throw new ApiError('This browser cannot read streamed answers. Try a current version of Chrome, Firefox or Safari.', 0);
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -156,7 +157,7 @@ class ApiClient {
         try {
           onEvent(JSON.parse(line.slice(5).trim()) as E);
         } catch {
-          // Partial frame — keep reading.
+          // Partial frame - keep reading.
         }
       }
     }
@@ -188,7 +189,7 @@ class ApiClient {
         xhr.status >= 200 && xhr.status < 300
           ? resolve()
           : reject(new ApiError(`Storage rejected the upload (${xhr.status})`, xhr.status));
-      xhr.onerror = () => reject(new ApiError('Lost connection during upload.', 0));
+      xhr.onerror = () => reject(new ApiError('Lost connection during upload. Check your network and try again.', 0));
       xhr.onabort = () => reject(new ApiError('Upload cancelled.', 0));
 
       signal?.addEventListener('abort', () => xhr.abort());
@@ -196,7 +197,7 @@ class ApiClient {
     });
   }
 
-  /** Multipart upload through the API — used by the local storage backend. */
+  /** Multipart upload through the API - used by the local storage backend. */
   async upload<T>(
     endpoint: string,
     file: File,
@@ -225,7 +226,7 @@ class ApiClient {
           try {
             resolve(JSON.parse(xhr.responseText) as T);
           } catch {
-            reject(new ApiError('The server sent a response we could not read.', xhr.status));
+            reject(new ApiError('The server sent a response we could not read. Try again.', xhr.status));
           }
           return;
         }
@@ -236,7 +237,7 @@ class ApiClient {
         }
       };
 
-      xhr.onerror = () => reject(new ApiError('Lost connection during upload.', 0));
+      xhr.onerror = () => reject(new ApiError('Lost connection during upload. Check your network and try again.', 0));
       xhr.send(formData);
     });
   }

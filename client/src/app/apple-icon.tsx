@@ -17,7 +17,7 @@ export default function AppleIcon() {
           background: tokenColor('surface-dark'),
         }}
       >
-        <div style={{ width: 22, height: 100, borderRadius: 11, background: tokenColor('primary'), display: 'flex' }} />
+        <div style={{ width: 22, height: 100, borderRadius: 11, background: tokenColor('accent-on-dark'), display: 'flex' }} />
       </div>
     ),
     size,

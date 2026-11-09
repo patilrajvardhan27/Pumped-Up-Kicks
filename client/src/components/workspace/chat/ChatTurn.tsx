@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { Alert } from '@/components/ui/Alert';
+import { SkeletonLines } from '@/components/ui/Skeleton';
 import { track } from '@/lib/analytics';
 import { TimelineStrip } from '@/components/workspace/video/TimelineStrip';
 import type { SeekHandler, Turn } from '@/types/chat';
@@ -49,7 +50,7 @@ export function ChatTurn({ turn, durations, onSeek }: ChatTurnProps) {
     <article className="flex animate-rise flex-col gap-4">
       <h3 className="text-heading-sm text-ink">{turn.question}</h3>
 
-      <div className="flex flex-col gap-5 border-l-2 border-hairline-soft pl-4">
+      <div className="flex flex-col gap-5 rounded-md bg-accent-soft p-4">
         {turn.error ? (
           <Alert tone="danger" title="Could not answer">
             {turn.error}
@@ -60,10 +61,7 @@ export function ChatTurn({ turn, durations, onSeek }: ChatTurnProps) {
               {turn.answer ? (
                 <AnswerText text={turn.answer} sources={turn.sources} onSeek={onSeek && seekFromAnswer} />
               ) : (
-                <p className="flex items-center gap-2 text-body-xs text-mute-strong">
-                  <span aria-hidden="true" className="size-2 animate-pulse-dot rounded-full bg-ink" />
-                  Reading the transcript…
-                </p>
+                <SkeletonLines label="Reading the transcript" lines={3} />
               )}
             </div>
 

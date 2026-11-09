@@ -12,7 +12,7 @@ export function WorkspaceHeader() {
         </>
       }
     >
-      <h1 className="eyebrow sr-only sm:not-sr-only">Workspace</h1>
+      <h1 className="sr-only text-button-sm text-mute-strong sm:not-sr-only">Workspace</h1>
     </MenuBar>
   );
 }

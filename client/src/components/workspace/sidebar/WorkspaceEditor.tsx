@@ -9,7 +9,7 @@ import { WORKSPACE_COLORS, WORKSPACE_ICONS } from '@/lib/workspaces';
 import type { WorkspaceDraft } from '@/types/api';
 import { SUBJECT_ICONS } from './WorkspaceGlyph';
 
-export const NAME_MAX_CHARS = 60;
+const NAME_MAX_CHARS = 60;
 
 interface WorkspaceEditorProps {
   initial: WorkspaceDraft;
@@ -74,7 +74,7 @@ export function WorkspaceEditor({
       />
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-caption-md text-ink">Colour</legend>
+        <legend className="mb-2 text-body-sm-strong text-ink">Colour</legend>
         <div className="grid grid-cols-6 gap-2">
           {WORKSPACE_COLORS.map((option) => (
             <label key={option.key} className="relative">
@@ -94,7 +94,7 @@ export function WorkspaceEditor({
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-caption-md text-ink">Icon</legend>
+        <legend className="mb-2 text-body-sm-strong text-ink">Icon</legend>
         <div className="grid grid-cols-6 gap-1.5">
           {WORKSPACE_ICONS.map((option) => {
             const Glyph = SUBJECT_ICONS[option.key];

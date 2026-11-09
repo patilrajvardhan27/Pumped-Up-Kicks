@@ -177,7 +177,7 @@ export function WorkspaceRow({
         >
           <WorkspaceGlyph subject={workspace ?? (rowKey as 'all' | 'unsorted')} size="sm" />
           <span className="flex min-w-0 flex-col">
-            <span className={cn('truncate text-body-xs', active ? 'font-bold text-ink' : 'text-body')}>
+            <span className={cn('truncate', active ? 'text-body-sm-strong text-ink' : 'text-body-sm text-body')}>
               {label}
             </span>
             {urgent && (
@@ -239,8 +239,8 @@ export function WorkspaceRow({
                     aria-current={selected ? 'true' : undefined}
                     title={ready ? title : `${title}: ${video.stage_label}`}
                     className={cn(
-                      'flex min-h-8 w-full min-w-0 items-center gap-2 rounded-sm px-2 text-left text-caption-sm',
-                      selected ? 'bg-surface-soft font-bold text-ink' : 'text-body hover:bg-surface-soft',
+                      'flex min-h-8 w-full min-w-0 items-center gap-2 rounded-sm px-2 text-left',
+                      selected ? 'bg-surface-soft text-button-sm text-ink' : 'text-caption-sm text-body hover:bg-surface-soft',
                       !ready && 'hover:bg-transparent',
                     )}
                   >
@@ -311,8 +311,8 @@ export function WorkspaceRow({
                     aria-current={current ? 'true' : undefined}
                     title={title}
                     className={cn(
-                      'flex min-h-8 w-full min-w-0 items-center gap-2 rounded-sm px-2 text-left text-caption-sm',
-                      current ? 'bg-surface-soft font-bold text-ink' : 'text-body hover:bg-surface-soft',
+                      'flex min-h-8 w-full min-w-0 items-center gap-2 rounded-sm px-2 text-left',
+                      current ? 'bg-surface-soft text-button-sm text-ink' : 'text-caption-sm text-body hover:bg-surface-soft',
                     )}
                   >
                     <ChatsIcon className="size-3.5 text-mute-strong" />

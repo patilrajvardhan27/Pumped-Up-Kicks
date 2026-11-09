@@ -71,7 +71,7 @@ export function useVideoUpload(workspaceId: number | null, onUploadSuccess?: (vi
       onUploadSuccess?.(result.video_id);
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'The upload did not complete.');
+      setError(err instanceof Error ? err.message : 'The upload did not complete. Check your connection and try again.');
       return false;
     } finally {
       setUploading(false);

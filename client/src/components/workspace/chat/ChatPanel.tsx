@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { Alert } from '@/components/ui/Alert';
+import { SkeletonLines } from '@/components/ui/Skeleton';
 import { type NewChatScope, useAskStream } from '@/hooks/useAskStream';
 import { useChatThread } from '@/hooks/useChatThread';
 import type { Source, VideoInfo } from '@/types/api';
@@ -76,7 +77,7 @@ export function ChatPanel({
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="min-h-0 flex-1 overflow-y-auto pr-1" tabIndex={-1}>
         {thread.loading ? (
-          <p className="py-6 text-body-xs text-mute-strong">Loading chat…</p>
+          <SkeletonLines label="Loading chat" lines={4} className="py-6" />
         ) : turns.length === 0 ? (
           <ChatEmptyState
             hasContent={hasContent}

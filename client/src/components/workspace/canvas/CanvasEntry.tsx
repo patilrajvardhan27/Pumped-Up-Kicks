@@ -4,7 +4,7 @@ import { formatRelativeTime } from '@/lib/format';
 import type { CanvasStatus } from '@/types/api';
 
 /** One line of Canvas status for the sidebar. */
-export function canvasSummary(status: CanvasStatus | null): string {
+function canvasSummary(status: CanvasStatus | null): string {
   if (!status) return '';
   if (!status.connected) return 'Not connected';
   const sync = status.sync;
@@ -41,7 +41,7 @@ export function CanvasEntry({ status, onOpen, compact = false }: CanvasEntryProp
       className="flex min-h-10 w-full items-center gap-2 rounded-md px-2 text-left hover:bg-surface-soft"
     >
       <CanvasIcon className="size-5 text-ink" />
-      <span className="text-body-xs text-ink">Canvas</span>
+      <span className="text-body-sm text-ink">Canvas</span>
       <span
         className={`ml-auto truncate text-caption-sm ${status?.sync?.stage === 'failed' ? 'text-danger' : 'text-mute-strong'}`}
       >

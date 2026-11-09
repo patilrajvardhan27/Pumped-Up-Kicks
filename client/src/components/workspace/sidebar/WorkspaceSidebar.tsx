@@ -129,9 +129,9 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps) {
   };
 
   return (
-    <nav aria-label="Subjects" className="flex h-full min-h-0 flex-col rounded-lg border border-hairline bg-canvas">
+    <nav aria-label="Subjects" className="flex h-full min-h-0 flex-col rounded-md border border-hairline bg-canvas">
       <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-hairline-soft pr-1 pl-3">
-        <h2 className="text-caption-md text-ink">Subjects</h2>
+        <h2 className="text-body-sm-strong text-ink">Subjects</h2>
         <div className="flex items-center">
           <IconButton aria-label="New subject" onClick={() => setEditing('new')}>
             <PlusIcon />
@@ -277,7 +277,7 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps) {
 }
 
 function Kbd({ children }: { children: ReactNode }) {
-  return <kbd className="rounded-xs bg-surface-soft px-1 font-mono text-code-xs text-ink">{children}</kbd>;
+  return <kbd className="rounded-sm bg-surface-soft px-1 font-mono text-code-xs text-ink">{children}</kbd>;
 }
 
 /** The collapsed sidebar: one tile per subject, still a drop target for lectures. */
@@ -296,7 +296,7 @@ function SidebarRail({
   return (
     <nav
       aria-label="Subjects"
-      className="flex h-full min-h-0 flex-col items-center gap-1 overflow-y-auto rounded-lg border border-hairline bg-canvas py-2"
+      className="flex h-full min-h-0 flex-col items-center gap-1 overflow-y-auto rounded-md border border-hairline bg-canvas py-2"
     >
       <IconButton
         aria-label="Show the subject list"

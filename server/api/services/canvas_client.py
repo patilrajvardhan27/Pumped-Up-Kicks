@@ -109,8 +109,8 @@ class CanvasClient:
                 response = self._http.get(
                     url, params=params, headers={"Authorization": f"Bearer {self._token}"}
                 )
-            except httpx.ConnectError as e:
-                raise CanvasError(f"Couldn't connect to Canvas: {e}") from None
+            except httpx.ConnectError:
+                raise CanvasError("Couldn't connect to Canvas. Check the address and try again.") from None
             except httpx.HTTPError:
                 raise CanvasError("Couldn't reach Canvas. Check your connection and try again.") from None
 
@@ -191,8 +191,8 @@ class CanvasClient:
                         if len(body) > max_bytes:
                             raise CanvasError("This file is larger than the import limit.")
                     return bytes(body)
-            except net_guard.UnsafeAddress as e:
-                raise CanvasError(str(e)) from None
+            except net_guard.UnsafeAddress:
+                raise CanvasError("Couldn't download this file from Canvas.") from None
             except httpx.HTTPError:
                 raise CanvasError("Couldn't download this file from Canvas.") from None
 

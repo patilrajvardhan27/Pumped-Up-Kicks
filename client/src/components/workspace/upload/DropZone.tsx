@@ -36,7 +36,7 @@ export function DropZone({ inputRef, file, accept, disabled, onFile }: DropZoneP
       }}
       className={cn(
         'relative flex min-h-32 flex-col items-center justify-center gap-1 rounded-md border border-dashed px-4 py-6 text-center',
-        'has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent-blue',
+        'has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus',
         dragging ? 'border-ink bg-surface-soft' : 'border-hairline-strong bg-surface-doc',
         disabled ? 'opacity-60' : 'hover:border-ink',
       )}
@@ -64,7 +64,7 @@ export function DropZone({ inputRef, file, accept, disabled, onFile }: DropZoneP
       ) : (
         <>
           <UploadIcon className="mb-1 size-5 text-mute-strong" />
-          <p className="text-body-xs text-ink">Drop a recording here, or click to choose one</p>
+          <p className="text-body-sm text-ink">Drop a recording here, or click to choose one</p>
           <p className="text-caption-sm text-mute-strong">Up to 4&nbsp;GB</p>
         </>
       )}

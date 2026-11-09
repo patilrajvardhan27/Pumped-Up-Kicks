@@ -4,6 +4,8 @@ import { useId, useState, type ReactNode } from 'react';
 import { Alert } from '@/components/ui/Alert';
 import { Card } from '@/components/ui/Card';
 import { IconButton } from '@/components/ui/IconButton';
+import { Input } from '@/components/ui/Input';
+import { SkeletonRows } from '@/components/ui/Skeleton';
 import { CloseIcon, PageIcon, PlayIcon, SearchIcon } from '@/components/ui/icons';
 import { formatClock, pluralise } from '@/lib/format';
 import { safeUrl } from '@/lib/timestamps';
@@ -23,7 +25,7 @@ interface SearchCardProps {
 function highlighted(snippet: string): ReactNode[] {
   return snippet.split(/(⟦[^⟧]*⟧)/).map((part, index) =>
     part.startsWith('⟦') && part.endsWith('⟧') ? (
-      <mark key={index} className="rounded-xs bg-accent-blue-soft px-0.5 text-ink">
+      <mark key={index} className="rounded-sm bg-accent-soft px-0.5 text-ink">
         {part.slice(1, -1)}
       </mark>
     ) : (
@@ -72,22 +74,19 @@ export function SearchCard({ scope, label, onSeek }: SearchCardProps) {
         }}
         className="flex items-center gap-2"
       >
-        <label htmlFor={`${id}-q`} className="sr-only">
-          Search {label}
-        </label>
-        <span className="relative flex min-w-0 flex-1 items-center">
-          <SearchIcon className="pointer-events-none absolute left-3 size-4 text-mute-strong" />
-          <input
-            id={`${id}-q`}
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={`Search ${label}`}
-            maxLength={200}
-            autoComplete="off"
-            className="h-10 w-full rounded-md border border-hairline-strong bg-surface-card pr-3 pl-9 text-body-md text-ink placeholder:text-mute-strong focus-visible:border-accent-blue"
-          />
-        </span>
+        <Input
+          id={`${id}-q`}
+          label={`Search ${label}`}
+          labelHidden
+          leading={<SearchIcon className="size-4" />}
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={`Search ${label}`}
+          maxLength={200}
+          autoComplete="off"
+          className="flex-1"
+        />
         {hits !== null && (
           <IconButton aria-label="Clear search" onClick={clear}>
             <CloseIcon />
@@ -99,9 +98,9 @@ export function SearchCard({ scope, label, onSeek }: SearchCardProps) {
 
       <div aria-live="polite">
         {busy ? (
-          <p className="text-caption-sm text-mute-strong">Searching…</p>
+          <SkeletonRows label="Searching" rows={2} rowClassName="h-16" />
         ) : hits === null ? null : hits.length === 0 ? (
-          <p className="text-body-xs text-body">Nothing in {label} matches &ldquo;{searched}&rdquo;.</p>
+          <p className="text-body-sm text-body">Nothing in {label} matches &ldquo;{searched}&rdquo;.</p>
         ) : (
           <>
             <p className="mb-2 text-caption-sm text-mute-strong">{pluralise(hits.length, 'match')}</p>
@@ -125,7 +124,7 @@ function Hit({ hit, onSeek }: { hit: SearchHit; onSeek: SeekHandler }) {
     <>
       <span className="flex items-center gap-2">
         {hit.kind === 'video' ? <PlayIcon className="size-3 text-mute-strong" /> : <PageIcon className="size-3.5 text-mute-strong" />}
-        <span className="min-w-0 flex-1 truncate text-body-xs text-ink">{hit.title}</span>
+        <span className="min-w-0 flex-1 truncate text-body-sm text-ink">{hit.title}</span>
         <span className="shrink-0 font-mono text-code-xs tabular-nums text-mute-strong">{where}</span>
       </span>
       <span className="mt-1 block text-caption-sm text-body">{highlighted(hit.snippet)}</span>

@@ -1,12 +1,13 @@
 """
 Claude API client for Pumped Up Kicks.
 
-Single place the app talks to Anthropic. Everything else (RAG services, scripts)
-goes through this so model choice, cost accounting, and error handling live in
-one file.
+Single place the app talks to Anthropic. Everything else (RAG services, study
+tools) goes through this so model choice, cost accounting, and error handling
+live in one file.
 
 Requires ANTHROPIC_API_KEY in the environment (see server/.env.example).
 """
+import logging
 import os
 import time
 from dataclasses import dataclass, field
@@ -14,10 +15,11 @@ from typing import Dict, Iterator, List, Optional
 
 import anthropic
 
-try:
-    from api.config import settings as _settings
-except Exception:  # standalone use (scripts, Modal worker) has no api package
-    _settings = None
+from api.config import settings as _settings
+
+log = logging.getLogger(__name__)
+
+NOT_CONFIGURED = "The service isn't configured yet."
 
 
 def _conf(name: str, default):
@@ -122,8 +124,7 @@ class ClaudeClient:
             self._client = anthropic.Anthropic(api_key=api_key, timeout=timeout, max_retries=3)
         except Exception as e:
             raise ClaudeNotConfigured(
-                "No Claude API key found. Copy server/.env.example to server/.env and set "
-                "ANTHROPIC_API_KEY, then restart the server."
+                "No Claude API key found. Set ANTHROPIC_API_KEY in the server environment."
             ) from e
         print(f"[Claude] Client ready (model={model}, effort={effort})")
 
@@ -221,32 +222,31 @@ class ClaudeClient:
 
 
 def describe_api_error(exc: Exception) -> str:
-    """Turn an SDK exception into something a student can act on."""
+    """
+    Turn an SDK exception into something a student can act on. The real error is
+    logged; configuration problems and anything unknown show fixed text only.
+    """
+    log.error("Claude call failed: %s: %s", type(exc).__name__, exc)
     if isinstance(exc, ClaudeNotConfigured):
-        return str(exc)
-    if isinstance(exc, anthropic.AuthenticationError):
-        return "Claude API key is missing or invalid. Set ANTHROPIC_API_KEY in server/.env."
-    if isinstance(exc, anthropic.PermissionDeniedError):
-        return "This Claude API key doesn't have access to the requested model."
-    if isinstance(exc, anthropic.NotFoundError):
-        return f"Model '{DEFAULT_MODEL}' was not found. Check PUK_CLAUDE_MODEL in server/.env."
+        return NOT_CONFIGURED
+    if isinstance(exc, (anthropic.AuthenticationError, anthropic.PermissionDeniedError, anthropic.NotFoundError)):
+        return NOT_CONFIGURED
     if isinstance(exc, anthropic.RateLimitError):
         retry_after = exc.response.headers.get("retry-after", "60")
-        return f"Claude API rate limit reached. Retry in {retry_after}s."
+        if not str(retry_after).isdigit():
+            retry_after = "60"
+        return f"Claude is busy right now. Retry in {retry_after}s."
     if isinstance(exc, anthropic.BadRequestError):
-        return f"Claude rejected the request: {exc.message}"
+        return "Claude couldn't process that request. Try rephrasing it."
     if isinstance(exc, anthropic.APIStatusError):
-        if exc.status_code >= 500:
-            return "Claude API is having trouble on its side. Retry in a moment."
-        return f"Claude API error: {exc.message}"
+        if exc.status_code == 529 or exc.status_code >= 500:
+            return "Claude is overloaded or having trouble on its side. Retry in a moment."
+        return "Claude couldn't answer right now. Try again."
     if isinstance(exc, anthropic.APIConnectionError):
-        return "Couldn't reach the Claude API. Check the network connection."
+        return "Couldn't reach Claude. Try again in a moment."
     if isinstance(exc, TypeError) and "authentication method" in str(exc):
-        return (
-            "No Claude API key found. Copy server/.env.example to server/.env, set "
-            "ANTHROPIC_API_KEY, and restart the server."
-        )
-    return f"Unexpected error talking to Claude: {exc}"
+        return NOT_CONFIGURED
+    return "Something went wrong while asking Claude. Try again."
 
 
 _client: Optional[ClaudeClient] = None

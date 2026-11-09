@@ -45,7 +45,7 @@ export function SidebarDrawer({ open, onClose, children }: SidebarDrawerProps) {
         // A click on the backdrop lands on the dialog element itself.
         if (event.target === ref.current) onClose();
       }}
-      className="m-0 h-dvh max-h-none w-[min(20rem,88vw)] max-w-none bg-transparent p-2 backdrop:bg-ink/40"
+      className="m-0 h-dvh max-h-none w-drawer max-w-none bg-transparent p-2 backdrop:bg-ink/40"
     >
       {open && children}
     </dialog>

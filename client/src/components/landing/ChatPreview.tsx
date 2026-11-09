@@ -91,7 +91,7 @@ export function ChatPreview() {
         </Button>
       </div>
 
-      <div className="flex flex-col gap-5 border-l-2 border-hairline-soft pl-4">
+      <div className="flex flex-col gap-5 rounded-md bg-accent-soft p-4">
         {/* An invisible full copy holds the final height, so streaming never shifts the page. */}
         <div className="grid *:col-start-1 *:row-start-1">
           <div aria-hidden="true" className="invisible">
@@ -127,7 +127,7 @@ export function ChatPreview() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: DURATION.fast }}
-                className="absolute inset-0 flex items-center gap-3 px-4 text-body-xs text-ink"
+                className="absolute inset-0 flex items-center gap-3 px-4 text-body-sm text-ink"
               >
                 <span className="shrink-0 rounded-sm bg-surface-dark px-1.5 py-0.5 font-mono text-code-xs tabular-nums text-on-dark">
                   {SOURCES[active].timestamp}

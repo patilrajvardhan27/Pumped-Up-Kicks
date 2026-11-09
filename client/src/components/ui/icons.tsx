@@ -10,7 +10,6 @@ import {
   BrainIcon as PhBrain,
   ArrowLeftIcon as PhArrowLeft,
   ArrowSquareOutIcon,
-  ArrowsClockwiseIcon,
   CalendarBlankIcon,
   ChartLineIcon,
   ClipboardTextIcon,
@@ -93,7 +92,6 @@ export const MoveUpIcon = wrap(PhArrowUp);
 export const MoveDownIcon = wrap(PhArrowDown);
 export const SidebarIcon = wrap(SidebarSimpleIcon);
 export const ExternalIcon = wrap(ArrowSquareOutIcon);
-export const SyncIcon = wrap(ArrowsClockwiseIcon);
 
 // Features
 export const UploadIcon = wrap(UploadSimpleIcon, 'duotone');

@@ -9,30 +9,27 @@ one subject, Unsorted, or everything) narrows the search further and never
 widens it.
 """
 import hashlib
-import sys
+import logging
 import time
-from pathlib import Path
 from typing import Dict, Iterator, List, Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-SERVER_DIR = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(SERVER_DIR / "src"))
-
-from services.embeddings.embedder import get_embedder  # noqa: E402
-from services.llm.claude_client import (  # noqa: E402
+from api.config import settings
+from api.models.database import Chunk, Document, Video
+from api.services.claude_client import (
     ClaudeUsage,
     describe_api_error,
     get_claude_client,
 )
+from api.services.coverage import MESSAGE as NOT_COVERED_MESSAGE
+from api.services.coverage import PROMPT_VERSION, CoverageGate, is_not_covered
+from api.services.document_text import PPTX
+from api.services.embedder import get_embedder
+from api.services.scope import ALL, ChatScope
 
-from api.config import settings  # noqa: E402
-from api.services.coverage import MESSAGE as NOT_COVERED_MESSAGE  # noqa: E402
-from api.services.coverage import PROMPT_VERSION, CoverageGate, is_not_covered  # noqa: E402
-from api.models.database import Chunk, Document, Video  # noqa: E402
-from api.services.document_text import PPTX  # noqa: E402
-from api.services.scope import ALL, ChatScope  # noqa: E402
+log = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """You are a teaching assistant for a student reviewing their own recorded lectures and course material.
 
@@ -262,7 +259,6 @@ class LectureRAGService:
 
         except Exception as e:
             message = describe_api_error(e)
-            print(f"[Lecture RAG] {message}")
             return {
                 "answer": message,
                 "sources": sources,
@@ -287,7 +283,8 @@ class LectureRAGService:
         try:
             sources = self.retrieve(db, user_id, question, scope, top_k)
         except Exception as e:
-            yield {"type": "error", "message": f"Retrieval failed: {e}"}
+            log.exception("Retrieval failed")
+            yield {"type": "error", "message": "Couldn't search your material. Try again."}
             return
 
         yield {"type": "sources", "sources": sources}
@@ -344,18 +341,6 @@ class LectureRAGService:
 
         except Exception as e:
             yield {"type": "error", "message": describe_api_error(e)}
-
-    # -- health -------------------------------------------------------------
-
-    def stats(self, db: Session, user_id: str) -> Dict:
-        indexed = db.query(Chunk).filter(Chunk.user_id == user_id).count()
-        return {
-            "status": "healthy",
-            "documents_indexed": indexed,
-            "embedding_model": self.embedding_model,
-            "llm_model": self.model_name,
-            "vector_store": "pgvector",
-        }
 
 
 _rag_service: Optional[LectureRAGService] = None

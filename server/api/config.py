@@ -25,6 +25,11 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # -- environment -----------------------------------------------------
+    # Anything but "development" is treated as production: no dev auth, no API
+    # docs, HSTS on, and a real SECRET_KEY and ALLOWED_HOSTS are required.
+    env: str = "production"
+
     # -- database --------------------------------------------------------
     # Postgres with the pgvector extension. Local default matches the
     # docker-compose / brew setup described in SETUP.md.
@@ -37,9 +42,10 @@ class Settings(BaseSettings):
     puk_claude_max_tokens: int = 2000
 
     # -- auth ------------------------------------------------------------
-    # "dev" trusts a single built-in user and requires no Clerk account.
     # "clerk" verifies a real Clerk session JWT against their JWKS.
-    auth_mode: Literal["dev", "clerk"] = "dev"
+    # "dev" trusts a single built-in user and requires no Clerk account; it is
+    # only accepted when ENV=development.
+    auth_mode: Literal["dev", "clerk"] = "clerk"
     clerk_jwks_url: str | None = None
     clerk_issuer: str | None = None
     dev_user_id: str = "dev_user"
@@ -109,21 +115,40 @@ class Settings(BaseSettings):
 
     # -- web -------------------------------------------------------------
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
+    # Host names this API answers to, comma separated. Required outside
+    # development; development allows any host when it is left empty.
+    allowed_hosts: str = ""
 
     # Signs the short-lived media URLs a <video> element loads directly.
     # Override in production: a known secret means anyone can mint playback links.
     secret_key: str = DEFAULT_SECRET_KEY
 
+    @property
+    def is_development(self) -> bool:
+        return self.env.strip().lower() == "development"
+
     @model_validator(mode="after")
-    def _no_default_secret_with_real_auth(self):
-        # Real sign-in means real users: a published default key lets anyone
-        # forge playback links to any lecture.
-        if self.auth_mode == "clerk" and self.secret_key == DEFAULT_SECRET_KEY:
+    def _environment_is_safe(self):
+        if self.is_development:
+            return self
+        if self.auth_mode == "dev":
+            raise ValueError("AUTH_MODE=dev is only allowed with ENV=development.")
+        # A published default key lets anyone forge playback links to any lecture.
+        if self.secret_key == DEFAULT_SECRET_KEY:
             raise ValueError(
                 "SECRET_KEY is still the development default. Generate one with "
                 "`python -c \"import secrets;print(secrets.token_urlsafe(32))\"` "
-                "and set it in server/.env before using AUTH_MODE=clerk."
+                "and set it in server/.env."
             )
+        if not self.allowed_host_list:
+            raise ValueError("ALLOWED_HOSTS is not set. List the host names this API is served on.")
+        return self
+
+    @model_validator(mode="after")
+    def _clerk_needs_issuer(self):
+        if self.auth_mode == "clerk" and not self.is_development:
+            if not self.clerk_jwks_url or not self.clerk_issuer:
+                raise ValueError("AUTH_MODE=clerk needs CLERK_JWKS_URL and CLERK_ISSUER.")
         return self
 
     @model_validator(mode="after")
@@ -165,6 +190,13 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def allowed_host_list(self) -> list[str]:
+        hosts = [h.strip() for h in self.allowed_hosts.split(",") if h.strip()]
+        if not hosts and self.is_development:
+            return ["*"]
+        return hosts
 
     @property
     def uploads_dir(self) -> Path:

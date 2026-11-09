@@ -3,7 +3,7 @@ Per-user spend limits, and a limit on how much material is indexed.
 
 Spend is summed from the rows that record each Claude call (answers, study
 guides, practice sets) rather than tracked separately, so the quota can never
-drift from what was actually billed. Checked before every Claude call —
+drift from what was actually billed. Checked before every Claude call.
 without this, one enthusiastic user is the whole API budget.
 
 Indexed material is counted the same way, from the chunks table: lectures and

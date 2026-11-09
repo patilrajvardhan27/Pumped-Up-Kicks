@@ -27,7 +27,7 @@ def connect(user="alice"):
     """A fresh database, a fake Canvas, and `user` connected to it with a personal token."""
     support.fresh()
     fake = fake_canvas.install()
-    import services.embeddings.embedder as embedder_module
+    import api.services.embedder as embedder_module
 
     counter = CountingEmbedder()
     embedder_module._embedder = counter

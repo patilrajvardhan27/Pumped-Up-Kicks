@@ -56,7 +56,7 @@ export function useVideoPlayer(videoId: number | null, ref?: Ref<VideoPlayerHand
         if (cancelled) return;
         setFailure({
           id: videoId,
-          message: err instanceof Error ? err.message : 'Could not load this lecture.',
+          message: err instanceof Error ? err.message : 'Could not load this lecture. Try again in a moment.',
         });
       });
 
@@ -128,7 +128,7 @@ export function useVideoPlayer(videoId: number | null, ref?: Ref<VideoPlayerHand
       onPlay: () => setPlaying(true),
       onPause: () => setPlaying(false),
       onError: () => {
-        if (videoId != null) setFailure({ id: videoId, message: 'This lecture could not be played.' });
+        if (videoId != null) setFailure({ id: videoId, message: 'This lecture could not be played. Pick it again, or reload the page.' });
       },
     },
   };

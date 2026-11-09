@@ -241,13 +241,13 @@ def test_authorize_url_asks_for_read_only_scopes():
 def test_access_log_hides_the_oauth_code():
     import logging
 
-    from api.main import _HideOAuthCode
+    from api.main import _HideSecrets
 
     record = logging.LogRecord(
         "uvicorn.access", logging.INFO, __file__, 1, '%s - "%s %s HTTP/%s" %d',
         ("1.2.3.4:5", "GET", "/api/canvas/oauth/callback?code=SECRET-CODE&state=abc", "1.1", 302), None,
     )
-    _HideOAuthCode().filter(record)
+    _HideSecrets().filter(record)
     assert "SECRET-CODE" not in record.getMessage()
     assert "/api/canvas/oauth/callback" in record.getMessage()
 
@@ -273,12 +273,18 @@ def test_oauth_flow_stores_encrypted_tokens_and_never_returns_them():
         state = dict(httpx.URL(start.json()["authorize_url"]).params)["state"]
 
         back = api.get("/api/canvas/oauth/callback", params={"state": state, "code": "good-code"}, follow_redirects=False)
-        assert back.status_code == 302 and back.headers["location"].endswith("/app?canvas=connected")
+        location = httpx.URL(back.headers["location"])
+        assert back.status_code == 302 and location.path == "/app"
+        assert location.params["canvas_code"] == "good-code" and location.params["canvas_state"] == state
+        assert api.get("/api/canvas/connection").json()["connected"] is False  # the callback saves nothing
 
         denied = api.get("/api/canvas/oauth/callback", params={"state": state, "error": "access_denied"}, follow_redirects=False)
-        assert "canvas=denied" in denied.headers["location"]
+        assert "canvas_error=denied" in denied.headers["location"]
         tampered = api.get("/api/canvas/oauth/callback", params={"state": state + "x", "code": "c"}, follow_redirects=False)
-        assert "canvas=error" in tampered.headers["location"]
+        assert "canvas_error=invalid" in tampered.headers["location"]
+
+        done = api.post("/api/canvas/oauth/complete", json={"code": "good-code", "state": state})
+        assert done.status_code == 200 and done.json()["connected"] is True, done.text
 
         status = api.get("/api/canvas/connection")
     finally:
@@ -300,6 +306,67 @@ def test_oauth_flow_stores_encrypted_tokens_and_never_returns_them():
         assert stored.access_token_enc not in repr(stored)
     finally:
         db.close()
+
+
+def _start_sign_in(api) -> str:
+    start = api.post("/api/canvas/oauth/start", json={"base_url": "canvas.test.edu"})
+    assert start.status_code == 200, start.text
+    return dict(httpx.URL(start.json()["authorize_url"]).params)["state"]
+
+
+def test_callback_stores_nothing():
+    support.fresh()
+    fake_canvas.install()
+    api = support.client("alice")
+    saved = support.settings.canvas_oauth_clients
+    support.settings.canvas_oauth_clients = OAUTH_CLIENTS
+    try:
+        state = _start_sign_in(api)
+        back = api.get("/api/canvas/oauth/callback", params={"state": state, "code": "good-code"}, follow_redirects=False)
+        assert back.status_code == 302
+    finally:
+        support.settings.canvas_oauth_clients = saved
+    db = support.session()
+    try:
+        assert db.query(CanvasConnection).count() == 0
+    finally:
+        db.close()
+
+
+def test_complete_refuses_another_users_state():
+    support.fresh()
+    fake_canvas.install()
+    alice, bob = support.client("alice"), support.client("bob")
+    saved = support.settings.canvas_oauth_clients
+    support.settings.canvas_oauth_clients = OAUTH_CLIENTS
+    try:
+        state = _start_sign_in(alice)
+        stolen = bob.post("/api/canvas/oauth/complete", json={"code": "good-code", "state": state})
+        assert stolen.status_code == 403
+        assert "alice" not in stolen.text
+        assert bob.get("/api/canvas/connection").json()["connected"] is False
+        # The refused attempt did not use up alice's sign-in.
+        assert alice.post("/api/canvas/oauth/complete", json={"code": "good-code", "state": state}).status_code == 200
+    finally:
+        support.settings.canvas_oauth_clients = saved
+
+
+def test_complete_state_works_once():
+    support.fresh()
+    fake_canvas.install()
+    api = support.client("alice")
+    saved = support.settings.canvas_oauth_clients
+    support.settings.canvas_oauth_clients = OAUTH_CLIENTS
+    try:
+        state = _start_sign_in(api)
+        assert api.post("/api/canvas/oauth/complete", json={"code": "good-code", "state": state}).status_code == 200
+        again = api.post("/api/canvas/oauth/complete", json={"code": "good-code", "state": state})
+        assert again.status_code == 400
+        # A state this server never issued has no nonce on record.
+        forged = canvas_auth.make_state("alice", BASE)
+        assert api.post("/api/canvas/oauth/complete", json={"code": "c", "state": forged}).status_code == 400
+    finally:
+        support.settings.canvas_oauth_clients = saved
 
 
 def test_expired_oauth_token_is_refreshed():

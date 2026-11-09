@@ -8,10 +8,16 @@ import { useCallback, useSyncExternalStore } from 'react';
  * useSyncExternalStore, so the server render uses the fallback and other tabs
  * stay in step. If storage is blocked the value simply lasts for this page.
  */
+export const STORAGE_KEYS = {
+  activeSubject: 'puk-active-subject-v1',
+  sidebarCollapsed: 'puk-sidebar-collapsed-v1',
+  lastActive: 'puk-last-active-v1',
+} as const;
+
 const listeners = new Set<() => void>();
 const memory = new Map<string, string | null>();
 
-function read(key: string): string | null {
+export function read(key: string): string | null {
   try {
     return window.localStorage.getItem(key);
   } catch {
@@ -19,7 +25,7 @@ function read(key: string): string | null {
   }
 }
 
-function write(key: string, value: string | null): void {
+export function write(key: string, value: string | null): void {
   memory.set(key, value);
   try {
     if (value == null) window.localStorage.removeItem(key);
@@ -37,6 +43,11 @@ function subscribe(listener: () => void): () => void {
     listeners.delete(listener);
     window.removeEventListener('storage', listener);
   };
+}
+
+/** Drop every workspace preference, for when the session ends. */
+export function forgetWorkspaceState(): void {
+  Object.values(STORAGE_KEYS).forEach((key) => write(key, null));
 }
 
 /** A string remembered in this browser. `null` until a value has been stored. */

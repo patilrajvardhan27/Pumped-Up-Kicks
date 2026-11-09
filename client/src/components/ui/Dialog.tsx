@@ -35,7 +35,7 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
         // A click on the backdrop lands on the dialog element itself.
         if (event.target === ref.current) onClose();
       }}
-      className="m-auto max-h-[min(44rem,calc(100dvh-2rem))] w-[min(36rem,calc(100vw-2rem))] max-w-none overflow-hidden rounded-lg border border-hairline bg-canvas p-0 text-body shadow-window backdrop:bg-ink/40"
+      className="m-auto dialog-box max-w-none overflow-hidden rounded-md border border-hairline bg-canvas p-0 text-body shadow-window backdrop:bg-ink/40"
     >
       {open && (
         <div className="flex max-h-[inherit] flex-col">

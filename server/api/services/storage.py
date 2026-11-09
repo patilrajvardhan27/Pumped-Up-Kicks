@@ -7,8 +7,8 @@ the app server. The local backend keeps the same interface so development needs
 no cloud account.
 """
 import re
-import shutil
 import unicodedata
+import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import BinaryIO, Optional
@@ -22,20 +22,43 @@ def safe_key(user_id: str, filename: str) -> str:
     """
     Build a collision-free object key namespaced by user.
 
-    Keys are per-user, so two students uploading lecture1.mp4 never clash even
-    though the filename is identical.
+    A random id leads the file name, so two uploads never share a key, whatever
+    they are called and whoever uploads them.
     """
     name = unicodedata.normalize("NFKD", filename).encode("ascii", "ignore").decode()
     name = _SAFE.sub("_", name).strip("._") or "lecture.mp4"
     user_part = _SAFE.sub("_", user_id)
-    return f"users/{user_part}/{name}"
+    return f"users/{user_part}/{uuid.uuid4().hex}-{name}"
+
+
+class UploadTooLarge(Exception):
+    """An upload went past the size limit while it was being written."""
+
+
+COPY_CHUNK = 1024 * 1024
+
+
+class _LimitedReader:
+    """Reads from a file object and raises once more than `limit` bytes have come out."""
+
+    def __init__(self, fileobj: BinaryIO, limit: Optional[int]):
+        self._file = fileobj
+        self._limit = limit
+        self.count = 0
+
+    def read(self, size: int = -1) -> bytes:
+        data = self._file.read(size if size and size > 0 else COPY_CHUNK)
+        self.count += len(data)
+        if self._limit is not None and self.count > self._limit:
+            raise UploadTooLarge()
+        return data
 
 
 class Storage(ABC):
     """Where lecture videos live."""
 
     @abstractmethod
-    def presign_upload(self, key: str, content_type: str) -> Optional[str]:
+    def presign_upload(self, key: str, content_type: str, content_length: Optional[int] = None) -> Optional[str]:
         """URL the browser can PUT to, or None when uploads go through the API."""
 
     @abstractmethod
@@ -52,8 +75,11 @@ class Storage(ABC):
     def delete(self, key: str) -> None: ...
 
     @abstractmethod
-    def save_stream(self, key: str, fileobj: BinaryIO) -> int:
-        """Fallback path used only by the local backend."""
+    def save_stream(self, key: str, fileobj: BinaryIO, max_bytes: Optional[int] = None) -> int:
+        """
+        Write an upload that came through the API, in chunks. Raises
+        UploadTooLarge, leaving nothing behind, once it passes max_bytes.
+        """
 
     @abstractmethod
     def local_path(self, key: str) -> Path:
@@ -73,7 +99,7 @@ class LocalStorage(Storage):
             raise ValueError(f"Refusing to touch a path outside the uploads dir: {key}")
         return path
 
-    def presign_upload(self, key: str, content_type: str) -> Optional[str]:
+    def presign_upload(self, key: str, content_type: str, content_length: Optional[int] = None) -> Optional[str]:
         return None  # the client posts to /api/videos/upload instead
 
     def presign_download(self, key: str) -> str:
@@ -91,12 +117,18 @@ class LocalStorage(Storage):
         if path.exists():
             path.unlink()
 
-    def save_stream(self, key: str, fileobj: BinaryIO) -> int:
+    def save_stream(self, key: str, fileobj: BinaryIO, max_bytes: Optional[int] = None) -> int:
         path = self._path(key)
         path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("wb") as out:
-            shutil.copyfileobj(fileobj, out)
-        return path.stat().st_size
+        reader = _LimitedReader(fileobj, max_bytes)
+        try:
+            with path.open("wb") as out:
+                while chunk := reader.read(COPY_CHUNK):
+                    out.write(chunk)
+        except BaseException:
+            path.unlink(missing_ok=True)
+            raise
+        return reader.count
 
     def local_path(self, key: str) -> Path:
         return self._path(key)
@@ -121,7 +153,7 @@ class R2Storage(Storage):
         if missing:
             raise RuntimeError(
                 f"STORAGE_BACKEND=r2 but {', '.join(missing)} not set. See SETUP.md."
-            )
+            )  # startup only; never reaches a response
 
         self.bucket = settings.r2_bucket
         self.client = boto3.client(
@@ -135,10 +167,16 @@ class R2Storage(Storage):
         self._cache_dir = settings.uploads_dir / "_r2cache"
         self._cache_dir.mkdir(parents=True, exist_ok=True)
 
-    def presign_upload(self, key: str, content_type: str) -> str:
+    def presign_upload(self, key: str, content_type: str, content_length: Optional[int] = None) -> str:
+        if not content_length:
+            raise ValueError("A presigned upload needs the file size.")
         return self.client.generate_presigned_url(
             "put_object",
-            Params={"Bucket": self.bucket, "Key": key, "ContentType": content_type},
+            # ContentLength is signed, so the upload can't be bigger than what was approved.
+            Params={
+                "Bucket": self.bucket, "Key": key,
+                "ContentType": content_type, "ContentLength": content_length,
+            },
             ExpiresIn=settings.presign_expiry_seconds,
         )
 
@@ -169,9 +207,17 @@ class R2Storage(Storage):
     def delete(self, key: str) -> None:
         self.client.delete_object(Bucket=self.bucket, Key=key)
 
-    def save_stream(self, key: str, fileobj: BinaryIO) -> int:
-        self.client.upload_fileobj(fileobj, self.bucket, key)
-        return self.size(key) or 0
+    def save_stream(self, key: str, fileobj: BinaryIO, max_bytes: Optional[int] = None) -> int:
+        reader = _LimitedReader(fileobj, max_bytes)
+        try:
+            self.client.upload_fileobj(reader, self.bucket, key)
+        except BaseException:
+            try:
+                self.delete(key)
+            except Exception:
+                pass
+            raise
+        return reader.count
 
     def local_path(self, key: str) -> Path:
         """Pull the object down so a local transcriber can read it."""

@@ -6,14 +6,14 @@ import type { ChatScope, VideoInfo, WorkspaceColor, WorkspaceIcon, WorkspaceInfo
  */
 export type WorkspaceKey = number | 'unsorted' | 'all';
 
-/** Subject colours, each an existing token. Contrast with white icons is 3:1 or better. */
+/** Subject colours, each a tile token. White icons and labels on them clear 4.5:1. */
 export const WORKSPACE_COLORS: { key: WorkspaceColor; label: string; tile: string }[] = [
-  { key: 'blue', label: 'Blue', tile: 'bg-accent-blue' },
-  { key: 'green', label: 'Green', tile: 'bg-accent-green' },
-  { key: 'red', label: 'Red', tile: 'bg-accent-red' },
-  { key: 'purple', label: 'Purple', tile: 'bg-accent-purple' },
-  { key: 'teal', label: 'Teal', tile: 'bg-link-teal' },
-  { key: 'olive', label: 'Olive', tile: 'bg-body' },
+  { key: 'blue', label: 'Blue', tile: 'bg-tile-blue' },
+  { key: 'green', label: 'Green', tile: 'bg-tile-green' },
+  { key: 'red', label: 'Red', tile: 'bg-tile-red' },
+  { key: 'purple', label: 'Purple', tile: 'bg-tile-purple' },
+  { key: 'teal', label: 'Teal', tile: 'bg-tile-teal' },
+  { key: 'olive', label: 'Olive', tile: 'bg-tile-olive' },
 ];
 
 export const WORKSPACE_ICONS: { key: WorkspaceIcon; label: string }[] = [
@@ -32,7 +32,7 @@ export const WORKSPACE_ICONS: { key: WorkspaceIcon; label: string }[] = [
 ];
 
 export const tileClass = (color: WorkspaceColor) =>
-  WORKSPACE_COLORS.find((option) => option.key === color)?.tile ?? 'bg-body';
+  WORKSPACE_COLORS.find((option) => option.key === color)?.tile ?? 'bg-tile-olive';
 
 /** New subjects take the next colour in turn, so neighbours rarely match. */
 export const nextColor = (existing: WorkspaceInfo[]): WorkspaceColor =>

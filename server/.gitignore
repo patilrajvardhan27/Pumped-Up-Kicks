@@ -22,7 +22,7 @@ data/app.db
 /models/
 
 # Retrieval eval: transcripts are lecture content (often not ours to share) and
-# reports are regenerated. The questions and answer key under evals/questions are tracked.
+# reports are regenerated.
 evals/data/transcripts/
 evals/reports/
 

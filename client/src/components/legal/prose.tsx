@@ -6,9 +6,9 @@ import { site } from '@/lib/site';
 export function LegalHeader({ title, intro }: { title: string; intro: string }) {
   return (
     <header className="flex flex-col gap-3 border-b border-hairline-soft pb-8">
-      <p className="eyebrow">Updated {site.legalUpdated}</p>
-      <h1 className="text-display-md text-ink md:text-display-xl">{title}</h1>
-      <p className="max-w-[60ch] text-body-md text-body">{intro}</p>
+      <p className="text-caption-sm text-mute-strong">Updated {site.legalUpdated}</p>
+      <h1 className="text-display-lg text-ink md:text-display-xl">{title}</h1>
+      <p className="measure text-body-md text-body">{intro}</p>
     </header>
   );
 }
@@ -25,20 +25,20 @@ export function LegalSection({ id, title, children }: { id: string; title: strin
 }
 
 export function P({ children }: { children: ReactNode }) {
-  return <p className="max-w-[68ch] text-body-sm text-body">{children}</p>;
+  return <p className="measure text-body-md text-body">{children}</p>;
 }
 
 export function List({ children }: { children: ReactNode }) {
-  return <ul className="flex max-w-[68ch] list-disc flex-col gap-2 pl-5 text-body-sm text-body marker:text-mute-strong">{children}</ul>;
+  return <ul className="flex measure list-disc flex-col gap-2 pl-5 text-body-md text-body marker:text-mute-strong">{children}</ul>;
 }
 
 export function Strong({ children }: { children: ReactNode }) {
-  return <strong className="font-semibold text-ink">{children}</strong>;
+  return <strong className="text-body-strong text-ink">{children}</strong>;
 }
 
 /** Who is responsible. Falls back to plain wording until the operator is configured. */
 export function Operator() {
-  return <>{site.operator ?? `the operator of ${site.name}`}</>;
+  return <>{site.operator ?? `The operator of ${site.name}`}</>;
 }
 
 export function ContactLine() {
@@ -47,7 +47,7 @@ export function ContactLine() {
       {site.contactEmail ? (
         <>
           Write to{' '}
-          <a href={`mailto:${site.contactEmail}`} className="text-link-blue underline">
+          <a href={`mailto:${site.contactEmail}`} className="text-primary underline">
             {site.contactEmail}
           </a>
           .

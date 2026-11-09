@@ -39,7 +39,7 @@ export function VideoPlayer({ ref, video, citations = [], onClose }: VideoPlayer
           className="shrink-0 origin-top overflow-hidden rounded-md border border-hairline bg-surface-doc"
         >
           <div className="flex items-center justify-between gap-3 border-b border-hairline-soft py-1 pr-1 pl-4">
-            <h2 className="min-w-0 truncate text-body-xs text-ink">{video.title || video.filename}</h2>
+            <h2 className="min-w-0 truncate text-body-sm text-ink">{video.title || video.filename}</h2>
             {onClose && (
               <IconButton aria-label="Hide player" onClick={onClose}>
                 <CloseIcon />
@@ -48,7 +48,7 @@ export function VideoPlayer({ ref, video, citations = [], onClose }: VideoPlayer
           </div>
 
           {player.error ? (
-            <p role="alert" className="px-4 py-6 text-center text-body-xs text-danger">
+            <p role="alert" className="px-4 py-6 text-center text-body-sm text-danger">
               {player.error}
             </p>
           ) : (
@@ -59,7 +59,7 @@ export function VideoPlayer({ ref, video, citations = [], onClose }: VideoPlayer
                 controls={false}
                 preload="metadata"
                 playsInline
-                className="max-h-[38vh] w-full bg-surface-dark"
+                className="max-h-video w-full bg-surface-dark"
               />
 
               <div className="flex items-center gap-3 p-3">

@@ -21,7 +21,7 @@ export function UsageMeter({ refreshTrigger }: { refreshTrigger?: number }) {
   return (
     <Card as="section" padding="tile" aria-labelledby="usage-heading" className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="usage-heading" className="eyebrow">
+        <h2 id="usage-heading" className="text-button-sm text-ink">
           This month, {quota.plan} plan
         </h2>
         <span

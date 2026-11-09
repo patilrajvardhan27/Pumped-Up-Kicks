@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { IBM_Plex_Sans, Source_Code_Pro } from 'next/font/google';
+import { Geist, Geist_Mono } from 'next/font/google';
 import { MotionProvider } from '@/components/providers/MotionProvider';
 import { AnalyticsProvider } from '@/components/consent/AnalyticsProvider';
 import { ConsentBanner } from '@/components/consent/ConsentBanner';
@@ -8,15 +8,15 @@ import '@/styles/globals.css';
 
 // One sans for every text role, with hierarchy built from weight; mono is
 // reserved for readouts: timecodes, token counts, sizes.
-const plex = IBM_Plex_Sans({
+const geist = Geist({
   subsets: ['latin'],
-  variable: '--font-plex',
+  variable: '--font-geist',
   display: 'swap',
 });
 
-const sourceCode = Source_Code_Pro({
+const geistMono = Geist_Mono({
   subsets: ['latin'],
-  variable: '--font-source-code',
+  variable: '--font-geist-mono',
   display: 'swap',
 });
 
@@ -48,7 +48,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${plex.variable} ${sourceCode.variable}`} data-scroll-behavior="smooth">
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`} data-scroll-behavior="smooth">
       <body>
         <a
           href="#main"

@@ -1,8 +1,10 @@
 """Video library: presigned uploads, processing status, playback, deletion."""
+import logging
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
@@ -12,10 +14,11 @@ from api.models.database import Conversation, Video, get_session
 from api.routes.workspaces import owned_workspace
 from api.services.ratelimit import rate_limit
 from api.services.signing import SignatureError, sign, verify
-from api.services.storage import get_storage, safe_key
+from api.services.storage import UploadTooLarge, get_storage, safe_key
 from api.services.video_processor import STAGE_LABELS, process_video, transcript_path
 
 router = APIRouter(prefix="/api/videos", tags=["videos"])
+log = logging.getLogger(__name__)
 
 ALLOWED_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm", ".m4v"}
 CONTENT_TYPES = {
@@ -49,7 +52,7 @@ class PresignRequest(BaseModel):
     filename: str = Field(..., min_length=1, max_length=255)
     content_type: Optional[str] = Field(None, max_length=255)
     title: Optional[str] = Field(None, max_length=settings.max_title_chars)
-    file_size: Optional[int] = None
+    file_size: Optional[int] = Field(None, ge=1)
     # The subject to file the lecture under; null leaves it in Unsorted.
     workspace_id: Optional[int] = None
 
@@ -58,7 +61,6 @@ class PresignResponse(BaseModel):
     """When upload_url is null the client posts to /upload instead."""
     video_id: int
     upload_url: Optional[str]
-    storage_key: str
     method: str
 
 
@@ -125,6 +127,20 @@ def _claim_filename(ctx: RequestContext, filename: str) -> None:
         )
 
 
+def _too_large() -> str:
+    return f"That file is larger than the {settings.max_upload_bytes // (1024 ** 3)} GB limit."
+
+
+def _discard(ctx: RequestContext, video: Video) -> None:
+    """Drop a reservation whose upload can't be used, and its object."""
+    try:
+        get_storage().delete(video.storage_key)
+    except Exception:
+        log.warning("Could not remove object %s", video.storage_key, exc_info=True)
+    ctx.db.delete(video)
+    ctx.db.commit()
+
+
 # --- background work --------------------------------------------------------
 
 
@@ -156,9 +172,8 @@ def run_pipeline(video_id: int) -> None:
 
         process_video(db, video, on_stage=on_stage)
 
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
+    except Exception:
+        log.exception("Pipeline failed for video %s", video_id)
         if video is not None:
             try:
                 # A commit that failed leaves the session unusable until it is
@@ -167,7 +182,7 @@ def run_pipeline(video_id: int) -> None:
                 db.rollback()
                 video.stage = "failed"
                 video.progress = 100
-                video.error_message = str(e)
+                video.error_message = "Processing failed. Try uploading again."
                 db.commit()
             except Exception:
                 print(f"[Pipeline] could not record the failure of video={video_id}")
@@ -179,7 +194,7 @@ def run_pipeline(video_id: int) -> None:
 
 
 @router.get("", response_model=VideoListResponse)
-def list_videos(limit: int = 50, ctx: RequestContext = Ctx):
+def list_videos(limit: int = Query(50, ge=1, le=100), ctx: RequestContext = Ctx):
     videos = (
         ctx.db.query(Video)
         .filter(Video.user_id == ctx.user_id)
@@ -219,11 +234,10 @@ def presign_upload(request: PresignRequest, ctx: RequestContext = Ctx):
         owned_workspace(ctx, request.workspace_id)
 
     if request.file_size and request.file_size > settings.max_upload_bytes:
-        raise HTTPException(
-            status_code=413,
-            detail=f"That file is larger than the "
-                   f"{settings.max_upload_bytes // (1024 ** 3)} GB limit.",
-        )
+        raise HTTPException(status_code=413, detail=_too_large())
+
+    if settings.storage_backend == "r2" and not request.file_size:
+        raise HTTPException(status_code=400, detail="The file size is needed to start an upload.")
 
     key = safe_key(ctx.user_id, request.filename)
     content_type = request.content_type or CONTENT_TYPES.get(ext, "application/octet-stream")
@@ -242,12 +256,11 @@ def presign_upload(request: PresignRequest, ctx: RequestContext = Ctx):
     ctx.db.commit()
     ctx.db.refresh(video)
 
-    upload_url = get_storage().presign_upload(key, content_type)
+    upload_url = get_storage().presign_upload(key, content_type, request.file_size)
 
     return PresignResponse(
         video_id=video.id,
         upload_url=upload_url,
-        storage_key=key,
         method="PUT" if upload_url else "POST",
     )
 
@@ -266,8 +279,12 @@ def complete_upload(
             detail="The upload didn't arrive in storage. Try uploading again.",
         )
 
+    actual = storage.size(video.storage_key)
+    if actual is not None and actual > settings.max_upload_bytes:
+        _discard(ctx, video)
+        raise HTTPException(status_code=413, detail=_too_large())
     if video.file_size is None:
-        video.file_size = storage.size(video.storage_key)
+        video.file_size = actual
 
     video.stage = "queued"
     video.progress = 0
@@ -307,15 +324,12 @@ async def upload_video(
     key = safe_key(ctx.user_id, file.filename)
     storage = get_storage()
 
-    written = storage.save_stream(key, file.file)
-
-    if written > settings.max_upload_bytes:
-        storage.delete(key)
-        raise HTTPException(
-            status_code=413,
-            detail=f"That file is larger than the "
-                   f"{settings.max_upload_bytes // (1024 ** 3)} GB limit.",
+    try:
+        written = await run_in_threadpool(
+            storage.save_stream, key, file.file, settings.max_upload_bytes
         )
+    except UploadTooLarge:
+        raise HTTPException(status_code=413, detail=_too_large())
 
     video = Video(
         user_id=ctx.user_id,
@@ -386,7 +400,7 @@ def playback_url(request: Request, video_id: int, ctx: RequestContext = Ctx):
     """
     A time-limited URL the player can stream from, so a citation can seek to it.
 
-    On R2 this is a presigned URL. Locally it is a signed link to /file/... —
+    On R2 this is a presigned URL. Locally it is a signed link to /file/...
     either way the credential travels in the URL, because a <video> element
     cannot send an Authorization header.
     """
@@ -422,7 +436,8 @@ def serve_local_file(storage_key: str, token: str = ""):
     try:
         user_id = verify(token, storage_key)
     except SignatureError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+        log.info("Refused media link: %s", e)
+        raise HTTPException(status_code=403, detail="This link isn't valid or has expired. Reload the page.")
 
     db = get_session()
     try:
@@ -458,14 +473,14 @@ def delete_video(video_id: int, ctx: RequestContext = Ctx):
     try:
         get_storage().delete(video.storage_key)
     except Exception as e:
-        print(f"[Delete] Could not remove object {video.storage_key}: {e}")
+        log.warning("Could not remove object %s: %s", video.storage_key, e)
 
     # The local backend also keeps the transcript on disk. Deleting a lecture
     # promises to delete its transcript too (see the privacy policy).
     try:
         transcript_path(video.storage_key).unlink(missing_ok=True)
     except OSError as e:
-        print(f"[Delete] Could not remove transcript for {video.storage_key}: {e}")
+        log.warning("Could not remove transcript for %s: %s", video.storage_key, e)
 
     # Chunks and conversations cascade from the foreign keys.
     ctx.db.delete(video)

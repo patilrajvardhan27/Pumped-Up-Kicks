@@ -2,6 +2,7 @@
 
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
+import { SkeletonLines } from '@/components/ui/Skeleton';
 import { SpinnerIcon } from '@/components/ui/icons';
 import { CitationChip } from '@/components/workspace/chat/CitationChip';
 import { useStudyGuide } from '@/hooks/useStudy';
@@ -19,13 +20,13 @@ export function StudyGuidePanel({ videoId, title, onSeek }: StudyGuidePanelProps
   const { guide, loading, making, error, make } = useStudyGuide(videoId);
   const seek = (seconds: number) => onSeek?.(videoId, seconds);
 
-  if (loading) return <p className="py-6 text-body-xs text-mute-strong">Loading…</p>;
+  if (loading) return <SkeletonLines label="Loading the study guide" lines={5} className="py-6" />;
 
   if (!guide) {
     return (
       <div className="flex flex-col items-start gap-3 py-4">
-        <h2 className="text-display-lg text-ink">Study guide for {title}</h2>
-        <p className="max-w-[60ch] text-body-sm text-body">
+        <h2 className="text-display-md text-ink">Study guide for {title}</h2>
+        <p className="measure text-body-sm text-body">
           A summary, the key terms with where each is explained, and an outline you can jump through. It is
           made once from the whole transcript and kept, so opening it again costs nothing.
         </p>
@@ -40,7 +41,12 @@ export function StudyGuidePanel({ videoId, title, onSeek }: StudyGuidePanelProps
             'Make the study guide'
           )}
         </Button>
-        {making && <p className="text-caption-sm text-mute-strong">This can take up to a minute.</p>}
+        {making && (
+          <>
+            <p className="text-caption-sm text-mute-strong">This can take up to a minute.</p>
+            <SkeletonLines label="Writing the study guide" lines={4} className="w-full" />
+          </>
+        )}
       </div>
     );
   }
@@ -51,7 +57,7 @@ export function StudyGuidePanel({ videoId, title, onSeek }: StudyGuidePanelProps
         <h2 id="guide-summary" className="text-heading-sm text-ink">
           Summary
         </h2>
-        <p className="max-w-[70ch] text-body-md text-ink">{guide.summary}</p>
+        <p className="measure text-body-md text-ink">{guide.summary}</p>
         {guide.covered_until_s != null && (
           <p className="text-caption-sm text-mute-strong">
             The lecture was too long to read whole; this guide covers up to {formatClock(guide.covered_until_s)}.
@@ -90,7 +96,7 @@ export function StudyGuidePanel({ videoId, title, onSeek }: StudyGuidePanelProps
                     />
                   )}
                 </dt>
-                <dd className="max-w-[70ch] text-body-sm text-body">{term.definition}</dd>
+                <dd className="measure text-body-sm text-body">{term.definition}</dd>
               </div>
             ))}
           </dl>

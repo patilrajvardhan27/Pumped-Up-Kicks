@@ -6,6 +6,3 @@
 -r requirements.txt
 
 openai-whisper
-torch
-ffmpeg-python
-tqdm
