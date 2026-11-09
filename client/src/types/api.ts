@@ -28,8 +28,12 @@ export interface Quota {
   exhausted: boolean;
 }
 
+/** "ask" answers a typed question; the others are one-click study tools. */
+export type ChatMode = 'ask' | 'notes' | 'terms' | 'quiz';
+
 export interface ChatRequest {
   question: string;
+  mode?: ChatMode;
   conversation_id?: number;
   video_id?: number;
   top_k?: number;
@@ -78,9 +82,6 @@ export interface UsageSummary {
   questions_asked: number;
   cache_hits: number;
   total_cost_usd: number;
-  total_input_tokens: number;
-  total_output_tokens: number;
-  model: string;
   quota: Quota;
 }
 
@@ -97,7 +98,6 @@ export interface VideoInfo {
   stage_label: string;
   progress: number;
   error_message?: string | null;
-  num_segments?: number | null;
   num_chunks?: number | null;
 }
 
@@ -109,8 +109,8 @@ export interface VideoListResponse {
 export interface PresignResponse {
   video_id: number;
   upload_url: string | null;
-  storage_key: string;
-  method: 'PUT' | 'POST';
+  /** Must be sent unchanged with the upload: it is part of the signed URL. */
+  content_type: string;
 }
 
 export interface PlaybackResponse {
@@ -125,4 +125,22 @@ export interface UploadResponse {
   video_id: number;
   filename: string;
   status: string;
+}
+
+export interface TranscriptLine {
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface TranscriptResponse {
+  video_id: number;
+  title: string;
+  lines: TranscriptLine[];
+}
+
+export interface HealthResponse {
+  status: 'ok' | 'degraded';
+  database: 'ok' | 'unreachable';
+  ready: boolean;
 }

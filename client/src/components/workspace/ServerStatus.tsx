@@ -13,7 +13,7 @@ const COPY: Record<ServerState, { label: string; dot: string; hint?: string }> =
   checking: { label: 'Connecting', dot: 'bg-mute animate-pulse-dot' },
   online: { label: 'Live', dot: 'bg-accent-green' },
   'no-key': {
-    label: 'No API key',
+    label: 'Answers unavailable',
     dot: 'bg-primary-active',
     hint:
       process.env.NODE_ENV !== 'production'
@@ -33,7 +33,7 @@ const COPY: Record<ServerState, { label: string; dot: string; hint?: string }> =
 
 /** Live API health. The dot carries real state; the label says the same in words. */
 export function ServerStatus({ compact = false }: { compact?: boolean }) {
-  const { state, model } = useServerStatus();
+  const state = useServerStatus();
   const copy = COPY[state];
 
   return (
@@ -41,9 +41,6 @@ export function ServerStatus({ compact = false }: { compact?: boolean }) {
       <span aria-hidden="true" className={cn('size-2 rounded-full', copy.dot)} />
       {/* Phones get the dot alone; the label stays available to screen readers. */}
       <span className={compact ? 'sr-only sm:not-sr-only' : undefined}>{copy.label}</span>
-      {state === 'online' && model && (
-        <span className="hidden font-mono text-code-xs text-mute-strong md:inline">{model}</span>
-      )}
     </Badge>
   );
 }

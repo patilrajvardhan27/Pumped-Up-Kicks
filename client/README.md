@@ -26,10 +26,11 @@ Only `NEXT_PUBLIC_` variables are read.
 |---|---|
 | `NEXT_PUBLIC_API_URL` | API origin. Defaults to `http://localhost:8000`. |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Enables Clerk sign-in. Without it the app runs in dev auth mode. |
+| `NEXT_PUBLIC_IDLE_TIMEOUT_MINUTES` | Sign out after this many idle minutes across all tabs. Defaults to 30. |
 | `NEXT_PUBLIC_SITE_URL` | Public https address. Used for canonical links, the sitemap and social previews. Defaults to `http://localhost:3000`. |
 | `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` | Turns on PostHog analytics and the cookie banner. Leave empty to switch both off. |
 | `NEXT_PUBLIC_POSTHOG_HOST` | `https://us.i.posthog.com` (default) or `https://eu.i.posthog.com`. Called through the `/ingest` proxy. |
-| `NEXT_PUBLIC_OPERATOR_NAME`, `NEXT_PUBLIC_CONTACT_EMAIL` | Who the privacy policy and terms name as responsible, and where to write. Set both before launch. |
+| `NEXT_PUBLIC_OPERATOR_NAME`, `NEXT_PUBLIC_CONTACT_EMAIL` | Who the legal pages name as responsible, and the contact in `/.well-known/security.txt`. Set both before launch. |
 | `NEXT_PUBLIC_STORAGE_ORIGINS` | Optional, space separated. Extra origins lecture files are uploaded to or played from, added to the Content-Security-Policy. |
 
 ## Structure
@@ -41,10 +42,12 @@ src/
     ui/         buttons, inputs, cards, badges, alerts, icons
     shell/      the wallpapered desktop and floating menu bar shared by both routes
     landing/    the marketing page
-    workspace/  chat, video and upload
-    providers/  Clerk and the auth token bridge
+    workspace/  chat, study tools, transcript, video and upload
+    account/    data export and account deletion
+    legal/      policy texts; the page list lives in lib/legal.ts
+    providers/  Clerk, the auth token bridge and idle sign-out
   hooks/        stateful logic
-  lib/          formatting, timestamps, auth token
+  lib/          formatting, timestamps, auth token, legal pages, study tools, exports
   services/     API client
   styles/       tokens.css (design tokens), motion.css, globals.css
   types/
@@ -52,7 +55,7 @@ src/
 
 ## Design system
 
-The visual language is defined in `../DESIGN.md`. Every colour, type role, radius and motion
+The visual language is defined in `../docs/DESIGN.md`. Every colour, type role, radius and motion
 value lives in `src/styles/tokens.css` as a Tailwind `@theme` token. Tailwind's default palette
 is cleared, so a colour that is not a token does not compile. Do not hardcode values in components.
 
@@ -67,6 +70,6 @@ npm start       # serve the production build
 
 ## Security headers
 
-`next.config.ts` sets a Content-Security-Policy, `X-Content-Type-Options`, `Referrer-Policy`,
-`X-Frame-Options` and `Permissions-Policy`. The CSP allowlists the API origin, the Clerk
+`next.config.ts` sets a Content-Security-Policy, HSTS (production), `X-Content-Type-Options`,
+`Referrer-Policy`, `X-Frame-Options` and `Permissions-Policy`. The CSP allowlists the API origin, the Clerk
 Frontend API (derived from the publishable key) and Cloudflare R2.

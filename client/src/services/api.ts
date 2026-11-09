@@ -1,4 +1,5 @@
 import { currentToken } from '@/lib/authToken';
+import { saveBlob } from '@/lib/download';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -13,6 +14,9 @@ export const API_ENDPOINTS = {
   VIDEOS_PRESIGN: `${API_BASE_URL}/api/videos/presign`,
   VIDEOS_COMPLETE: (id: number) => `${API_BASE_URL}/api/videos/${id}/complete`,
   VIDEOS_UPLOAD: `${API_BASE_URL}/api/videos/upload`,
+  VIDEOS_TRANSCRIPT: (id: number) => `${API_BASE_URL}/api/videos/${id}/transcript`,
+  ACCOUNT: `${API_BASE_URL}/api/account`,
+  ACCOUNT_EXPORT: `${API_BASE_URL}/api/account/export`,
   HEALTH: `${API_BASE_URL}/health`,
 } as const;
 
@@ -55,35 +59,34 @@ async function authHeaders(base: Record<string, string> = {}): Promise<Record<st
 }
 
 class ApiClient {
-  async get<T>(endpoint: string): Promise<T> {
+  /** One JSON request. Every verb goes through here, so auth and errors are handled once. */
+  private async request<T>(method: 'GET' | 'POST' | 'DELETE', endpoint: string, data?: unknown): Promise<T> {
     const response = await fetch(endpoint, {
-      method: 'GET',
-      headers: await authHeaders({ 'Content-Type': 'application/json' }),
+      method,
+      headers: await authHeaders(data === undefined ? {} : { 'Content-Type': 'application/json' }),
+      body: data === undefined ? undefined : JSON.stringify(data),
     });
-
-    if (!response.ok) throw await toError(response, 'Request failed');
+    if (!response.ok) throw await toError(response, method === 'DELETE' ? 'Delete failed' : 'Request failed');
     return response.json();
   }
 
-  async post<T>(endpoint: string, data: unknown): Promise<T> {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: await authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) throw await toError(response, 'Request failed');
-    return response.json();
+  get<T>(endpoint: string): Promise<T> {
+    return this.request<T>('GET', endpoint);
   }
 
-  async delete<T>(endpoint: string): Promise<T> {
-    const response = await fetch(endpoint, {
-      method: 'DELETE',
-      headers: await authHeaders(),
-    });
+  post<T>(endpoint: string, data: unknown): Promise<T> {
+    return this.request<T>('POST', endpoint, data);
+  }
 
-    if (!response.ok) throw await toError(response, 'Delete failed');
-    return response.json();
+  delete<T>(endpoint: string): Promise<T> {
+    return this.request<T>('DELETE', endpoint);
+  }
+
+  /** Fetch an authenticated file and hand it to the browser as a download. */
+  async download(endpoint: string, filename: string): Promise<void> {
+    const response = await fetch(endpoint, { headers: await authHeaders() });
+    if (!response.ok) throw await toError(response, 'Download failed');
+    saveBlob(await response.blob(), filename);
   }
 
   /** POST a JSON body and read back a server-sent event stream. */

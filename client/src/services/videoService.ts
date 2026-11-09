@@ -2,6 +2,7 @@ import { apiClient, API_ENDPOINTS } from './api';
 import type {
   PlaybackResponse,
   PresignResponse,
+  TranscriptResponse,
   UploadResponse,
   VideoListResponse,
 } from '@/types/api';
@@ -14,6 +15,11 @@ class VideoService {
   /** A short-lived URL a <video> element can load and seek within. */
   async getPlaybackUrl(id: number): Promise<PlaybackResponse> {
     return apiClient.get<PlaybackResponse>(API_ENDPOINTS.VIDEOS_PLAYBACK(id));
+  }
+
+  /** The lecture as timestamped text. Costs nothing: no AI call is made. */
+  async getTranscript(id: number): Promise<TranscriptResponse> {
+    return apiClient.get<TranscriptResponse>(API_ENDPOINTS.VIDEOS_TRANSCRIPT(id));
   }
 
   async deleteVideo(id: number): Promise<{ message: string }> {
@@ -35,7 +41,6 @@ class VideoService {
   ): Promise<UploadResponse> {
     const slot = await apiClient.post<PresignResponse>(API_ENDPOINTS.VIDEOS_PRESIGN, {
       filename: file.name,
-      content_type: file.type || 'application/octet-stream',
       title,
       file_size: file.size,
     });
@@ -52,13 +57,7 @@ class VideoService {
       );
     }
 
-    await apiClient.putFile(
-      slot.upload_url,
-      file,
-      file.type || 'application/octet-stream',
-      onProgress,
-      signal,
-    );
+    await apiClient.putFile(slot.upload_url, file, slot.content_type, onProgress, signal);
 
     return apiClient.post<UploadResponse>(API_ENDPOINTS.VIDEOS_COMPLETE(slot.video_id), {});
   }

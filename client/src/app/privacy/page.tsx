@@ -1,21 +1,12 @@
-import type { Metadata } from 'next';
 import { PrivacyContent } from '@/components/legal/PrivacyContent';
 import { DocumentWindow } from '@/components/shell/DocumentWindow';
+import { legalMetadata, legalPage } from '@/lib/legal';
 
-export const metadata: Metadata = {
-  title: 'Privacy policy',
-  description:
-    'What Pumped Up Kicks collects, why, which providers see it, how long it is kept, and the choices you have.',
-  alternates: { canonical: '/privacy' },
-  openGraph: { title: 'Privacy policy', description:
-    'What Pumped Up Kicks collects, why, which providers see it, how long it is kept, and the choices you have.', url: '/privacy' },
-  twitter: { title: 'Privacy policy', description:
-    'What Pumped Up Kicks collects, why, which providers see it, how long it is kept, and the choices you have.' },
-};
+export const metadata = legalMetadata('/privacy');
 
-export default function PrivacyPage() {
+export default function Page() {
   return (
-    <DocumentWindow title="Privacy policy">
+    <DocumentWindow title={legalPage('/privacy').title}>
       <PrivacyContent />
     </DocumentWindow>
   );

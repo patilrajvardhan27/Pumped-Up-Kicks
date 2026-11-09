@@ -1,21 +1,12 @@
-import type { Metadata } from 'next';
 import { TermsContent } from '@/components/legal/TermsContent';
 import { DocumentWindow } from '@/components/shell/DocumentWindow';
+import { legalMetadata, legalPage } from '@/lib/legal';
 
-export const metadata: Metadata = {
-  title: 'Terms of service',
-  description:
-    'The rules for using Pumped Up Kicks: what you may upload, how AI answers should be used, plan limits and how to end your use.',
-  alternates: { canonical: '/terms' },
-  openGraph: { title: 'Terms of service', description:
-    'The rules for using Pumped Up Kicks: what you may upload, how AI answers should be used, plan limits and how to end your use.', url: '/terms' },
-  twitter: { title: 'Terms of service', description:
-    'The rules for using Pumped Up Kicks: what you may upload, how AI answers should be used, plan limits and how to end your use.' },
-};
+export const metadata = legalMetadata('/terms');
 
-export default function TermsPage() {
+export default function Page() {
   return (
-    <DocumentWindow title="Terms of service">
+    <DocumentWindow title={legalPage('/terms').title}>
       <TermsContent />
     </DocumentWindow>
   );

@@ -6,6 +6,8 @@ import type { VideoPlayerHandle } from '@/hooks/useVideoPlayer';
 import type { Source, VideoInfo } from '@/types/api';
 import { ChatPanel } from './chat/ChatPanel';
 import { ConversationList } from './chat/ConversationList';
+import { PanelTabs, type PanelView } from './PanelTabs';
+import { TranscriptPanel } from './transcript/TranscriptPanel';
 import { UsageMeter } from './UsageMeter';
 import { VideoUpload } from './upload/VideoUpload';
 import { VideoList } from './video/VideoList';
@@ -24,6 +26,7 @@ export function Workspace() {
   // The lecture currently loaded in the player, and the passages to mark on it.
   const [playingId, setPlayingId] = useState<number | null>(null);
   const [citations, setCitations] = useState<Source[]>([]);
+  const [view, setView] = useState<PanelView>('chat');
   const playerRef = useRef<VideoPlayerHandle>(null);
 
   /**
@@ -42,6 +45,7 @@ export function Workspace() {
     setConversationId(null); // a different lecture means a different thread
     setPlayingId(id);
     setCitations([]);
+    setView('chat');
   }, []);
 
   // Opening an existing chat also restores the lecture it was about, so the
@@ -95,15 +99,20 @@ export function Workspace() {
           citations={playerCitations}
           onClose={closePlayer}
         />
-        <ChatPanel
-          videos={videos}
-          videoId={videoId}
-          conversationId={conversationId}
-          onConversationStarted={setConversationId}
-          onTurnComplete={handleTurnComplete}
-          onSeek={seekTo}
-          onSourcesChange={setCitations}
-        />
+        {videoId != null && <PanelTabs view={view} onChange={setView} />}
+        {videoId != null && view === 'transcript' ? (
+          <TranscriptPanel key={videoId} videoId={videoId} onSeek={seekTo} />
+        ) : (
+          <ChatPanel
+            videos={videos}
+            videoId={videoId}
+            conversationId={conversationId}
+            onConversationStarted={setConversationId}
+            onTurnComplete={handleTurnComplete}
+            onSeek={seekTo}
+            onSourcesChange={setCitations}
+          />
+        )}
       </Card>
     </main>
   );

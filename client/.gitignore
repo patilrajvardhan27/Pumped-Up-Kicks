@@ -34,3 +34,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Editor and tool instruction files are local, not part of the project.
+AGENTS.md
+CLAUDE.md

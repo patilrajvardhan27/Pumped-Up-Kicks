@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '@/lib/analytics';
 import { ApiError } from '@/services/api';
 import { chatService } from '@/services/chatService';
-import type { StreamEvent } from '@/types/api';
+import type { ChatMode, StreamEvent } from '@/types/api';
 import type { Turn } from '@/types/chat';
 
 interface AskStreamOptions {
@@ -39,12 +39,14 @@ export function useAskStream({
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const ask = useCallback(
-    async (text: string) => {
+    /** Ask a typed question, or run a study tool (where `text` is its label). */
+    async (text: string, mode: ChatMode = 'ask') => {
       const trimmed = text.trim();
       if (!trimmed || busy) return;
 
       track('question_asked', {
         scope: conversationId != null ? 'thread' : videoId != null ? 'lecture' : 'library',
+        mode,
       });
 
       const key = `t${Date.now()}`;
@@ -89,7 +91,7 @@ export function useAskStream({
 
       try {
         await chatService.streamQuery(
-          { question: trimmed, top_k: TOP_K, ...scope },
+          { question: mode === 'ask' ? trimmed : '', mode, top_k: TOP_K, ...scope },
           handleEvent,
           controller.signal,
         );

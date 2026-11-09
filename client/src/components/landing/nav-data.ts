@@ -9,6 +9,7 @@ import {
   VerifiedIcon,
   WaveformIcon,
 } from '@/components/ui/icons';
+import { legalPage, type LegalPath } from '@/lib/legal';
 
 export interface NavItem {
   href: string;
@@ -30,10 +31,15 @@ export const SECTION_ITEMS: NavItem[] = [
   { href: '#qualities', label: 'What you get', description: 'Checkable, costed answers', Icon: VerifiedIcon },
 ];
 
+const legalItem = (path: LegalPath, Icon: NavItem['Icon']): NavItem => {
+  const page = legalPage(path);
+  return { href: page.path, label: page.label, description: page.blurb, Icon };
+};
+
 export const WORKSPACE_ITEMS: NavItem[] = [
   { href: '/app', label: 'Workspace', description: 'Your lectures and chats', Icon: LibraryIcon },
-  { href: '/privacy', label: 'Privacy', description: 'What we collect and why', Icon: PrivacyIcon },
-  { href: '/terms', label: 'Terms', description: 'The rules of the service', Icon: TermsIcon },
+  legalItem('/privacy', PrivacyIcon),
+  legalItem('/terms', TermsIcon),
 ];
 
 /* Menus are looked up by name so server components never pass icons as props. */

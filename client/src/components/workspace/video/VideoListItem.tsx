@@ -50,7 +50,6 @@ export function VideoListItem({ video, selected, deleting, onSelect, onDelete }:
           <p className="mt-0.5 flex flex-wrap gap-x-3 font-mono text-code-xs tabular-nums text-mute-strong">
             <span>{video.duration ? formatClock(video.duration) : MISSING}</span>
             <span>{video.file_size ? formatBytes(video.file_size) : MISSING}</span>
-            {video.num_segments ? <span>{video.num_segments} segments</span> : null}
             <span>{new Date(video.uploaded_at).toLocaleDateString()}</span>
           </p>
         </div>
@@ -69,7 +68,7 @@ export function VideoListItem({ video, selected, deleting, onSelect, onDelete }:
       <PipelineTrack video={video} />
 
       {video.stage === 'failed' && video.error_message && (
-        <p className="rounded-sm bg-accent-red-soft p-2.5 font-mono text-code-xs break-words text-ink">
+        <p className="rounded-sm bg-accent-red-soft p-2.5 text-caption-sm break-words text-ink">
           {video.error_message}
         </p>
       )}

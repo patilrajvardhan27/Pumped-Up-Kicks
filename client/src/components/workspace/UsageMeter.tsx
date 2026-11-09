@@ -3,11 +3,11 @@
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Card } from '@/components/ui/Card';
 import { useUsage } from '@/hooks/useUsage';
-import { formatUsd } from '@/lib/format';
+import { formatUsd, pluralise } from '@/lib/format';
 
 /**
- * This account's Claude spend for the month, against its plan limit. Shown so
- * cost is a visible number rather than something discovered on a bill.
+ * The monthly allowance in plain terms: how much is used and when it resets.
+ * The exact dollar figures stay one hover away for anyone who wants them.
  */
 export function UsageMeter({ refreshTrigger }: { refreshTrigger?: number }) {
   const usage = useUsage(refreshTrigger);
@@ -15,40 +15,33 @@ export function UsageMeter({ refreshTrigger }: { refreshTrigger?: number }) {
   if (!usage || usage.questions_asked === 0) return null;
 
   const { quota } = usage;
-  const cacheRate = Math.round((usage.cache_hits / usage.questions_asked) * 100);
   const tone = quota.percent_used >= 90 ? 'danger' : quota.percent_used >= 70 ? 'primary' : 'success';
+  const status = quota.exhausted
+    ? 'Allowance used up. It resets on the 1st.'
+    : `${100 - quota.percent_used}% left this month. Resets on the 1st.`;
 
   return (
     <Card as="section" padding="tile" aria-labelledby="usage-heading" className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
         <h2 id="usage-heading" className="eyebrow">
-          This month, {quota.plan} plan
+          Monthly allowance
         </h2>
         <span
-          className={`font-mono text-code-xs tabular-nums ${quota.exhausted ? 'text-danger' : 'text-body'}`}
+          className="text-caption-sm text-mute-strong"
+          title={`${formatUsd(quota.spent_usd, 4)} of ${formatUsd(quota.limit_usd)} on the ${quota.plan} plan`}
         >
-          {formatUsd(quota.spent_usd, 4)} / {formatUsd(quota.limit_usd)}
+          {pluralise(usage.questions_asked, 'answer')}
         </span>
       </div>
 
-      <ProgressBar value={Math.max(2, quota.percent_used)} label="Monthly spend used" tone={tone} />
+      <ProgressBar value={Math.max(2, quota.percent_used)} label="Monthly allowance used" tone={tone} />
 
-      <dl className="grid grid-cols-3 gap-3">
-        <div>
-          <dt className="text-caption-sm text-mute-strong">Questions</dt>
-          <dd className="font-mono text-code-sm tabular-nums text-ink">{usage.questions_asked}</dd>
-        </div>
-        <div>
-          <dt className="text-caption-sm text-mute-strong">From cache</dt>
-          <dd className="font-mono text-code-sm tabular-nums text-ink">{cacheRate}%</dd>
-        </div>
-        <div className="text-right">
-          <dt className="text-caption-sm text-mute-strong">Left</dt>
-          <dd className="font-mono text-code-sm tabular-nums text-ink">
-            {formatUsd(quota.remaining_usd)}
-          </dd>
-        </div>
-      </dl>
+      <p className={`text-caption-sm ${quota.exhausted ? 'text-danger' : 'text-body'}`}>{status}</p>
+      {usage.cache_hits > 0 && (
+        <p className="text-caption-sm text-mute-strong">
+          {pluralise(usage.cache_hits, 'repeat answer')} served free from your history.
+        </p>
+      )}
     </Card>
   );
 }

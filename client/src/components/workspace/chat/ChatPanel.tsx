@@ -8,6 +8,7 @@ import type { Source, VideoInfo } from '@/types/api';
 import type { SeekHandler } from '@/types/chat';
 import { ChatComposer } from './ChatComposer';
 import { ChatEmptyState } from './ChatEmptyState';
+import { ChatToolbar } from './ChatToolbar';
 import { ChatTurn } from './ChatTurn';
 
 interface ChatPanelProps {
@@ -96,6 +97,14 @@ export function ChatPanel({
           {stream.quotaError}
         </Alert>
       )}
+
+      <ChatToolbar
+        turns={turns}
+        scoped={videoId != null}
+        scopeLabel={scopeLabel}
+        busy={stream.busy}
+        onAsk={stream.ask}
+      />
 
       <ChatComposer
         placeholder={hasContent ? `Ask ${scopeLabel}…` : 'Add a lecture first'}

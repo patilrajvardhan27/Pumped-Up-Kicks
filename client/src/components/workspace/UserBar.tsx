@@ -2,14 +2,23 @@
 
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
+import { Button, ButtonLink } from '@/components/ui/Button';
 import { authEnabled } from '@/lib/clerk';
 
 /** Sign-in control. Renders a dev-mode marker when Clerk isn't configured. */
 export function UserBar() {
+  const yourData = (
+    <ButtonLink href="/app/account" variant="tertiary" size="sm">
+      Your data
+    </ButtonLink>
+  );
+
   if (!authEnabled) {
     return (
-      <Badge title="AUTH_MODE=dev: every request acts as the same local user">Dev mode</Badge>
+      <>
+        {yourData}
+        <Badge title="AUTH_MODE=dev: every request acts as the same local user">Dev mode</Badge>
+      </>
     );
   }
 
@@ -23,6 +32,7 @@ export function UserBar() {
         </SignInButton>
       </SignedOut>
       <SignedIn>
+        {yourData}
         <UserButton />
       </SignedIn>
     </>
