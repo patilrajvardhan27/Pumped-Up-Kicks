@@ -25,8 +25,10 @@ from urllib.parse import urlencode
 
 import httpx
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
+from sqlalchemy import delete
 
 from api.config import settings
+from api.models.database import OAuthNonce
 from api.services import net_guard
 
 # Read-only. These are the scopes a school admin ticks on the developer key
@@ -100,9 +102,13 @@ def _state_signature(payload: str) -> str:
     return hmac.new(key, payload.encode("ascii"), hashlib.sha256).hexdigest()
 
 
-def make_state(user_id: str, base_url: str) -> str:
+def new_nonce() -> str:
+    return secrets.token_urlsafe(16)
+
+
+def make_state(user_id: str, base_url: str, nonce: Optional[str] = None) -> str:
     body = json.dumps(
-        {"u": user_id, "b": base_url, "n": secrets.token_urlsafe(12), "e": int(time.time()) + STATE_TTL_SECONDS},
+        {"u": user_id, "b": base_url, "n": nonce or new_nonce(), "e": int(time.time()) + STATE_TTL_SECONDS},
         separators=(",", ":"),
     )
     payload = base64.urlsafe_b64encode(body.encode("utf-8")).decode("ascii").rstrip("=")
@@ -111,6 +117,12 @@ def make_state(user_id: str, base_url: str) -> str:
 
 def read_state(state: str) -> tuple[str, str]:
     """(user_id, base_url) from a state this server signed in the last ten minutes."""
+    user_id, base_url, _ = read_state_with_nonce(state)
+    return user_id, base_url
+
+
+def read_state_with_nonce(state: str) -> tuple[str, str, str]:
+    """(user_id, base_url, nonce) from a state this server signed in the last ten minutes."""
     try:
         payload, signature = (state or "").rsplit(".", 1)
     except ValueError:
@@ -119,12 +131,33 @@ def read_state(state: str) -> tuple[str, str]:
         raise CanvasAuthError("The Canvas sign-in link is not valid. Start again.")
     try:
         body = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
-        user_id, base_url, expires = body["u"], body["b"], int(body["e"])
+        user_id, base_url, nonce, expires = body["u"], body["b"], str(body["n"]), int(body["e"])
     except (ValueError, KeyError, TypeError):
         raise CanvasAuthError("The Canvas sign-in link is not valid. Start again.")
     if expires < time.time():
         raise CanvasAuthError("The Canvas sign-in took too long. Start again.")
-    return user_id, base_url
+    return user_id, base_url, nonce
+
+
+def remember_nonce(db, user_id: str, nonce: str) -> None:
+    """Record a sign-in this server started, and drop the ones that ran out."""
+    now = datetime.now(timezone.utc)
+    db.execute(delete(OAuthNonce).where(OAuthNonce.expires_at < now))
+    db.add(OAuthNonce(nonce=nonce, user_id=user_id, expires_at=now + timedelta(seconds=STATE_TTL_SECONDS)))
+    db.commit()
+
+
+def consume_nonce(db, user_id: str, nonce: str) -> bool:
+    """Delete the nonce and say whether it was there for this user and still fresh. One use only."""
+    now = datetime.now(timezone.utc)
+    db.execute(delete(OAuthNonce).where(OAuthNonce.expires_at < now))
+    consumed = db.execute(
+        delete(OAuthNonce)
+        .where(OAuthNonce.nonce == nonce, OAuthNonce.user_id == user_id)
+        .returning(OAuthNonce.nonce)
+    ).first()
+    db.commit()
+    return consumed is not None
 
 
 # --- OAuth --------------------------------------------------------------------
@@ -144,13 +177,13 @@ def redirect_uri() -> str:
     return settings.public_api_url.rstrip("/") + "/api/canvas/oauth/callback"
 
 
-def authorize_url(user_id: str, base_url: str) -> str:
+def authorize_url(user_id: str, base_url: str, nonce: Optional[str] = None) -> str:
     client = oauth_client(base_url)
     query = urlencode({
         "client_id": client["client_id"],
         "response_type": "code",
         "redirect_uri": redirect_uri(),
-        "state": make_state(user_id, base_url),
+        "state": make_state(user_id, base_url, nonce),
         "scope": " ".join(SCOPES),
     })
     return f"{base_url}/login/oauth2/auth?{query}"

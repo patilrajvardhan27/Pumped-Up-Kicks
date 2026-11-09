@@ -3,7 +3,7 @@ import { ConsentSettingsButton } from '@/components/consent/ConsentBanner';
 import { Wordmark } from '@/components/ui/Wordmark';
 
 const LINK =
-  'inline-flex min-h-10 items-center rounded-sm text-body-xs text-body hover:text-ink hover:underline';
+  'inline-flex min-h-10 items-center rounded-sm text-body-sm text-body hover:text-ink hover:underline';
 
 export function SiteFooter() {
   return (

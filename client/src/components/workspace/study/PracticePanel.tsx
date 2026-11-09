@@ -5,6 +5,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { Input } from '@/components/ui/Input';
+import { SkeletonRows } from '@/components/ui/Skeleton';
 import { SpinnerIcon, TrashIcon } from '@/components/ui/icons';
 import { usePractice } from '@/hooks/useStudy';
 import { cn } from '@/lib/cn';
@@ -42,7 +43,7 @@ export function PracticePanel({ workspaceId, subject, onSeek }: PracticePanelPro
         }}
         className="flex flex-col gap-4"
       >
-        <h2 className="text-display-lg text-ink">Practise {subject}</h2>
+        <h2 className="text-display-md text-ink">Practise {subject}</h2>
 
         <fieldset className="flex flex-wrap items-center gap-2">
           <legend className="sr-only">What to make</legend>
@@ -114,7 +115,7 @@ export function PracticePanel({ workspaceId, subject, onSeek }: PracticePanelPro
       </form>
 
       {practice.loading ? (
-        <p className="text-body-xs text-mute-strong">Loading…</p>
+        <SkeletonRows label="Loading practice sets" rows={2} rowClassName="h-16" />
       ) : (
         practice.sets.map((set, index) => (
           <PracticeSetView
@@ -182,7 +183,7 @@ function Question({ item, number, onSeek }: { item: PracticeItem; number: number
         <span className="font-mono text-code-xs tabular-nums text-mute-strong">{number}.</span> {item.question}
       </p>
       <details className="pl-5">
-        <summary className="inline-flex min-h-8 cursor-pointer items-center text-caption-md text-ink hover:underline">
+        <summary className="inline-flex min-h-8 cursor-pointer items-center text-body-sm-strong text-ink hover:underline">
           Show answer
         </summary>
         <div className="mt-1 flex flex-col items-start gap-2">

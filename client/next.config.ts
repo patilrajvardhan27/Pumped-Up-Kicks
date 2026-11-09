@@ -19,6 +19,16 @@ const clerkOrigin = (key: string | undefined): string | null => {
 };
 
 const api = originOf(process.env.NEXT_PUBLIC_API_URL) ?? 'http://localhost:8000';
+
+// A production build must not talk to its API over plain http: the browser
+// would block it as mixed content and the session token would travel in clear.
+if (process.env.NODE_ENV === 'production') {
+  const { protocol, hostname } = new URL(api);
+  const local = hostname === 'localhost' || hostname === '127.0.0.1';
+  if (protocol === 'http:' && !local && process.env.NEXT_PUBLIC_API_URL) {
+    throw new Error(`NEXT_PUBLIC_API_URL must use https:// in production (got ${api}).`);
+  }
+}
 const clerk = clerkOrigin(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 // Lecture files are uploaded to, and played from, presigned R2 URLs. A custom
 // storage domain can be added with NEXT_PUBLIC_STORAGE_ORIGINS (space separated).

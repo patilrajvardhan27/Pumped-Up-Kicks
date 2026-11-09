@@ -44,9 +44,9 @@ export function TimelineReadout({ index }: { index: number | null }) {
                 {isAnswer ? <AnswerIcon className="size-5" /> : <WaveformIcon className="size-5" />}
               </span>
               <div className="min-w-0">
-                <p className="eyebrow">
+                <p className="flex items-baseline gap-2 text-button-sm text-ink">
                   {isAnswer ? 'The answer' : `Mention ${(index ?? 0) + 1} of ${MENTIONS.length}`}
-                  <span className="ml-2 font-mono tabular-nums">{formatClock(mention.seconds)}</span>
+                  <span className="font-mono text-code-xs tabular-nums text-mute-strong">{formatClock(mention.seconds)}</span>
                 </p>
                 <p className="mt-1 line-clamp-3 text-body-sm text-ink sm:line-clamp-2">
                   &ldquo;{mention.quote}&rdquo;
@@ -59,7 +59,7 @@ export function TimelineReadout({ index }: { index: number | null }) {
                 <DragIcon className="size-5" />
               </span>
               <div className="min-w-0">
-                <p className="eyebrow">Nothing about it here</p>
+                <p className="text-button-sm text-ink">Nothing about it here</p>
                 <p className="mt-1 text-body-sm text-body">
                   Most of an hour is not your answer. Keep dragging, or use the arrow keys.
                 </p>

@@ -26,7 +26,7 @@ export function useStudyGuide(videoId: number) {
         if (!cancelled) setGuide(found);
       })
       .catch((err: unknown) => {
-        if (!cancelled) setError(messageOf(err, 'Could not load the study guide.'));
+        if (!cancelled) setError(messageOf(err, 'Could not load the study guide. Reload the page to try again.'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -66,7 +66,7 @@ export function usePractice(workspaceId: number) {
         if (!cancelled) setSets(items);
       })
       .catch((err: unknown) => {
-        if (!cancelled) setError(messageOf(err, 'Could not load your practice sets.'));
+        if (!cancelled) setError(messageOf(err, 'Could not load your practice sets. Reload the page to try again.'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -103,7 +103,7 @@ export function usePractice(workspaceId: number) {
       await studyService.deletePractice(id);
       setSets((prev) => prev.filter((set) => set.id !== id));
     } catch (err) {
-      setError(messageOf(err, 'Could not delete that set.'));
+      setError(messageOf(err, 'Could not delete that set. Try again.'));
     }
   }, []);
 

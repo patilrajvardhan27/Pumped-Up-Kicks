@@ -3,6 +3,7 @@
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { SkeletonRows } from '@/components/ui/Skeleton';
 import { LibraryIcon } from '@/components/ui/icons';
 import type { VideoInfo, WorkspaceInfo } from '@/types/api';
 import { VideoListItem } from './VideoListItem';
@@ -67,15 +68,15 @@ export function VideoList({
       </div>
 
       {error && (
-        <Alert tone="danger" title="Library" onClose={onClearError}>
+        <Alert tone="danger" onClose={onClearError}>
           {error}
         </Alert>
       )}
 
       {loading ? (
-        <p className="py-6 text-center text-body-xs text-mute-strong">Loading…</p>
+        <SkeletonRows label="Loading lectures" rows={2} rowClassName="h-20" />
       ) : videos.length === 0 ? (
-        <p className="py-6 text-center text-body-xs text-body">
+        <p className="py-6 text-center text-body-sm text-body">
           No lectures here yet. Add one above, or drag one in from another subject.
         </p>
       ) : (

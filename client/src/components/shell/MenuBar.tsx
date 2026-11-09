@@ -12,7 +12,7 @@ interface MenuBarProps {
 export function MenuBar({ children, actions }: MenuBarProps) {
   return (
     <header className="sticky top-0 z-(--z-nav) p-2">
-      <div className="flex h-12 items-center justify-between gap-3 rounded-lg border border-hairline bg-canvas pr-1.5 pl-3">
+      <div className="flex h-12 items-center justify-between gap-3 rounded-md border border-hairline bg-canvas pr-1.5 pl-3">
         <div className="flex min-w-0 items-center gap-4">
           <Wordmark />
           {children}

@@ -87,17 +87,7 @@
   }
 }
 
-/* Uppercase is reserved for eyebrows and category labels. */
-@utility eyebrow {
-  font-size: var(--text-utility-xs);
-  line-height: var(--text-utility-xs--line-height);
-  font-weight: var(--text-utility-xs--font-weight);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-mute-strong);
-}
-
-/* Flat card: white on cream with a thin olive border, never a shadow. */
+/* Flat card: white on the canvas with a 1px border. Only windows and the consent banner carry a shadow. */
 @utility card {
   background-color: var(--color-surface-card);
   border: 1px solid var(--color-hairline);
@@ -118,4 +108,46 @@
     97px 113px,
     151px 139px,
     193px 167px;
+}
+
+/* Reading widths: body copy never runs wider than 65 characters, short intros 52. */
+@utility measure {
+  max-width: var(--measure);
+}
+
+@utility measure-narrow {
+  max-width: var(--measure-narrow);
+}
+
+/*
+ * The sticky workspace panes on large screens: pinned under the menu bar and
+ * as tall as what is left of the viewport. Sidebar and chat card share this.
+ */
+@utility workspace-pane {
+  @media (min-width: 64rem) {
+    position: sticky;
+    top: calc(var(--spacing-nav) + 0.25rem);
+    height: calc(100dvh - var(--spacing-nav) - 1rem);
+  }
+}
+
+/* The mobile sidebar drawer: 20rem, but never more than 88% of a narrow screen. */
+@utility w-drawer {
+  width: min(20rem, 88vw);
+}
+
+/* The dialog box: 36rem wide and 44rem tall at most, with a 1rem margin on small screens. */
+@utility dialog-box {
+  width: min(36rem, calc(100vw - 2rem));
+  max-height: min(44rem, calc(100dvh - 2rem));
+}
+
+/* Keeps the lecture player from taking more than 38% of the screen height. */
+@utility max-h-video {
+  max-height: 38vh;
+}
+
+/* A focus ring drawn inside the element, for targets that clip their own outline. */
+@utility outline-inset {
+  outline-offset: -2px;
 }

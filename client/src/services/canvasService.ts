@@ -15,6 +15,11 @@ class CanvasService {
     return authorize_url;
   }
 
+  /** Trades the one-time code from the Canvas redirect for a saved connection. */
+  async completeSignIn(code: string, state: string): Promise<CanvasStatus> {
+    return apiClient.post<CanvasStatus>(API_ENDPOINTS.CANVAS_OAUTH_COMPLETE, { code, state });
+  }
+
   /** Local development only; the server refuses it unless enabled. */
   async connectWithToken(baseUrl: string, token: string): Promise<CanvasStatus> {
     return apiClient.post<CanvasStatus>(API_ENDPOINTS.CANVAS_TOKEN, { base_url: baseUrl, token });

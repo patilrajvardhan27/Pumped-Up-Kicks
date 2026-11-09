@@ -106,7 +106,7 @@ export function useAskStream({
           remove(key);
         } else {
           update({
-            error: err instanceof Error ? err.message : 'The request did not complete.',
+            error: err instanceof Error ? err.message : 'The answer did not finish. Send the question again.',
             streaming: false,
           });
         }

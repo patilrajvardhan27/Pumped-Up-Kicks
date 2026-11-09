@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
+import { whenTokenReady } from '@/lib/authToken';
+import { claimCompletion, useCanvasReturn } from '@/lib/canvasReturn';
 import { ApiError } from '@/services/api';
 import { canvasService } from '@/services/canvasService';
 import type { CanvasCourse, CanvasStatus, CanvasSyncRequest } from '@/types/api';
@@ -9,6 +11,12 @@ const POLL_MS = 2000;
 
 const messageOf = (err: unknown, fallback: string) =>
   err instanceof ApiError ? err.message : fallback;
+
+/** How the visit ended up after the Canvas sign-in, for the dialog to show. */
+export type CanvasOutcome =
+  | { kind: 'finishing' }
+  | { kind: 'connected' }
+  | { kind: 'denied' | 'invalid' | 'failed' };
 
 const isRunning = (status: CanvasStatus | null) =>
   status?.sync?.stage === 'queued' || status?.sync?.stage === 'syncing';
@@ -49,6 +57,26 @@ export function useCanvas(onSynced?: () => void) {
     };
   }, [reloadCount]);
 
+  // Back from the Canvas sign-in: trade the one-time code once the session token is ready.
+  const returned = useCanvasReturn();
+  const [completion, setCompletion] = useState<CanvasOutcome | null>(null);
+  useEffect(() => {
+    if (returned?.kind !== 'code' || !claimCompletion()) return;
+    whenTokenReady()
+      .then(() => canvasService.completeSignIn(returned.code, returned.state))
+      .then((next) => {
+        setStatus(next);
+        setCompletion({ kind: 'connected' });
+        setReloadCount((count) => count + 1);
+      })
+      .catch((err: unknown) => {
+        const refused = err instanceof ApiError && err.status >= 400 && err.status < 500;
+        setCompletion({ kind: refused ? 'invalid' : 'failed' });
+      });
+  }, [returned]);
+  const outcome: CanvasOutcome | null =
+    completion ?? (returned ? (returned.kind === 'error' ? { kind: returned.error } : { kind: 'finishing' }) : null);
+
   const running = isRunning(status) || polling;
   useEffect(() => {
     if (!running) return;
@@ -72,7 +100,7 @@ export function useCanvas(onSynced?: () => void) {
   /** Sends the browser to the school's Canvas sign-in. */
   const signIn = useCallback(
     async (baseUrl: string) => {
-      const url = await act(() => canvasService.startSignIn(baseUrl), 'Could not start the Canvas sign-in.');
+      const url = await act(() => canvasService.startSignIn(baseUrl), 'Could not start the Canvas sign-in. Try again.');
       if (url) window.location.assign(url);
     },
     [act],
@@ -80,7 +108,7 @@ export function useCanvas(onSynced?: () => void) {
 
   const connectWithToken = useCallback(
     async (baseUrl: string, token: string) => {
-      const next = await act(() => canvasService.connectWithToken(baseUrl, token), 'Could not connect to Canvas.');
+      const next = await act(() => canvasService.connectWithToken(baseUrl, token), 'Could not connect to Canvas. Check the address and token, then try again.');
       if (next) setStatus(next);
       return next !== null;
     },
@@ -89,7 +117,7 @@ export function useCanvas(onSynced?: () => void) {
 
   const sync = useCallback(
     async (request: CanvasSyncRequest = {}) => {
-      const next = await act(() => canvasService.sync(request), 'Could not start the sync.');
+      const next = await act(() => canvasService.sync(request), 'Could not start the sync. Try again.');
       if (next) {
         setStatus(next);
         runningRef.current = true;
@@ -102,7 +130,7 @@ export function useCanvas(onSynced?: () => void) {
 
   const disconnect = useCallback(
     async (deleteMaterial: boolean) => {
-      const done = await act(() => canvasService.disconnect(deleteMaterial), 'Could not disconnect Canvas.');
+      const done = await act(() => canvasService.disconnect(deleteMaterial), 'Could not disconnect Canvas. Try again.');
       if (done) {
         setReloadCount((count) => count + 1);
         onSynced?.();
@@ -114,7 +142,7 @@ export function useCanvas(onSynced?: () => void) {
 
   const clearError = useCallback(() => setError(null), []);
 
-  return { status, error, clearError, busy, signIn, connectWithToken, sync, disconnect };
+  return { status, outcome, error, clearError, busy, signIn, connectWithToken, sync, disconnect };
 }
 
 /** The student's active Canvas courses, loaded when `enabled` turns on and again whenever `version` changes. */
@@ -134,7 +162,7 @@ export function useCanvasCourses(enabled: boolean, version?: string | null) {
         }
       })
       .catch((err: unknown) => {
-        if (!cancelled) setError(messageOf(err, 'Could not load your Canvas courses.'));
+        if (!cancelled) setError(messageOf(err, 'Could not load your Canvas courses. Close this window and open it again.'));
       });
     return () => {
       cancelled = true;

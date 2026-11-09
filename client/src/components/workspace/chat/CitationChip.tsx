@@ -10,7 +10,7 @@ interface CitationChipProps {
 }
 
 const BASE = 'mx-0.5 inline-flex max-w-full items-center gap-1 rounded-sm px-1.5 align-baseline font-mono text-code-xs tabular-nums';
-const LIVE = `${BASE} bg-surface-dark text-on-dark transition-transform hover:text-primary active:scale-95 focus-on-dark`;
+const LIVE = `${BASE} bg-surface-dark text-on-dark transition-transform hover:text-accent-on-dark active:scale-95 focus-on-dark`;
 
 /**
  * A [12:04] citation plays the lecture from that moment. A [Doc 3] citation

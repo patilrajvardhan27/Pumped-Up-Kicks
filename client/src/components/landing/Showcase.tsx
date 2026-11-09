@@ -47,7 +47,7 @@ export function Showcase() {
 
   return (
     <section id="preview" aria-label="Product preview" className="scroll-mt-6 px-4 sm:px-8">
-      <div className="rounded-lg bg-surface-dark p-1.5">
+      <div className="rounded-md bg-surface-dark p-1.5">
         <div role="tablist" aria-label="Preview" onKeyDown={handleKeyDown} className="flex gap-1">
           {TABS.map(({ key, label, Icon }, index) => {
             const selected = index === active;
@@ -66,7 +66,7 @@ export function Showcase() {
                 onClick={() => setActive(index)}
                 className={cn(
                   'relative flex h-11 flex-1 items-center justify-center gap-2 rounded-md px-3 text-button-md focus-on-dark',
-                  selected ? 'text-on-primary' : 'text-on-dark hover:text-primary',
+                  selected ? 'text-on-primary' : 'text-on-dark hover:text-accent-on-dark',
                 )}
               >
                 {selected && (
@@ -100,8 +100,8 @@ export function Showcase() {
               className="flex flex-col gap-5"
             >
               <div className="flex flex-col gap-1">
-                <h2 className="text-display-lg text-ink">{tab.heading}</h2>
-                <p className="max-w-[60ch] text-body-sm text-body">{tab.body}</p>
+                <h2 className="text-display-md text-ink">{tab.heading}</h2>
+                <p className="measure text-body-sm text-body">{tab.body}</p>
               </div>
               {tab.key === 'find' ? <HeroTimeline /> : <ChatPreview />}
             </m.div>

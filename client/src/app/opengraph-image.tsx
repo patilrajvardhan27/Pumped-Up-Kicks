@@ -16,7 +16,8 @@ export default function OpengraphImage() {
   const dark = tokenColor('surface-dark');
   const primary = tokenColor('primary');
   const onPrimary = tokenColor('on-primary');
-  const stone = tokenColor('stone');
+  const tick = tokenColor('mute-on-dark');
+  const needle = tokenColor('accent-on-dark');
 
   return new ImageResponse(
     (
@@ -79,7 +80,7 @@ export default function OpengraphImage() {
             {Array.from({ length: TICKS }, (_, i) => (
               <div
                 key={i}
-                style={{ width: 3, height: i % 6 === 0 ? 64 : 28, background: stone, opacity: 0.5, borderRadius: 2 }}
+                style={{ width: 3, height: i % 6 === 0 ? 64 : 28, background: tick, opacity: 0.5, borderRadius: 2 }}
               />
             ))}
             <div
@@ -89,7 +90,7 @@ export default function OpengraphImage() {
                 top: 0,
                 width: 8,
                 height: 120,
-                background: primary,
+                background: needle,
                 borderRadius: 4,
               }}
             />

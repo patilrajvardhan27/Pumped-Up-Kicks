@@ -12,9 +12,8 @@ import { useVideoLibrary } from '@/hooks/useVideoLibrary';
 import type { VideoPlayerHandle } from '@/hooks/useVideoPlayer';
 import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { useWorkspaceShortcuts } from '@/hooks/useWorkspaceShortcuts';
-import { useCanvasReturn } from '@/lib/canvasReturn';
 import { cn } from '@/lib/cn';
-import { usePersistedString } from '@/lib/persisted';
+import { STORAGE_KEYS, usePersistedString } from '@/lib/persisted';
 import {
   keyOfConversation,
   keyOfVideo,
@@ -44,8 +43,8 @@ import { VideoPlayer } from './video/VideoPlayer';
 
 type Panel = 'chat' | 'guide' | 'practice';
 
-const ACTIVE_KEY = 'puk-active-subject-v1';
-const COLLAPSED_KEY = 'puk-sidebar-collapsed-v1';
+const ACTIVE_KEY = STORAGE_KEYS.activeSubject;
+const COLLAPSED_KEY = STORAGE_KEYS.sidebarCollapsed;
 
 /**
  * The signed-in app: subjects on the left, then the open subject's library and
@@ -74,10 +73,9 @@ export function Workspace() {
   // A finished sync (or a disconnect) can add subjects and material.
   const materialChanged = useCallback(() => setMaterialTrigger((n) => n + 1), []);
   const canvas = useCanvas(materialChanged);
-  const canvasReturn = useCanvasReturn();
   const [canvasOpen, setCanvasOpen] = useState(false);
   const [returnSeen, setReturnSeen] = useState(false);
-  const showCanvas = canvasOpen || (canvasReturn !== null && !returnSeen);
+  const showCanvas = canvasOpen || (canvas.outcome !== null && !returnSeen);
   const openCanvas = useCallback(() => {
     setCanvasOpen(true);
     setDrawerOpen(false);
@@ -293,7 +291,7 @@ export function Workspace() {
             : 'lg:grid-cols-[14rem_minmax(0,18rem)_minmax(0,1fr)] xl:grid-cols-[15rem_minmax(0,22.5rem)_minmax(0,1fr)]',
         )}
       >
-        <div className="hidden min-w-0 lg:sticky lg:top-[calc(var(--spacing-nav)+0.25rem)] lg:block lg:h-[calc(100dvh-var(--spacing-nav)-1rem)]">
+        <div className="hidden min-w-0 workspace-pane lg:block">
           <WorkspaceSidebar {...sidebarProps} collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
         </div>
 
@@ -343,7 +341,7 @@ export function Workspace() {
         <Card
           as="section"
           aria-label="Chat and study"
-          className="flex min-h-[70dvh] min-w-0 flex-col gap-4 p-4 sm:p-6 lg:sticky lg:top-[calc(var(--spacing-nav)+0.25rem)] lg:h-[calc(100dvh-var(--spacing-nav)-1rem)] lg:min-h-0"
+          className="flex min-h-[70dvh] min-w-0 flex-col gap-4 p-4 sm:p-6 lg:min-h-0 workspace-pane"
         >
           <VideoPlayer
             ref={playerRef}
@@ -400,7 +398,7 @@ export function Workspace() {
         onClose={closeCanvas}
         canvas={canvas}
         workspaces={workspaces}
-        returned={returnSeen ? null : canvasReturn}
+        hideOutcome={returnSeen}
       />
     </>
   );

@@ -8,7 +8,7 @@ const PIPELINE = [
     Icon: UploadIcon,
     label: 'Upload',
     detail: 'MP4, MOV, MKV, WEBM, up to 4 GB',
-    body: 'Drop in a recording. A live progress bar shows exactly how much has landed.',
+    body: 'Drop in a recording. A progress bar shows how much has uploaded.',
   },
   {
     id: 'step-transcribe',
@@ -36,7 +36,7 @@ const PIPELINE = [
 export function HowItWorks() {
   return (
     <section id="how" aria-labelledby="how-heading" className="section-y scroll-mt-6 px-4 sm:px-8">
-      <h2 id="how-heading" className="text-display-lg text-ink">
+      <h2 id="how-heading" className="text-display-md text-ink">
         Four steps from recording to answer.
       </h2>
 
@@ -49,7 +49,7 @@ export function HowItWorks() {
           >
             {/* Rail: vertical beside the steps on phones, horizontal above them on desktop. */}
             <div aria-hidden="true" className="flex shrink-0 flex-col items-center md:mb-5 md:flex-row">
-              <span className="flex size-11 items-center justify-center rounded-md bg-surface-dark text-on-dark transition-transform group-hover/step:-translate-y-1 group-hover/step:text-primary">
+              <span className="flex size-11 items-center justify-center rounded-md bg-surface-dark text-on-dark transition-transform group-hover/step:-translate-y-1 group-hover/step:text-accent-on-dark">
                 <Icon className="size-6" />
               </span>
               <span className="w-px flex-1 bg-hairline md:h-px md:w-auto" />

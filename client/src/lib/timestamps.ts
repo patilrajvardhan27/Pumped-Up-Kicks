@@ -7,11 +7,11 @@ const CLOCK = String.raw`\d{1,2}:\d{2}(?::\d{2})?`;
  * course-document citation like [Doc 3].
  *
  * Exactly one capture group, wrapping the whole citation, so String.split()
- * yields alternating text and citation pieces — an inner group would make it
+ * yields alternating text and citation pieces - an inner group would make it
  * emit each timestamp twice.
  */
 export const CITATION_SPLIT = new RegExp(
-  String.raw`(\[(?:${CLOCK}(?:\s*[-–]\s*${CLOCK})?|Doc\s+\d{1,3})\])`,
+  String.raw`(\[(?:${CLOCK}(?:\s*[-\u2013]\s*${CLOCK})?|Doc\s+\d{1,3})\])`,
   'g',
 );
 

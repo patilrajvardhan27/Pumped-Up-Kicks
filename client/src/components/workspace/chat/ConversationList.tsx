@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { IconButton } from '@/components/ui/IconButton';
+import { SkeletonRows } from '@/components/ui/Skeleton';
 import { ChatsIcon, CloseIcon, PlusIcon } from '@/components/ui/icons';
 import { useConversations } from '@/hooks/useConversations';
 import { cn } from '@/lib/cn';
@@ -53,9 +54,9 @@ export function ConversationList({ filter, heading, activeId, refreshTrigger, on
       </div>
 
       {loading ? (
-        <p className="py-4 text-center text-body-xs text-mute-strong">Loading…</p>
+        <SkeletonRows label="Loading chats" rows={3} rowClassName="h-10" />
       ) : conversations.length === 0 ? (
-        <p className="py-4 text-center text-body-xs text-body">
+        <p className="py-4 text-center text-body-sm text-body">
           No chats yet. Ask a question to start one.
         </p>
       ) : (
@@ -79,8 +80,8 @@ export function ConversationList({ filter, heading, activeId, refreshTrigger, on
                     aria-current={active ? 'true' : undefined}
                     title={title}
                     className={cn(
-                      'block max-w-full truncate rounded-sm text-left text-body-xs text-ink after:absolute after:inset-0 after:rounded-md',
-                      active && 'font-bold',
+                      'block max-w-full truncate rounded-sm text-left after:absolute after:inset-0 after:rounded-md',
+                      active ? 'text-body-sm-strong text-ink' : 'text-body-sm text-ink',
                     )}
                   >
                     {title}

@@ -25,7 +25,7 @@ export function useWorkspaces(refreshTrigger?: number) {
         setError(null);
       })
       .catch((err: unknown) => {
-        if (!cancelled) setError(messageOf(err, 'Could not load your subjects.'));
+        if (!cancelled) setError(messageOf(err, 'Could not load your subjects. Reload the page to try again.'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -45,7 +45,7 @@ export function useWorkspaces(refreshTrigger?: number) {
       setError(null);
       return created;
     } catch (err) {
-      setError(messageOf(err, 'Could not create that subject.'));
+      setError(messageOf(err, 'Could not create that subject. Try again.'));
       return null;
     }
   }, []);
@@ -57,7 +57,7 @@ export function useWorkspaces(refreshTrigger?: number) {
       setError(null);
       return true;
     } catch (err) {
-      setError(messageOf(err, 'Could not save that change.'));
+      setError(messageOf(err, 'Could not save that change. Try again.'));
       return false;
     }
   }, []);
@@ -69,7 +69,7 @@ export function useWorkspaces(refreshTrigger?: number) {
       setError(null);
       return true;
     } catch (err) {
-      setError(messageOf(err, 'Could not delete that subject.'));
+      setError(messageOf(err, 'Could not delete that subject. Try again.'));
       return false;
     }
   }, []);
@@ -85,7 +85,7 @@ export function useWorkspaces(refreshTrigger?: number) {
         setError(null);
       } catch (err) {
         setWorkspaces(previous);
-        setError(messageOf(err, 'Could not save the new order.'));
+        setError(messageOf(err, 'Could not save the new order. Try again.'));
       }
     },
     [workspaces],

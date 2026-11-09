@@ -46,7 +46,7 @@ export function AnswerText({ text, sources, onSeek }: AnswerTextProps) {
         }
 
         const label = part.slice(1, -1);
-        const seconds = parseClock(label.split(/[-–]/)[0]);
+        const seconds = parseClock(label.split(/[-\u2013]/)[0]);
         const target = seconds == null ? null : resolveCitation(seconds, sources);
 
         return (

@@ -50,7 +50,7 @@
      exactly the distance the hatch keyframes travel, so the loop is seamless. */
   background-image: repeating-linear-gradient(
     135deg,
-    var(--hatch-color, var(--color-primary)) 0 8.485px,
+    var(--hatch-color, var(--color-accent-on-dark)) 0 8.485px,
     transparent 8.485px 16.97px
   );
 }

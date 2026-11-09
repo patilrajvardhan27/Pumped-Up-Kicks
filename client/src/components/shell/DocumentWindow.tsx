@@ -17,7 +17,7 @@ export function DocumentWindow({ title, children }: DocumentWindowProps) {
       <MenuBar
         actions={
           <ButtonLink href="/app" size="sm" data-track="menubar-open-workspace">
-            Open the workspace
+            Open workspace
           </ButtonLink>
         }
       />

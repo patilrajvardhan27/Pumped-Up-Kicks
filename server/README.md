@@ -1,198 +1,55 @@
-# Pumped Up Kicks — Backend
+# Server
 
-FastAPI service that turns lecture recordings into a searchable, question-answerable corpus.
-
-Four components:
-
-1. **Video processing** — extracts audio and transcribes it with OpenAI Whisper, locally.
-2. **Retrieval** — chunks the transcript, embeds it with sentence-transformers, and stores it in FAISS.
-3. **Answering** — sends only the retrieved excerpts to the Claude API, which answers with timestamp citations.
-4. **Storage** — SQLite for video metadata, chat history, cost accounting, and the answer cache.
-
-Transcription, embedding, and search all run on your machine. The Claude API is the only
-network call, and it only ever sees the handful of excerpts that matched the question — never
-the audio, and never the full transcript.
-
----
-
-## Architecture
-
-```
-                        ┌──────────────────────────┐
-                        │   Next.js client :3000   │
-                        └────────────┬─────────────┘
-                                     │ REST + SSE
-                        ┌────────────▼─────────────┐
-                        │   FastAPI  :8000         │
-                        │  /api/chat  /api/videos  │
-                        └──────┬────────────┬──────┘
-                               │            │
-              ┌────────────────▼───┐   ┌────▼──────────────────┐
-              │ LectureRAGService  │   │  VideoProcessor       │
-              └───┬────────────┬───┘   └────┬──────────────┬───┘
-                  │            │            │              │
-        ┌─────────▼──┐   ┌─────▼───────┐ ┌──▼────────┐ ┌───▼─────────┐
-        │ FAISS      │   │ ClaudeClient│ │ Whisper   │ │ Embeddings  │
-        │ (local)    │   │ → Claude API│ │ (local)   │ │ (local)     │
-        └────────────┘   └─────────────┘ └───────────┘ └─────────────┘
-```
-
-Everything talks to Claude through one file: `src/services/llm/claude_client.py`.
-Model choice, cost accounting, and error messages live there and nowhere else.
-
----
-
-## Setup
-
-### Prerequisites
-
-- Python 3.11+ (3.14 tested)
-- `ffmpeg` — `brew install ffmpeg` on macOS, `apt install ffmpeg` on Debian/Ubuntu
-- A Claude API key — https://console.anthropic.com/settings/keys
-
-### Install
-
-```bash
-cd server
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-First run downloads the Whisper model (~150 MB for `base`) and the embedding model (~90 MB).
-
-### Configure
-
-```bash
-cp .env.example .env
-# then edit .env and set ANTHROPIC_API_KEY
-```
-
-| Variable | Default | What it does |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | — | Required. Without it the API returns a clear "no key" message instead of an answer. |
-| `PUK_CLAUDE_MODEL` | `claude-sonnet-5` | Any Claude model id. `claude-haiku-4-5` is cheaper; `claude-opus-5` is stronger. |
-| `PUK_CLAUDE_EFFORT` | `low` | How much the model thinks: `low` → `max`. Grounded Q&A rarely needs more than `low`. |
-| `PUK_CLAUDE_MAX_TOKENS` | `2000` | Ceiling on answer length. Unused tokens cost nothing. |
-
-The variables are app-prefixed on purpose — bare `CLAUDE_MODEL` / `CLAUDE_EFFORT` are set by
-other tools and would silently override these.
-
-### Run
-
-```bash
-./start_server.sh          # http://localhost:8000, docs at /docs
-```
-
----
-
-## Endpoints
-
-| Method | Path | Purpose |
-|---|---|---|
-| `POST` | `/api/videos/upload` | Multipart upload; queues processing and returns immediately |
-| `GET` | `/api/videos` | List videos with stage and progress |
-| `GET` | `/api/videos/{id}/status` | Lightweight status for polling during processing |
-| `DELETE` | `/api/videos/{id}` | Removes the file, transcript, and vector entries |
-| `POST` | `/api/chat/query` | Ask a question; returns answer, sources, and cost |
-| `POST` | `/api/chat/stream` | Same, streamed as server-sent events |
-| `GET` | `/api/chat/history` | Past questions with per-answer cost |
-| `GET` | `/api/chat/usage` | Running spend, question count, cache-hit rate |
-| `GET` | `/api/chat/health` | Index size, models in use |
-| `GET` | `/health` | Liveness, model name, whether a key is configured |
-
----
-
-## Processing pipeline
-
-An upload moves through four stages, each persisted to the `videos` table so the client can
-poll `/api/videos/{id}/status` and show exactly where it is:
-
-| Stage | Progress | What happens |
-|---|---|---|
-| `queued` | 0% | File written to `data/uploads/`, row created |
-| `transcribing` | 5% | ffprobe reads duration; Whisper produces timestamped segments |
-| `indexing` | 70% | Segments chunked, embedded, appended to the FAISS index |
-| `ready` | 100% | Queryable |
-| `failed` | 100% | `error_message` holds the reason |
-
-Transcription is the slow step — roughly real time to a few times faster than real time on
-CPU, depending on the machine. It runs as a FastAPI background task, so the upload request
-returns as soon as the bytes are on disk.
-
----
-
-## Cost
-
-Only step 4 costs money. A typical question sends ~5 excerpts (2–4k input tokens) and gets
-back a few hundred output tokens.
-
-| Model | Input / output per 1M | Rough cost per question |
-|---|---|---|
-| `claude-haiku-4-5` | $1 / $5 | ~$0.005 |
-| `claude-sonnet-5` | $3 / $15 | ~$0.015 |
-| `claude-opus-5` | $5 / $25 | ~$0.025 |
-
-Three things keep this down, all on by default:
-
-- **Retrieval, not stuffing.** Only matched excerpts are sent, never the whole transcript.
-- **Answer cache.** A repeated question over unchanged content is served from SQLite for $0.
-- **Low effort.** `PUK_CLAUDE_EFFORT=low` — the answer is already in the context.
-
-`GET /api/chat/usage` reports what has actually been spent.
-
----
-
-## CLI
-
-```bash
-# Transcribe a video
-venv/bin/python scripts/transcribe_video.py data/uploads/lecture.mp4
-
-# Index the transcript
-venv/bin/python scripts/generate_embeddings.py data/transcriptions/lecture_segments.json
-
-# Ask a question
-venv/bin/python scripts/query_rag.py --query "what are the limitations?"
-venv/bin/python scripts/query_rag.py --stats
-```
-
----
+FastAPI service that turns lecture recordings and Canvas course material into a searchable, question-answerable corpus. Claude sees only the excerpts that matched a question, never the audio or the full transcript.
 
 ## Layout
 
 ```
 server/
-├── api/
-│   ├── main.py                        # app, CORS, lifespan, /health
-│   ├── models/database.py             # Video, ChatHistory, AnswerCache + migration
-│   ├── routes/chat.py                 # query, stream, history, usage, health
-│   ├── routes/videos.py               # upload, list, status, delete
-│   └── services/
-│       ├── lecture_rag_service.py     # retrieval + Claude, used by the API
-│       └── video_processor.py         # transcription and indexing pipeline
-├── src/services/
-│   ├── llm/claude_client.py           # the only place that calls Claude
-│   ├── embeddings/                    # sentence-transformers + FAISS
-│   ├── transcription/                 # Whisper
-│   ├── video_processing/              # audio extraction
-│   └── rag/claude_rag.py              # CLI-facing RAG over the same index
-├── scripts/                           # transcribe, embed, query
-└── data/
-    ├── uploads/  transcriptions/  faiss_db/  app.db
+  api/
+    main.py         app, middleware (security headers, TrustedHost, CORS, upload limit), /health
+    config.py       every setting, read from the environment and server/.env
+    deps.py         request context: the database session and the signed-in user
+    models/         SQLAlchemy models
+    routes/         chat, videos, workspaces, documents, canvas, study, search
+    services/       claude_client, embedder, indexer, video_processor, storage, auth, canvas_*, quota, ratelimit
+  alembic/          migrations
+  scripts/          transcribe_video.py, the local Whisper subprocess
+  tests/            pytest suite (Postgres with pgvector required)
+  evals/            transcript quality checks, run with the tests
+  modal_app.py      serverless GPU transcription worker
+  start_server.sh   uvicorn with reload on port 8000
 ```
 
----
+All calls to Claude go through `api/services/claude_client.py`.
+
+## Commands
+
+```bash
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt -r requirements-local.txt   # local-only: adds Whisper
+cp .env.example .env                                         # set ANTHROPIC_API_KEY
+alembic upgrade head                                         # create or update the schema
+./start_server.sh                                            # http://localhost:8000
+
+pip install -r requirements-dev.txt
+python -m pytest tests evals                                 # 138 tests
+pip-audit -r requirements.txt                                # dependency audit (pip install pip-audit)
+alembic revision --autogenerate -m "describe the change"     # after changing models
+```
+
+Needs Python 3.12, ffmpeg on the PATH for local transcription, and PostgreSQL 17 with pgvector. Tests use `TEST_DATABASE_URL` (default `kicks_test` on the local server), create and empty it, and skip when Postgres is not running. Nothing in them calls Claude or Canvas.
+
+## Configuration
+
+Copy `.env.example`; every variable is documented there, and [../docs/SETUP.md](../docs/SETUP.md) covers Clerk, R2, Modal, Canvas and production hardening. Locally set `ENV=development`: without it the server runs in production mode and requires `AUTH_MODE=clerk`, Clerk URLs, `ALLOWED_HOSTS` and a real `SECRET_KEY`.
+
+The Claude settings are prefixed `PUK_` (`PUK_CLAUDE_MODEL`, `PUK_CLAUDE_EFFORT`, `PUK_CLAUDE_MAX_TOKENS`) on purpose: bare `CLAUDE_MODEL` and `CLAUDE_EFFORT` are set by other tools and would silently override them.
+
+`GET /health` returns only `{"status": "ok"}` or `"degraded"`. `/docs` and `/openapi.json` exist only with `ENV=development`.
 
 ## Troubleshooting
 
-**"No Claude API key found"** — `.env` is missing or has no `ANTHROPIC_API_KEY`. The server
-prints whether it found a key at startup.
-
-**Answers say nothing is indexed** — check `GET /api/chat/health`; `documents_indexed` should
-be non-zero. If a video shows `ready` but the count is 0, re-run `generate_embeddings.py`.
-
-**Transcription fails immediately** — `ffmpeg` is missing from PATH.
-
-**Processing seems stuck** — Whisper on CPU is slow on long recordings. Watch the server log;
-each stage prints when it starts and finishes.
+- **"No Claude API key found":** `.env` has no `ANTHROPIC_API_KEY`.
+- **Exits at startup with a settings error:** the message names the missing production setting. For local work, set `ENV=development`.
+- **Transcription fails immediately:** ffmpeg is missing from the PATH.

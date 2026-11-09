@@ -38,15 +38,15 @@ export function PipelineTrack({ video }: { video: VideoInfo }) {
               aria-hidden="true"
               className={cn(
                 'relative block h-1.5 overflow-hidden rounded-full',
-                done ? 'bg-accent-green' : active ? 'bg-surface-dark' : 'bg-hairline-soft',
+                done ? 'bg-success' : active ? 'bg-surface-dark' : 'bg-hairline-soft',
               )}
             >
               {active && <span className="hatch-layer animate-hatch" />}
             </span>
             <span
               className={cn(
-                'truncate text-caption-sm',
-                active ? 'font-bold text-ink' : done ? 'text-body' : 'text-mute-strong',
+                'truncate',
+                active ? 'text-button-sm text-ink' : done ? 'text-caption-sm text-body' : 'text-caption-sm text-mute-strong',
               )}
             >
               {step.label}

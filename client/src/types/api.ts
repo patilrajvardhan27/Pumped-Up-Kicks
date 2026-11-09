@@ -30,7 +30,7 @@ export interface Usage {
   cost_usd: number;
 }
 
-export interface Quota {
+interface Quota {
   plan: string;
   spent_usd: number;
   limit_usd: number;
@@ -69,7 +69,7 @@ export type StreamEvent =
     }
   | { type: 'error'; message: string };
 
-export interface MessageItem {
+interface MessageItem {
   id: number;
   role: 'user' | 'assistant';
   content: string;
@@ -97,7 +97,7 @@ export interface ConversationDetail extends ConversationItem {
 }
 
 /** Indexed passages (lectures and imported course material) against the plan's allowance. */
-export interface ContentQuota {
+interface ContentQuota {
   used_chunks: number;
   limit_chunks: number;
   remaining_chunks: number;
@@ -142,7 +142,8 @@ export interface VideoListResponse {
 export interface PresignResponse {
   video_id: number;
   upload_url: string | null;
-  storage_key: string;
+  /** Older servers also send `storage_key`; nothing here reads it. */
+  storage_key?: string;
   method: 'PUT' | 'POST';
 }
 
@@ -197,7 +198,7 @@ export interface WorkspaceDraft {
   icon: WorkspaceIcon;
 }
 
-export type DocumentSource =
+type DocumentSource =
   | 'canvas_file'
   | 'canvas_page'
   | 'canvas_syllabus'
@@ -219,9 +220,9 @@ export interface DocumentInfo {
   updated_at?: string | null;
 }
 
-export type CanvasSyncStage = 'idle' | 'queued' | 'syncing' | 'ready' | 'failed';
+type CanvasSyncStage = 'idle' | 'queued' | 'syncing' | 'ready' | 'failed';
 
-export interface CanvasSyncSummary {
+interface CanvasSyncSummary {
   added: number;
   updated: number;
   unchanged: number;
@@ -230,7 +231,7 @@ export interface CanvasSyncSummary {
   skipped: string[];
 }
 
-export interface CanvasSync {
+interface CanvasSync {
   stage: CanvasSyncStage;
   progress: number;
   detail?: string | null;
@@ -266,7 +267,7 @@ export interface CanvasSyncRequest {
   unlink?: number[];
 }
 
-export interface KeyTerm {
+interface KeyTerm {
   term: string;
   definition: string;
   /** Seconds into the lecture where it is explained, when that could be checked. */

@@ -75,7 +75,7 @@ export function CourseMaterial({ documents }: CourseMaterialProps) {
                 <li key={doc.id} className="flex min-h-9 items-center gap-2 border-b border-hairline-soft last:border-b-0">
                   <Icon className="size-4 text-mute-strong" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-body-xs text-ink">{doc.title}</span>
+                    <span className="block truncate text-body-sm text-ink">{doc.title}</span>
                     <span className="block text-caption-sm text-mute-strong">{detail}</span>
                   </span>
                   {href && (

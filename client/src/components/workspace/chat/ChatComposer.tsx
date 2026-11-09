@@ -13,7 +13,7 @@ interface ChatComposerProps {
 }
 
 /** Mirrors the API's limit, so an over-long question is stopped before it is sent. */
-export const QUESTION_MAX_CHARS = 2000;
+const QUESTION_MAX_CHARS = 2000;
 const WARN_AT = QUESTION_MAX_CHARS - 200;
 
 export function ChatComposer({ placeholder, disabled, busy, onAsk, onStop }: ChatComposerProps) {

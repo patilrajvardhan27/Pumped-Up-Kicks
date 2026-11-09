@@ -107,9 +107,10 @@ export function VideoListItem({
       </div>
 
       {video.stage === 'failed' && video.error_message && (
-        <p className="rounded-sm bg-accent-red-soft p-2.5 font-mono text-code-xs break-words text-ink">
-          {video.error_message}
-        </p>
+        <div className="flex flex-col gap-1 rounded-sm bg-danger-soft p-2.5 text-ink">
+          <p className="text-caption-sm">Processing failed. Delete this lecture and upload it again.</p>
+          <p className="font-mono text-code-xs break-words">{video.error_message}</p>
+        </div>
       )}
     </li>
   );

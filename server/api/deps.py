@@ -3,9 +3,10 @@ Request dependencies.
 
 Deliberately, there is no plain `get_db`. The only way to obtain a session in a
 route is `get_ctx`, which hands back a session *and* the authenticated user
-together — so writing a query with no owner takes effort rather than being the
+together: so writing a query with no owner takes effort rather than being the
 path of least resistance.
 """
+import logging
 from dataclasses import dataclass
 from typing import Generator, Optional
 
@@ -15,6 +16,8 @@ from sqlalchemy.orm import Session
 from api.config import settings
 from api.models.database import User, get_session
 from api.services.auth import AuthError, claims_to_profile, dev_profile, verify_clerk_token
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -43,7 +46,7 @@ def _upsert_user(db: Session, profile: dict) -> User:
         db.add(user)
         db.commit()
         db.refresh(user)
-        print(f"[Auth] Created local user {user.id}")
+        log.info("Created local user %s", user.id)
         return user
 
     # Keep the mirror fresh when the profile changes upstream.
@@ -79,9 +82,10 @@ def get_ctx(
             try:
                 profile = claims_to_profile(verify_clerk_token(token))
             except AuthError as e:
+                log.warning("Rejected session token: %s", e)
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail=str(e),
+                    detail="Session expired or invalid",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 

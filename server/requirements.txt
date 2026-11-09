@@ -5,38 +5,38 @@
 # instead of 2.5 GB. For local transcription, also install requirements-local.txt.
 
 # --- web ---
-fastapi
-uvicorn[standard]
-python-multipart
-pydantic>=2.0
-pydantic-settings
+fastapi>=0.143
+uvicorn[standard]>=0.54
+python-multipart>=0.0.32
+pydantic>=2.14
+pydantic-settings>=2.15
 
 # --- database ---
-sqlalchemy>=2.0
-psycopg[binary]>=3.1
-pgvector>=0.3
-alembic
+sqlalchemy>=2.1
+psycopg[binary]>=3.3
+pgvector>=0.5
+alembic>=1.20
 
 # --- auth ---
-pyjwt[crypto]>=2.8
-httpx
+pyjwt[crypto]>=2.15
+httpx>=0.28
 # Encrypts stored Canvas tokens (Fernet).
-cryptography>=42
+cryptography>=50
 
 # --- Canvas course material ---
-pypdf>=5
+pypdf>=6.20
 python-pptx>=1.0
 python-docx>=1.1
 
 # --- storage (Cloudflare R2 over the S3 API) ---
-boto3
+boto3>=1.43
 
 # --- embeddings: ONNX, no torch ---
-fastembed>=0.4
+fastembed>=0.9
 numpy<2.4,>=1.22
 
 # --- answer generation ---
-anthropic>=0.69.0
+anthropic>=1.13
 
 # --- serverless transcription dispatch ---
-modal
+modal>=1.6.3

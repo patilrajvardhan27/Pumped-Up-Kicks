@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { SkeletonLines, SkeletonRows } from '@/components/ui/Skeleton';
 import { useCanvasCourses, type useCanvas } from '@/hooks/useCanvas';
-import type { CanvasReturn } from '@/lib/canvasReturn';
+import { CANVAS_ERROR_TEXT } from '@/lib/canvasReturn';
 import { formatRelativeTime, pluralise } from '@/lib/format';
 import type { CanvasCourse, CanvasStatus, CanvasSyncRequest, WorkspaceInfo } from '@/types/api';
 
@@ -18,33 +19,34 @@ interface CanvasDialogProps {
   onClose: () => void;
   canvas: Canvas;
   workspaces: WorkspaceInfo[];
-  /** Set when the browser has just come back from the Canvas sign-in. */
-  returned: CanvasReturn | null;
+  /** Hide the result of a Canvas sign-in once the dialog has been closed. */
+  hideOutcome: boolean;
 }
 
 const WHAT_COMES_IN =
   'Files (PDF, PowerPoint and Word), pages, the syllabus, announcements and assignment due dates come into your subjects. Quizzes, grades and submissions never do.';
 
 /** Connect Canvas, choose which course feeds which subject, sync, disconnect. */
-export function CanvasDialog({ open, onClose, canvas, workspaces, returned }: CanvasDialogProps) {
+export function CanvasDialog({ open, onClose, canvas, workspaces, hideOutcome }: CanvasDialogProps) {
   const { status } = canvas;
+  const outcome = hideOutcome ? null : canvas.outcome;
 
   return (
     <Dialog open={open} onClose={onClose} title="Canvas">
       <div className="flex flex-col gap-5">
-        {returned?.outcome === 'connected' && status?.connected && (
+        {outcome?.kind === 'finishing' && (
+          <Alert tone="info" title="Finishing the Canvas sign-in">
+            This takes a moment.
+          </Alert>
+        )}
+        {outcome?.kind === 'connected' && (
           <Alert tone="success" title="Canvas connected">
             Choose which courses to import, then sync.
           </Alert>
         )}
-        {returned?.outcome === 'denied' && (
-          <Alert tone="info" title="Canvas wasn't connected">
-            You didn&rsquo;t allow access in Canvas. Nothing was imported.
-          </Alert>
-        )}
-        {returned?.outcome === 'error' && (
-          <Alert tone="danger" title="Canvas wasn't connected">
-            {returned.reason || 'The sign-in did not complete. Try again.'}
+        {outcome && (outcome.kind === 'denied' || outcome.kind === 'invalid' || outcome.kind === 'failed') && (
+          <Alert tone={CANVAS_ERROR_TEXT[outcome.kind].tone} title={CANVAS_ERROR_TEXT[outcome.kind].title}>
+            {CANVAS_ERROR_TEXT[outcome.kind].text}
           </Alert>
         )}
         {canvas.error && (
@@ -54,7 +56,7 @@ export function CanvasDialog({ open, onClose, canvas, workspaces, returned }: Ca
         )}
 
         {status === null ? (
-          <p className="text-body-xs text-mute-strong">Loading…</p>
+          <SkeletonLines label="Loading Canvas" lines={3} />
         ) : status.connected ? (
           <Connected status={status} canvas={canvas} workspaces={workspaces} open={open} />
         ) : (
@@ -113,7 +115,7 @@ function Connect({ status, canvas }: { status: CanvasStatus; canvas: Canvas }) {
 
       {status.personal_tokens_allowed && (
         <details className="rounded-md border border-hairline bg-surface-card p-4">
-          <summary className="text-caption-md text-ink">Use a personal access token (local development)</summary>
+          <summary className="text-body-sm-strong text-ink">Use a personal access token (local development)</summary>
           <form
             onSubmit={async (event) => {
               event.preventDefault();
@@ -206,28 +208,28 @@ function Connected({
   return (
     <>
       <p className="text-body-sm text-body">
-        Connected to <span className="font-bold text-ink">{status.base_url?.replace('https://', '')}</span>
+        Connected to <span className="text-body-sm-strong text-ink">{status.base_url?.replace('https://', '')}</span>
         {status.auth_type === 'personal_token' ? ' with a development token.' : '.'} {WHAT_COMES_IN}
       </p>
 
       <SyncState status={status} />
 
       <section aria-labelledby={`${id}-courses`} className="flex flex-col gap-3">
-        <h3 id={`${id}-courses`} className="text-caption-md text-ink">
+        <h3 id={`${id}-courses`} className="text-body-sm-strong text-ink">
           Your courses this term
         </h3>
         {error ? (
           <Alert tone="danger">{error}</Alert>
         ) : courses === null ? (
-          <p className="text-body-xs text-mute-strong">Loading your courses…</p>
+          <SkeletonRows label="Loading your courses" rows={3} rowClassName="h-12" />
         ) : courses.length === 0 ? (
-          <p className="text-body-xs text-body">Canvas lists no active courses where you are a student.</p>
+          <p className="text-body-sm text-body">Canvas lists no active courses where you are a student.</p>
         ) : (
           <ul className="flex flex-col divide-y divide-hairline-soft rounded-md border border-hairline bg-surface-card">
             {courses.map((course) => (
               <li key={course.id} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
                 <label htmlFor={`${id}-course-${course.id}`} className="min-w-0">
-                  <span className="block truncate text-body-xs text-ink">{course.name}</span>
+                  <span className="block truncate text-body-sm text-ink">{course.name}</span>
                   {course.term && <span className="block text-caption-sm text-mute-strong">{course.term}</span>}
                 </label>
                 <select
@@ -256,14 +258,14 @@ function Connected({
       </section>
 
       <section aria-labelledby={`${id}-disconnect`} className="flex flex-col gap-3 border-t border-hairline-soft pt-5">
-        <h3 id={`${id}-disconnect`} className="text-caption-md text-ink">
+        <h3 id={`${id}-disconnect`} className="text-body-sm-strong text-ink">
           Disconnect
         </h3>
-        <p className="text-body-xs text-body">
+        <p className="text-body-sm text-body">
           Deletes the stored Canvas sign-in. Your subjects stay; imported material stays too unless you
           choose otherwise.
         </p>
-        <label className="flex items-center gap-2 text-body-xs text-ink">
+        <label className="flex items-center gap-2 text-body-sm text-ink">
           <input
             type="checkbox"
             checked={deleteMaterial}
@@ -295,7 +297,7 @@ function Connected({
 function SyncState({ status }: { status: CanvasStatus }) {
   const sync = status.sync;
   if (!sync || sync.stage === 'idle') {
-    return <p className="text-body-xs text-mute-strong">Nothing imported yet.</p>;
+    return <p className="text-body-sm text-mute-strong">Nothing imported yet.</p>;
   }
 
   if (sync.stage === 'queued' || sync.stage === 'syncing') {
@@ -318,7 +320,7 @@ function SyncState({ status }: { status: CanvasStatus }) {
   const summary = sync.summary;
   return (
     <div className="flex flex-col gap-2 rounded-md border border-hairline bg-surface-card p-4" aria-live="polite">
-      <p className="text-body-xs text-ink">
+      <p className="text-body-sm text-ink">
         Synced {sync.finished_at ? formatRelativeTime(sync.finished_at) : 'just now'}.
       </p>
       {summary && (

@@ -4,7 +4,7 @@ Postgres schema. Users own workspaces (one per subject), videos and documents
 conversations own messages; messages cite chunks. A video, document or
 conversation with no workspace is shown as "Unsorted".
 
-Every user-facing read filters on user_id — see api/deps.py, which is the only
+Every user-facing read filters on user_id: see api/deps.py, which is the only
 place a request-scoped session is handed out.
 """
 from datetime import datetime
@@ -352,6 +352,22 @@ class CanvasConnection(Base):
         return f"<CanvasConnection(user={self.user_id!r}, base_url={self.base_url!r})>"
 
 
+class OAuthNonce(Base):
+    """
+    A Canvas sign-in the server started and has not finished. The signed state
+    carries the nonce; finishing the sign-in deletes the row, so a state works
+    once, and only for the user it was issued to.
+    """
+
+    __tablename__ = "oauth_nonces"
+
+    nonce = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (Index("ix_oauth_nonces_expires", "expires_at"),)
+
+
 class Chunk(Base):
     """
     A passage with its embedding, from exactly one lecture (with timestamps) or
@@ -512,7 +528,7 @@ class MessageSource(Base):
 
 
 class AnswerCache(Base):
-    """Scoped per user — a global cache would serve one student's answer to
+    """Scoped per user: a global cache would serve one student's answer to
     another. The key also carries the conversation's scope, so an answer
     cached in one subject is never served in another (see
     LectureRAGService.cache_key)."""

@@ -29,7 +29,10 @@ from sqlalchemy.exc import OperationalError
 
 SERVER_DIR = Path(__file__).resolve().parent.parent
 
-import api.services.lecture_rag_service  # noqa: E402,F401  (puts server/src on sys.path)
+# Settings are read at import. server/conftest.py does this under pytest.
+os.environ.setdefault("ENV", "development")
+os.environ.setdefault("AUTH_MODE", "dev")
+
 from api.config import settings  # noqa: E402
 from api.deps import RequestContext, _upsert_user, get_ctx  # noqa: E402
 from api.main import app  # noqa: E402
@@ -197,7 +200,7 @@ class FakeClaude:
         yield {"type": "done", "text": self.reply, "usage": dict(self.USAGE)}
 
     def complete(self, system, user, max_tokens: Optional[int] = None):
-        from services.llm.claude_client import ClaudeUsage
+        from api.services.claude_client import ClaudeUsage
 
         self.prompts.append(user)
         usage = ClaudeUsage(**{k: v for k, v in self.USAGE.items() if k != "cost_usd"})
@@ -206,7 +209,7 @@ class FakeClaude:
 
 
 def install_fakes() -> None:
-    import services.embeddings.embedder as embedder_module
+    import api.services.embedder as embedder_module
 
     from api.routes import videos as videos_module
 

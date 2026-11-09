@@ -9,19 +9,13 @@ cheaper and more accurate than the old three-segment grouping.
 Document chunks are built the same way from characters instead of seconds, and
 never cross a page or slide, so every chunk can be cited by its page number.
 """
-import sys
-from pathlib import Path
 from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-SERVER_DIR = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(SERVER_DIR / "src"))
-
-from services.embeddings.embedder import get_embedder  # noqa: E402
-
-from api.config import settings  # noqa: E402
-from api.models.database import Chunk, Document  # noqa: E402
+from api.config import settings
+from api.models.database import Chunk, Document
+from api.services.embedder import get_embedder
 
 # ~75 seconds of speech is roughly a paragraph of explanation: long enough to
 # stand alone, short enough to stay on one topic.
@@ -97,7 +91,7 @@ def index_transcript(
     """
     Embed a transcript and store it. Returns the number of chunks written.
 
-    Deleting by video_id is a normal indexed DELETE here — under FAISS this
+    Deleting by video_id is a normal indexed DELETE here: under FAISS this
     meant rebuilding the entire index from scratch.
     """
     if replace:
@@ -185,11 +179,3 @@ def index_document(db: Session, document: Document, pages) -> int:
     db.commit()
     return len(pieces)
 
-
-def load_segments_file(path: Path) -> Optional[List[Dict]]:
-    import json
-
-    if not path.exists():
-        return None
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f).get("segments", [])
