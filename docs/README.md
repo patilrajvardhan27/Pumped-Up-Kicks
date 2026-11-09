@@ -4,6 +4,21 @@
 
 Upload a recorded lecture and ask in plain English. Every claim in the answer links to a timestamp like `[12:04]`, and clicking it jumps the video there. Answers come only from your own lectures. If the lecture didn't cover it, it says so.
 
+## What you can do with it
+
+| | |
+|---|---|
+| **Ask anything** | Type a question; the answer links each claim to the second it was said. |
+| **Revision notes** | One click: topic-by-topic notes for a whole lecture, every bullet timestamped. |
+| **Key terms** | Every definition, formula and named idea, in the lecturer's words. |
+| **Quiz me** | Five practice questions with answers and where to rewatch. |
+| **Transcript** | Read and search the whole lecture; click any line to jump the video there. |
+| **Download notes** | Save any chat as Markdown for Notion, Obsidian or a revision doc. |
+| **Your data** | Download everything, or delete your account, from inside the app. |
+
+Repeat questions and study tools are served from your history for free, and a
+meter shows how much of the monthly allowance is left.
+
 ---
 
 ## Architecture
@@ -148,7 +163,7 @@ Plus `answer_cache` (cache key, answer, hit count). All foreign keys cascade on 
 
 | | |
 |---|---|
-| **Frontend** | Next.js 15, React 18, TypeScript, Tailwind CSS, SSE |
+| **Frontend** | Next.js 16, React 19, TypeScript, Tailwind CSS 4, SSE |
 | **API** | FastAPI, Pydantic v2, SQLAlchemy 2.0, Alembic |
 | **Retrieval** | PostgreSQL 17, pgvector (HNSW), fastembed, all-MiniLM-L6-v2 |
 | **Transcription** | faster-whisper on Modal (A10G) or local Whisper, ffmpeg |
@@ -183,11 +198,36 @@ cd client && npm install && npm run dev
 
 ---
 
+## Security and privacy
+
+- **Sessions:** Clerk JWTs checked for signature, expiry, issuer and authorized party; 30-minute idle sign-out shared across tabs; sign-out revokes the session server-side.
+- **API:** every route except `/health` requires a session, and every fetch by id goes through one owner check (`deps.owned`), returning 404 for anyone else's data. List sizes are bounded, and costly routes are rate limited and quota checked.
+- **Transport:** HSTS, https redirect and CSP in production; the API sends `nosniff`, `no-store` and frame denial on every response, and accepts no cookies.
+- **Errors:** users see a plain sentence and a reference id; details go only to the server log.
+- **Uploads:** extension allowlist, content type chosen by the server, size re-checked after upload.
+- **Dependencies:** audited lower bounds with major caps, CI audits on every push, weekly Dependabot.
+- **Policies:** privacy, terms, acceptable use and academic integrity, cookies, security and `security.txt`.
+
+Production settings and the launch checklist are in [SETUP.md](SETUP.md).
+
+---
+
+## Tests
+
+```bash
+cd server && python -m pytest        # unit tests, no database needed
+cd client && npm run lint && npm run build
+```
+
+---
+
 ## Known limits
 
-- Jobs run in FastAPI `BackgroundTasks`, so a restart loses in-flight work. Next: Redis + RQ.
+- Jobs run in FastAPI `BackgroundTasks`, so a restart loses in-flight work. Next: a Postgres-backed queue.
 - Filtered HNSW recall drops as tenants grow. Next: `hnsw.iterative_scan` (pgvector 0.8+).
-- English only. No full transcript view yet.
+- Rate limits are per API process, so they multiply with replicas. Next: Redis.
+- Tenant isolation is enforced in every query, not yet by Postgres row-level security.
+- English only. Study tools send up to 30k tokens of transcript, so very long lectures are truncated.
 
 ---
 

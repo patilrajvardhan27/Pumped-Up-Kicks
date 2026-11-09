@@ -1,19 +1,16 @@
-# What you need to do
+# Setup
 
-Steps 01–07 of the production plan are implemented. Everything below is the part
-that needs *your* accounts, keys, and card details — I can't create those.
-
-The app runs locally today with only **step 1** done. Steps 2–6 are for going live.
+Section 1 is all you need to develop locally. Sections 2–6 take the app to
+production, and section 6 is the security checklist to finish before anyone
+else signs in.
 
 ---
 
 ## 1. Run it locally (15 minutes)
 
-This is the only section you need to keep developing.
-
 ### Postgres with pgvector
 
-The app no longer uses SQLite. It needs Postgres 17+ with the `vector` extension.
+The app needs Postgres 17+ with the `vector` extension.
 
 ```bash
 brew install postgresql@17 pgvector
@@ -22,15 +19,7 @@ createdb kicks_dev
 psql -d kicks_dev -c "create extension vector;"
 ```
 
-> **Already done on this machine.** I installed `postgresql@17` and `pgvector`,
-> started the service, created `kicks_dev` with the extension enabled, and ran the
-> migrations. `server/.env` already points at it. You only need to add your
-> Anthropic key.
->
-> Note: `pgvector` has no build for `postgresql@14`, which is why this uses 17.
-> Your `postgresql@14` service was stopped so the two don't fight over port 5432 —
-> if you need it back, stop 17 first (`brew services stop postgresql@17`), since
-> only one can hold the port.
+If an older Postgres already holds port 5432, stop it first.
 
 ### Backend
 
@@ -40,11 +29,12 @@ python3 -m venv venv && source venv/bin/activate
 
 pip install -r requirements.txt              # API only
 pip install -r requirements-local.txt        # + Whisper, for local transcription
+pip install -r requirements-dev.txt          # + tests and pip-audit
 
 cp .env.example .env
 ```
 
-Edit `server/.env` and set two things:
+Edit `server/.env` and set:
 
 | Variable | Value |
 |---|---|
@@ -54,8 +44,9 @@ Edit `server/.env` and set two things:
 Then create the schema and start it:
 
 ```bash
-alembic upgrade head    # already run against kicks_dev
+alembic upgrade head
 ./start_server.sh
+python -m pytest            # optional: the test suite needs no database
 ```
 
 ### Frontend
@@ -66,23 +57,27 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. With `AUTH_MODE=dev` there's no sign-in — every
-request acts as one built-in user. The header shows a **DEV MODE** chip so you
-can't ship that by accident.
+Open http://localhost:3000. With `AUTH_MODE=dev` there's no sign-in: every
+request acts as one built-in user, and the header shows a **Dev mode** chip so
+it can't ship by accident.
 
 ### Set a spend cap now
 
-In the Anthropic Console → Limits, set a monthly cap. Do this before anything is
-reachable from outside your laptop.
+In the Anthropic Console → Limits, set a monthly cap before anything is
+reachable from outside your machine.
 
 ---
 
-## 2. Auth — Clerk (30 minutes)
+## 2. Auth with Clerk (30 minutes)
 
 1. Create an application at https://dashboard.clerk.com.
-2. Copy the **publishable key** and **secret key**.
-3. In the JWT template, make sure `email` is included in the session token claims —
-   otherwise users get a placeholder address (the app still works).
+2. Copy the **publishable key**.
+3. In the session token claims, include `email`; otherwise users get a
+   placeholder address (the app still works).
+4. **Sessions → Session lifetime**: set *Inactivity timeout* to 30 minutes and a
+   *Maximum lifetime* that suits you (7 days is reasonable). The client also
+   signs out after 30 idle minutes on its own (`NEXT_PUBLIC_IDLE_TIMEOUT_MINUTES`),
+   but the dashboard setting enforces it server-side.
 
 `client/.env.local`:
 ```
@@ -95,33 +90,44 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 AUTH_MODE=clerk
 CLERK_JWKS_URL=https://<your-app>.clerk.accounts.dev/.well-known/jwks.json
 CLERK_ISSUER=https://<your-app>.clerk.accounts.dev
+CLERK_AUTHORIZED_PARTIES=http://localhost:3000
 ```
 
-The client detects the publishable key and turns on the sign-in UI by itself. With
-no key it stays in dev mode, so local development keeps working.
+The client turns on the sign-in UI when it sees the publishable key. With no key
+it stays in dev mode.
 
-**Backfill your existing rows** — anything created in dev mode belongs to
-`dev_user`. Once you know your real Clerk id:
+**Moving dev-mode rows to a real account.** Anything created in dev mode belongs
+to `dev_user`. Once you know your Clerk id:
 
 ```sql
 update users set id = 'user_xxx' where id = 'dev_user';
 ```
 
-The foreign keys cascade, so videos, chunks, and conversations follow.
+The foreign keys cascade, so videos, chunks and conversations follow.
+
+### How sessions work
+
+| Concern | Where it is handled |
+|---|---|
+| Cookie flags | Clerk sets them. Its long-lived `__client` cookie lives on Clerk's domain and is `HttpOnly`, `Secure`. The app-domain `__session` cookie is readable by scripts by design, but it is a JWT that expires after ~60 seconds. The API never reads cookies: it takes a bearer token, so CSRF does not apply. |
+| Inactivity timeout | Clerk dashboard (server-side) plus `useIdleSignOut` (client-side, shared across tabs). |
+| Logout | `signOut()` revokes the session at Clerk; outstanding tokens die within a minute. |
+| Session fixation | Clerk issues a new session id on every sign-in. |
+| Token checks | `api/services/auth.py`: RS256 signature, `exp`, `iat`, `sub`, issuer, and `azp` against `CLERK_AUTHORIZED_PARTIES`. |
 
 ---
 
-## 3. Storage — Cloudflare R2 (20 minutes)
+## 3. Storage with Cloudflare R2 (20 minutes)
 
 1. Cloudflare dashboard → R2 → create a bucket, e.g. `kicks-lectures`.
-2. Create an **R2 API token** with object read/write.
+2. Create an **R2 API token** with object read/write on that bucket only.
 3. Add CORS on the bucket so the browser can PUT directly:
 
 ```json
 [{
   "AllowedOrigins": ["http://localhost:3000", "https://your-domain.com"],
   "AllowedMethods": ["PUT", "GET", "HEAD"],
-  "AllowedHeaders": ["*"],
+  "AllowedHeaders": ["Content-Type"],
   "ExposeHeaders": ["ETag"],
   "MaxAgeSeconds": 3600
 }]
@@ -136,37 +142,24 @@ R2_SECRET_ACCESS_KEY=...
 R2_BUCKET=kicks-lectures
 ```
 
-With `r2`, the browser uploads straight to the bucket and your API never handles
-the bytes. With `local` it falls back to posting through the API — the client
-handles both without a code change.
+With `r2`, the browser uploads straight to the bucket and the API never handles
+the bytes. The server picks the upload's content type from the file extension,
+and `/complete` measures the stored object and deletes it if it is over the
+size limit.
 
-**The CORS block is the step people forget.** Without it uploads fail in the
+**The CORS block is the step people forget.** Without it, uploads fail in the
 browser with an opaque network error while `curl` works fine.
 
 ---
 
-## 4. Transcription — Modal (30 minutes)
+## 4. Transcription on Modal (30 minutes)
 
 ```bash
 pip install modal
 modal setup                      # opens a browser to authenticate
-```
-
-Create the secret the worker reads (same R2 credentials as above):
-
-```bash
 modal secret create kicks-r2 \
-  R2_ACCOUNT_ID=... \
-  R2_ACCESS_KEY_ID=... \
-  R2_SECRET_ACCESS_KEY=... \
-  R2_BUCKET=kicks-lectures
-```
-
-Deploy and switch over:
-
-```bash
-cd server
-modal deploy modal_app.py
+  R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... R2_BUCKET=kicks-lectures
+cd server && modal deploy modal_app.py
 ```
 
 `server/.env`:
@@ -175,52 +168,57 @@ TRANSCRIBE_BACKEND=modal
 MODAL_APP_NAME=kicks-transcribe
 ```
 
-Costs about four cents per 60-minute lecture and nothing when idle. Once this is
-on, the API container no longer needs Whisper or torch — deploy it with
-`requirements.txt` only, and the image drops from ~2.5 GB to ~300 MB.
-
-**If you'd rather ship sooner:** a transcription API (Deepgram) is ~10 lines and
-gives speaker labels, at ~$0.36 per lecture instead of $0.04. Swap
-`transcribe_modal()` in `api/services/video_processor.py` — nothing else changes.
+About four cents per 60-minute lecture and nothing when idle. The API container
+then needs only `requirements.txt`, and the image drops from ~2.5 GB to ~300 MB.
 
 ---
 
 ## 5. Deploy (1–2 hours)
 
-**Database — Neon.** Create a project at https://neon.tech, run
-`create extension vector;` once, then point `DATABASE_URL` at it. Change the
-driver prefix Neon gives you to `postgresql+psycopg://`. Run
-`alembic upgrade head` against it.
+**Database: Neon.** Create a project at https://neon.tech, run
+`create extension vector;` once, then point `DATABASE_URL` at it with the
+`postgresql+psycopg://` driver prefix. Run `alembic upgrade head` against it.
 
-**API — Railway.** New project from the repo, root directory `server`.
+**API: Railway.** New project from the repo, root directory `server`.
 
 ```
 Build:  pip install -r requirements.txt
-Start:  uvicorn api.main:app --host 0.0.0.0 --port $PORT
+Start:  uvicorn api.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
 ```
 
-Set every variable from `server/.env` in Railway's dashboard, and add your
-frontend's URL to `CORS_ORIGINS`.
+Set every variable from `server/.env` in the dashboard, plus `ENVIRONMENT=production`.
+Production mode refuses to start with dev auth, a default `SECRET_KEY`, missing
+Clerk settings or non-https CORS origins, and it turns on HSTS, an https
+redirect, generic error messages and hides `/docs`.
 
-**Frontend — Vercel.** Import the repo, root directory `client`. Set
-`NEXT_PUBLIC_API_URL` to the Railway URL and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`.
+**Frontend: Vercel.** Import the repo, root directory `client`. Set
+`NEXT_PUBLIC_API_URL` (https), `NEXT_PUBLIC_SITE_URL`,
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NEXT_PUBLIC_OPERATOR_NAME` and
+`NEXT_PUBLIC_CONTACT_EMAIL`.
 
 **Migrations on deploy.** Run `alembic upgrade head` as a release command, not at
-app startup — two containers booting at once would race.
+app startup: two containers booting at once would race.
 
 ---
 
 ## 6. Before you let anyone in
 
-- [ ] `AUTH_MODE=clerk` — confirm the DEV MODE chip is gone from the header
-- [ ] Spend cap set in the Anthropic Console
-- [ ] `FREE_PLAN_MONTHLY_USD` tuned (default $1.00 ≈ 78 questions on Sonnet)
-- [ ] Sign up as a second user and confirm you cannot see the first user's lectures
-- [ ] `CORS_ORIGINS` lists only your real frontend domain
-- [ ] `SECRET_KEY` set to a real random value — it signs playback URLs, and the
-      default lets anyone mint a link to any lecture:
+- [ ] `ENVIRONMENT=production` on the API, and it starts cleanly
+- [ ] The **Dev mode** chip is gone from the header
+- [ ] Clerk inactivity timeout set to 30 minutes
+- [ ] `CLERK_AUTHORIZED_PARTIES` lists only the real frontend origin
+- [ ] `CORS_ORIGINS` lists only the real frontend origin
+- [ ] `SECRET_KEY` is a real random value (it signs playback URLs):
       `python -c "import secrets;print(secrets.token_urlsafe(32))"`
-- [ ] Neon backups on (the $19 plan; the free tier's history is short)
+- [ ] Spend cap set in the Anthropic Console
+- [ ] `FREE_PLAN_MONTHLY_USD` tuned (default $1.00; a study tool costs roughly
+      $0.05–0.15, a typed question about $0.01)
+- [ ] Sign up as a second user and confirm you cannot see the first user's lectures
+- [ ] `NEXT_PUBLIC_OPERATOR_NAME` and `NEXT_PUBLIC_CONTACT_EMAIL` set, so the legal
+      pages and `/.well-known/security.txt` name a real contact
+- [ ] Have the privacy policy, terms and acceptable use policy reviewed by someone
+      qualified for your country before charging anyone
+- [ ] Neon backups on (the paid plan; the free tier's history is short)
 
 ---
 
@@ -228,102 +226,24 @@ app startup — two containers booting at once would race.
 
 | Service | Monthly |
 |---|---|
-| Claude API | $17–32 |
+| Claude API | $17–40 (more if study tools are heavily used) |
 | Modal | ~$8 |
 | Cloudflare R2 | ~$4 |
 | Railway | $5–10 |
 | Neon | $0–19 |
 | Clerk / Vercel | $0 |
-| **Total** | **$34–73** |
-
----
-
-## What changed in the code
-
-### New
-
-| Path | Purpose |
-|---|---|
-| `server/alembic/` | Migrations. `alembic revision --autogenerate -m "..."` after model changes |
-| `server/api/config.py` | All settings in one place, read from `.env` |
-| `server/api/deps.py` | `get_ctx` — the only way to get a DB session, and it always carries the user |
-| `server/api/services/auth.py` | Clerk JWT verification |
-| `server/api/services/storage.py` | R2 / local backends behind one interface |
-| `server/api/services/indexer.py` | Chunking and embedding into pgvector |
-| `server/api/services/quota.py` | Monthly spend limits |
-| `server/modal_app.py` | The serverless GPU transcription worker |
-| `server/src/services/embeddings/embedder.py` | fastembed (ONNX) — replaces sentence-transformers |
-| `server/api/services/signing.py` | HMAC-signed playback URLs, so a `<video>` tag can stream a private lecture |
-| `client/src/components/VideoPlayer.tsx` | The player, with a scrubber that marks cited passages |
-| `client/src/lib/timestamps.ts` | Parses `[12:04]` citations and resolves them to a lecture |
-| `client/src/components/ConversationList.tsx` | Per-lecture chat threads |
-| `client/src/components/Providers.tsx`, `AuthBridge.tsx`, `UserBar.tsx` | Clerk wiring |
-
-### Deleted
-
-All of this was dead once retrieval moved to pgvector:
-
-- `src/services/embeddings/vector_store.py` — the FAISS index
-- `src/services/embeddings/embedding_generator.py` — sentence-transformers/torch
-- `src/services/rag/` — `rag_pipeline.py` and `claude_rag.py`, both FAISS-based
-- `scripts/generate_embeddings.py`, `scripts/query_rag.py` — FAISS CLI tools
-- `api/compat.py` — a ChromaDB/Pydantic shim for a dependency that's long gone
-
-### Safe to delete by hand
-
-Leftover data from the FAISS era, which nothing reads any more:
-
-```bash
-rm -rf server/data/chroma_db server/data/faiss_db server/data/app.db
-```
-
-`app.db` is the old SQLite database — nothing reads it now that everything is in
-Postgres. It's still tracked by git, so to stop it showing up in diffs:
-
-```bash
-git rm --cached server/data/app.db
-```
-
-There's also an orphaned upload at
-`server/data/uploads/WhatsApp Video 2026-03-04 at 11.01.18.mp4` with no database
-row behind it. Re-upload it through the UI if you want it indexed, or delete it.
-
-I left all of these alone because they're your data, not code.
+| **Total** | **$34–81** |
 
 ---
 
 ## Things worth knowing
 
-**`Video.filename` is now unique per user, not globally.** Two students can both
-upload `lecture1.mp4`. This was a hard blocker before.
-
 **Retrieval filters by owner inside the vector search.** `WHERE chunks.user_id = ...`
-runs as part of the query — the thing a FAISS file structurally could not do.
-I verified two users with identically-named lectures and overlapping content
-retrieve only their own.
+runs as part of the query, and `api/deps.py:owned()` is the single place a row
+is fetched by id for the signed-in user.
 
-**Citations are stored, not just rendered.** `message_sources` links each answer
-to the chunks behind it, so the timestamp strip comes back after a reload.
-
-**Chunks got bigger.** ~75 seconds with 18 seconds of overlap, instead of three
-Whisper segments (~20s). Fewer, more complete excerpts per answer — cheaper and
-more accurate.
-
-**Playback is authenticated by the URL, not a header.** A `<video>` element
-can't send `Authorization`, so `/playback` returns a short-lived HMAC-signed
-link — the same idea as an R2 presigned URL, implemented for the local backend.
-On R2 it returns a real presigned URL instead. Both support HTTP range requests,
-which is what makes seeking work.
+**Study tools read the whole lecture** (up to `STUDY_CONTEXT_TOKENS`), keep only
+the passages the answer cites, and are cached per lecture, so a second click is free.
 
 **`PUK_` prefixes are deliberate.** Bare `CLAUDE_MODEL` / `CLAUDE_EFFORT` are set
-by other tools and were silently overriding the app's settings.
-
----
-
-## Not done
-
-- **Haiku routing and the reranker** from the cost notes — both still worth doing.
-- **`BackgroundTasks` is still the queue.** Fine at 50 users; a restart mid-
-  transcription loses the job. Redis + RQ when that starts to hurt.
-- **Transcript view.** There's no way to read a lecture end to end, only the
-  excerpts an answer cited.
+by other tools and would silently override the app's settings.

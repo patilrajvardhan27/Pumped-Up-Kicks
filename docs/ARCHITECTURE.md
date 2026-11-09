@@ -1,13 +1,13 @@
 # Pumped Up Kicks: target architecture
 
-Written 6 October 2026. Prices and offers were checked on that date from the sources in section 9; anything marked **(estimate)** is my own arithmetic and should be measured before you rely on it.
+Written 6 October 2026. Prices and offers were checked on that date from the sources in section 9; anything marked **(estimate)** is arithmetic from the stated assumptions and should be measured before you rely on it.
 
 ## 0. The verdict, before the diagram
 
 1. **Do not start on Kubernetes.** At your scale it costs time and credits and buys nothing a managed container platform does not give you. Section 5 makes the case, then shows how to learn Kubernetes for about $0 without running your product on it.
 2. **The highest-value work is retrieval quality, not infrastructure.** Today's pipeline has no evaluation, so every change to it is a guess. Build the eval set first (phase 1). Everything else is justified or killed by that number.
-3. **The UI's own starter questions defeat the current design.** "Summarise the main argument" and "List every example worked through" are whole-lecture questions, and top-5 retrieval of 75-second chunks cannot answer them. Section 2 argues that for a single lecture you should skip retrieval and send the whole transcript with prompt caching.
-4. **The biggest risk is not technical.** Recordings of classes are usually owned by the instructor or the school, and they contain other people's voices. Section 7 puts this first. I have added the terms and privacy pages, but they are not legal advice.
+3. **Whole-lecture questions need the whole lecture.** "Summarise the main argument" and "List every example worked through" cannot be answered by top-5 retrieval of 75-second chunks. The study tools (revision notes, key terms, quiz) now send the selected lecture's transcript instead; section 2 argues for extending that, with prompt caching, to typed questions about a single lecture.
+4. **The biggest risk is not technical.** Recordings of classes are usually owned by the instructor or the school, and they contain other people's voices. Section 7 puts this first. The terms, privacy, cookie and acceptable use pages exist, but they are not legal advice.
 
 ## 1. What exists, and where it is weak
 
@@ -20,7 +20,7 @@ Written 6 October 2026. Prices and offers were checked on that date from the sou
 | Answering | One shot, no prompt caching | The cost code already models cache pricing, but no request sets `cache_control`. |
 | Quality | None | No golden set, no recall or faithfulness numbers, no tracing. |
 | Isolation | Every query filters `user_id` by hand | One forgotten filter is a cross-tenant leak. No database-level backstop. |
-| Rate limits | In-memory per process (added this session) | Per replica, so they multiply when you scale out. |
+| Rate limits | In-memory per process | Per replica, so they multiply when you scale out. |
 
 Kept on purpose: Postgres plus pgvector (one database, transactional with metadata, 0.8.6 installed), Clerk for auth, object storage with presigned URLs, one file that talks to Claude, per-message cost accounting. Those are good decisions.
 
@@ -120,13 +120,13 @@ One database, tenant filter and vector search in a single transaction, and it is
 ### 3.7 SaaS hardening
 
 - **Postgres row-level security** keyed on a per-request setting, as a backstop to the manual `user_id` filters.
-- **Deletion as a job:** rows, vectors, objects and the PostHog person, with a record that it ran. The privacy page already promises this.
+- **Deletion as a job:** self-serve account deletion now removes rows, vectors and objects in the request. A job with retries and a record that it ran, plus removing the PostHog person, is the next step.
 - **Stripe usage billing:** cost per message is already metered, so credits are a small step. LLM spend is your dominant cost of goods, so meter it from day one.
 - **Rate limits to Redis** once there is more than one API replica. Sentry for errors. Secrets from a secret manager, not files.
 
-### 3.8 Frontend: libraries I would add, and when
+### 3.8 Frontend: libraries worth adding, and when
 
-Not added in this session, deliberately.
+None are added yet, deliberately.
 
 | Library | Replaces / adds | When |
 |---|---|---|
@@ -174,14 +174,14 @@ LLM answers and video storage dominate. Servers barely register at small scale.
 | Azure for Students | $100 for 12 months, no credit card, renewable yearly while you are a student | Full-time university students |
 | GitHub Student Developer Pack | Azure $100 (18+), Clerk Pro free, MongoDB Atlas $50, Datadog Pro 2 years, New Relic free, Namecheap `.me` domain and SSL for a year, Heroku $13/month for 24 months | Verification needed |
 | Google Cloud | $300 for 90 days, plus an always-free tier | Trial expires; card required |
-| AWS | $100 on sign-up plus up to $100 more for using services; the free plan ends at 6 months or when the credit is gone | Short. No student-specific credit that I could verify. |
-| DigitalOcean | A $200 student credit existed earlier in 2026 | **Not on the pack page I fetched.** Secondary sources say it is gone. Do not plan on it. |
+| AWS | $100 on sign-up plus up to $100 more for using services; the free plan ends at 6 months or when the credit is gone | Short. No student-specific credit could be verified. |
+| DigitalOcean | A $200 student credit existed earlier in 2026 | **Not on the current pack page.** Secondary sources say it is gone. Do not plan on it. |
 | Modal | $30 a month compute, free | |
 | PostHog | Startup program up to $50k for companies under 2 years old and under $5M raised | Check whether a student company qualifies |
 
-None of these carries a Kubernetes cluster for a year. $100 on two small AKS nodes plus a load balancer is roughly five to six weeks **(estimate: about $30 a month per 2 vCPU node, which I have not re-checked; use the Azure pricing calculator)**.
+None of these carries a Kubernetes cluster for a year. $100 on two small AKS nodes plus a load balancer is roughly five to six weeks **(estimate: about $30 a month per 2 vCPU node, not re-checked; use the Azure pricing calculator)**.
 
-**What I recommend:**
+**Recommendation:**
 
 - **Now ($0 to about $25 a month plus LLM use):** frontend on a static or edge host, API on Google Cloud Run (free tier covers 2M requests and 180,000 vCPU-seconds a month, and it scales to zero), Postgres on Neon (pgvector built in), storage on R2, ASR on Modal, Clerk and PostHog on free tiers. Check the host's terms: several "hobby" plans forbid commercial use.
 - **Learn Kubernetes without paying for it:** write the manifests (Helm or Kustomize) and run them on `kind` or `k3d` locally. Add a Gateway API route, not ingress-nginx. When you have real users, do a one-month pilot on AKS Free or GKE using credits, then decide with measured numbers.
@@ -195,8 +195,8 @@ None of these carries a Kubernetes cluster for a year. $100 on two small AKS nod
 | 1 | **Eval harness.** 200+ question set from your lectures, baseline recall@5/20, MRR, citation validity | You have a number for today's pipeline |
 | 2 | Hybrid search, reranker, top 20, contextual chunks, long-context router | Beats the baseline on the eval set within a cost-per-question budget. If not, revert. |
 | 3 | Queue-driven ingestion, GPU ASR with VAD and word timestamps, slide OCR | No lecture stuck in a processing state after a deploy |
-| 4 | Agent loop with citation verifier, study guide and quiz | Task success and cost per task measured on a task set |
-| 5 | RLS, deletion job, Stripe, Sentry, OTel, Redis limits, CI, containers, K8s pilot | A tenant-isolation test that tries to read another tenant's data and fails |
+| 4 | Agent loop with citation verifier; study guide and quiz are done as single-call tools | Task success and cost per task measured on a task set |
+| 5 | RLS, Stripe, Sentry, OTel, Redis limits, containers, K8s pilot (CI and self-serve deletion are done) | A tenant-isolation test that tries to read another tenant's data and fails |
 
 **Test demand before phase 4:** put the current product in front of 10 students who are not your friends. If they do not come back a second week, agents will not fix it.
 
@@ -211,9 +211,13 @@ None of these carries a Kubernetes cluster for a year. $100 on two small AKS nod
 7. **Resume-driven machine learning.** Fine-tuning before measuring, or a custom model where an API call works.
 8. **You are the bottleneck.** Every service you add multiplies your on-call load. Add a service only when you can name the limit you hit.
 
-## 8. What changed in this session
+## 8. Current state
 
-The 20-point launch checklist is done in `client/` (legal pages, cookie consent gating PostHog, metadata and social image, sitemap and robots, custom 404, HSTS, form limits, axe and Lighthouse checks). On the server: database outages now return a readable 503, the Anthropic key from `.env` now reaches the SDK, failed jobs record their failure, the schema package is no longer gitignored, and per-user rate limits, input length limits and a default-secret startup guard were added. See the commit diff for the file list.
+**Client:** legal pages (privacy, terms, acceptable use and academic integrity, cookies, security) driven from one registry, cookie consent gating PostHog, `security.txt`, metadata and social image, sitemap and robots, custom 404, CSP and HSTS, idle sign-out after 30 minutes, self-serve data export and account deletion, study tools, a searchable transcript, and Markdown export of a chat.
+
+**Server:** production mode that refuses unsafe configuration, an https redirect and security headers on every response, generic error messages with a log reference, `azp` and required-claim checks on session tokens, one ownership helper for every fetch by id, bounded list queries, server-chosen upload content types with post-upload size checks, per-user rate limits and spend quotas, and a smaller public surface (no config in `/health`, no `/docs` in production).
+
+**Process:** CI runs tests, lint, build and both dependency audits; Dependabot proposes updates weekly.
 
 ## 9. Sources
 
