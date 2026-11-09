@@ -7,7 +7,6 @@ the app server. The local backend keeps the same interface so development needs
 no cloud account.
 """
 import re
-import shutil
 import unicodedata
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -92,11 +91,18 @@ class LocalStorage(Storage):
             path.unlink()
 
     def save_stream(self, key: str, fileobj: BinaryIO) -> int:
+        """Copy in blocks and stop one block past the limit, so an oversized
+        upload cannot fill the disk before it is rejected."""
         path = self._path(key)
         path.parent.mkdir(parents=True, exist_ok=True)
+        written = 0
         with path.open("wb") as out:
-            shutil.copyfileobj(fileobj, out)
-        return path.stat().st_size
+            while block := fileobj.read(1024 * 1024):
+                out.write(block)
+                written += len(block)
+                if written > settings.max_upload_bytes:
+                    break
+        return written
 
     def local_path(self, key: str) -> Path:
         return self._path(key)

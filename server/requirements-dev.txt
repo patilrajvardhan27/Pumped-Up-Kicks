@@ -1,0 +1,10 @@
+# Tests and dependency auditing. Not needed to run the API.
+#
+#   pip install -r requirements-dev.txt
+#   python -m pytest
+#   pip-audit -r requirements.txt
+
+-r requirements.txt
+
+pytest>=9.2.0
+pip-audit>=2.10.1

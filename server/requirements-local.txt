@@ -1,11 +1,9 @@
 # Extra dependencies for running transcription on this machine
 # (TRANSCRIBE_BACKEND=local). Not needed in production, where Modal does it.
+# Whisper brings torch with it. ffmpeg itself is a system package (brew/apt).
 #
 #   pip install -r requirements.txt -r requirements-local.txt
 
 -r requirements.txt
 
-openai-whisper
-torch
-ffmpeg-python
-tqdm
+openai-whisper>=20250625

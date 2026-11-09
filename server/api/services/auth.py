@@ -5,14 +5,19 @@ In `dev` auth mode no token is required and every request resolves to a single
 built-in user, so the app runs on a laptop with no Clerk account. Switching
 AUTH_MODE to `clerk` turns on real verification with no other code change.
 """
+import logging
 import time
 from typing import Any, Dict, Optional
 
-import httpx
 import jwt
 from jwt import PyJWKClient
 
 from api.config import settings
+
+
+log = logging.getLogger("kicks")
+
+INVALID = "Your session is not valid. Sign in again."
 
 
 class AuthError(Exception):
@@ -42,7 +47,14 @@ def _get_jwk_client() -> PyJWKClient:
 
 
 def verify_clerk_token(token: str) -> Dict[str, Any]:
-    """Verify a Clerk session token's signature, expiry, and issuer."""
+    """
+    Verify a Clerk session token's signature, expiry, issuer and origin.
+
+    Clerk session tokens live for about a minute and are refreshed by the
+    browser while the tab is in use, so an idle or signed-out session stops
+    working here within that minute. Messages stay generic; the reason a token
+    was rejected is logged, not returned.
+    """
     try:
         signing_key = _get_jwk_client().get_signing_key_from_jwt(token)
         claims = jwt.decode(
@@ -50,21 +62,25 @@ def verify_clerk_token(token: str) -> Dict[str, Any]:
             signing_key.key,
             algorithms=["RS256"],
             issuer=settings.clerk_issuer,
+            leeway=5,  # tolerate small clock drift between Clerk and this server
             options={
-                "verify_signature": True,
-                "verify_exp": True,
+                "require": ["exp", "iat", "sub"],
                 "verify_iss": bool(settings.clerk_issuer),
-                # Clerk session tokens carry no `aud` by default.
+                # Clerk session tokens carry no `aud` by default; `azp` is checked below.
                 "verify_aud": False,
             },
         )
     except jwt.ExpiredSignatureError:
         raise AuthError("Your session expired. Sign in again.")
     except jwt.InvalidTokenError as e:
-        raise AuthError(f"Invalid session token: {e}")
+        log.info("[Auth] rejected token: %s", e)
+        raise AuthError(INVALID)
 
-    if not claims.get("sub"):
-        raise AuthError("Session token has no subject claim.")
+    parties = settings.clerk_authorized_party_list
+    if parties and claims.get("azp") not in parties:
+        # A valid token minted for a different site must not open this API.
+        log.info("[Auth] rejected token from azp=%r", claims.get("azp"))
+        raise AuthError(INVALID)
 
     return claims
 
@@ -74,8 +90,7 @@ def claims_to_profile(claims: Dict[str, Any]) -> Dict[str, Optional[str]]:
     Pull a user profile out of the token.
 
     Email is only present if you add it to the Clerk JWT template; when it is
-    missing we fall back to a placeholder rather than failing the request, and
-    fetch_clerk_profile() can fill it in later.
+    missing we fall back to a placeholder rather than failing the request.
     """
     user_id = claims["sub"]
     email = claims.get("email") or claims.get("primary_email_address")
@@ -88,17 +103,6 @@ def claims_to_profile(claims: Dict[str, Any]) -> Dict[str, Optional[str]]:
         email = f"{user_id}@users.noreply.clerk"
 
     return {"id": user_id, "email": email, "display_name": name}
-
-
-async def fetch_clerk_profile(user_id: str, secret_key: str) -> Dict[str, Any]:
-    """Optional backfill via Clerk's Backend API, when the JWT lacks an email."""
-    async with httpx.AsyncClient(timeout=10) as client:
-        response = await client.get(
-            f"https://api.clerk.com/v1/users/{user_id}",
-            headers={"Authorization": f"Bearer {secret_key}"},
-        )
-        response.raise_for_status()
-        return response.json()
 
 
 def dev_profile() -> Dict[str, Optional[str]]:

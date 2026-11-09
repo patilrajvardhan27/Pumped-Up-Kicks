@@ -17,12 +17,20 @@ SERVER_DIR = Path(__file__).parent.parent
 DEFAULT_SECRET_KEY = "dev-insecure-change-me"
 
 
+def _csv(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=SERVER_DIR / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    # "production" turns on the strict checks below, HSTS, generic error
+    # messages and hides the interactive API docs.
+    environment: Literal["development", "production"] = "development"
 
     # -- database --------------------------------------------------------
     # Postgres with the pgvector extension. Local default matches the
@@ -41,6 +49,9 @@ class Settings(BaseSettings):
     auth_mode: Literal["dev", "clerk"] = "dev"
     clerk_jwks_url: str | None = None
     clerk_issuer: str | None = None
+    # Origins allowed to present a session token (the token's `azp` claim).
+    # Comma separated, e.g. https://kicks.example.com. Empty skips the check.
+    clerk_authorized_parties: str = ""
     dev_user_id: str = "dev_user"
     dev_user_email: str = "dev@localhost"
 
@@ -68,6 +79,10 @@ class Settings(BaseSettings):
     # -- retrieval -------------------------------------------------------
     default_top_k: int = 5
     max_context_tokens: int = 12000
+    # Study tools (notes, key terms, quiz) read the whole lecture, not the top
+    # few passages, so they get a larger budget.
+    study_context_tokens: int = 30000
+    study_max_tokens: int = 4000
 
     # -- quotas ----------------------------------------------------------
     # Monthly ceilings per plan, in USD of Claude spend. A user at their cap
@@ -80,6 +95,7 @@ class Settings(BaseSettings):
     # Requests per minute per user on the endpoints that cost money. 0 turns one off.
     rate_limit_chat_per_minute: int = 20
     rate_limit_upload_per_minute: int = 10
+    rate_limit_account_per_minute: int = 5
     max_question_chars: int = 2000
     max_title_chars: int = 200
 
@@ -91,20 +107,38 @@ class Settings(BaseSettings):
     secret_key: str = DEFAULT_SECRET_KEY
 
     @model_validator(mode="after")
-    def _no_default_secret_with_real_auth(self):
+    def _safe_for_real_users(self):
+        problems = []
         # Real sign-in means real users: a published default key lets anyone
         # forge playback links to any lecture.
         if self.auth_mode == "clerk" and self.secret_key == DEFAULT_SECRET_KEY:
-            raise ValueError(
+            problems.append(
                 "SECRET_KEY is still the development default. Generate one with "
-                "`python -c \"import secrets;print(secrets.token_urlsafe(32))\"` "
-                "and set it in server/.env before using AUTH_MODE=clerk."
+                "`python -c \"import secrets;print(secrets.token_urlsafe(32))\"`."
             )
+        if self.is_production:
+            if self.auth_mode != "clerk":
+                problems.append("AUTH_MODE must be 'clerk' in production.")
+            if not (self.clerk_jwks_url and self.clerk_issuer):
+                problems.append("CLERK_JWKS_URL and CLERK_ISSUER are required in production.")
+            insecure = [o for o in self.cors_origin_list if not o.startswith("https://")]
+            if insecure:
+                problems.append(f"CORS_ORIGINS must all be https:// in production: {insecure}")
+        if problems:
+            raise ValueError(" ".join(problems))
         return self
 
     @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
+
+    @property
+    def clerk_authorized_party_list(self) -> list[str]:
+        return _csv(self.clerk_authorized_parties)
+
+    @property
     def cors_origin_list(self) -> list[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        return _csv(self.cors_origins)
 
     @property
     def uploads_dir(self) -> Path:

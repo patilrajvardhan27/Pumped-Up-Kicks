@@ -23,6 +23,11 @@ from api.models.database import Video
 from api.services.indexer import index_transcript
 from api.services.storage import get_storage
 
+NO_SPEECH = "No speech was found in this recording."
+MISSING_FILE = "Uploaded file is missing from storage. Upload it again."
+# Messages written for students, safe to show as they are in production.
+USER_SAFE = {NO_SPEECH, MISSING_FILE}
+
 STAGES = ("queued", "transcribing", "indexing", "ready", "failed")
 
 STAGE_LABELS = {
@@ -86,7 +91,7 @@ def transcribe_local(storage_key: str) -> Dict:
         return {"status": "error", "message": f"Could not read the uploaded file: {e}"}
 
     if not local_path.exists():
-        return {"status": "error", "message": "Uploaded file is missing from storage."}
+        return {"status": "error", "message": MISSING_FILE}
 
     python_path = str(SERVER_DIR / "venv" / "bin" / "python3")
     script = SERVER_DIR / "scripts" / "transcribe_video.py"
@@ -207,7 +212,7 @@ def process_video(
         return {"overall_status": "error", "message": str(e)}
 
     if num_chunks == 0:
-        report("failed", 100, error="No speech was found in this recording.")
+        report("failed", 100, error=NO_SPEECH)
         return {"overall_status": "error", "message": "No speech found"}
 
     report("ready", 100, num_chunks=num_chunks)

@@ -7,7 +7,7 @@ together — so writing a query with no owner takes effort rather than being the
 path of least resistance.
 """
 from dataclasses import dataclass
-from typing import Generator, Optional
+from typing import Generator, Optional, Type, TypeVar
 
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
@@ -92,3 +92,21 @@ def get_ctx(
 
 
 Ctx = Depends(get_ctx)
+
+Owned = TypeVar("Owned")
+
+
+def owned(ctx: RequestContext, model: Type[Owned], row_id: int, noun: str) -> Owned:
+    """
+    Fetch one row by id only if it belongs to the caller; otherwise 404.
+
+    404 rather than 403, so probing ids does not reveal which ones exist.
+    """
+    row = (
+        ctx.db.query(model)
+        .filter(model.id == row_id, model.user_id == ctx.user_id)
+        .first()
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"{noun} not found")
+    return row

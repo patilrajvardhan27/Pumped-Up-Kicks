@@ -3,33 +3,36 @@
 # Deliberately excludes torch/whisper: with TRANSCRIBE_BACKEND=modal the API
 # never transcribes anything itself, which keeps the container near 300 MB
 # instead of 2.5 GB. For local transcription, also install requirements-local.txt.
+#
+# Lower bounds are the versions last audited (pip-audit, no known issues);
+# upper bounds stop a major release from arriving unreviewed. Dependabot
+# proposes updates weekly (.github/dependabot.yml).
 
 # --- web ---
-fastapi
-uvicorn[standard]
-python-multipart
-pydantic>=2.0
-pydantic-settings
+fastapi>=0.162.2,<1.0
+uvicorn[standard]>=0.54.0,<1.0
+python-multipart>=0.0.33,<0.1    # File/Form uploads
+pydantic>=2.14.3,<3
+pydantic-settings>=2.16.2,<3
 
 # --- database ---
-sqlalchemy>=2.0
-psycopg[binary]>=3.1
-pgvector>=0.3
-alembic
+sqlalchemy>=2.1.8,<3
+psycopg[binary]>=3.3.8,<4
+pgvector>=0.5.1,<0.6
+alembic>=1.20.1,<2
 
 # --- auth ---
-pyjwt[crypto]>=2.8
-httpx
+pyjwt[crypto]>=2.15.1,<3
 
 # --- storage (Cloudflare R2 over the S3 API) ---
-boto3
+boto3>=1.43.126,<2
 
 # --- embeddings: ONNX, no torch ---
-fastembed>=0.4
-numpy<2.4,>=1.22
+fastembed>=0.9.1,<0.10
+numpy>=2.3.5,<2.4
 
 # --- answer generation ---
-anthropic>=0.69.0
+anthropic>=2.6.0,<3
 
 # --- serverless transcription dispatch ---
-modal
+modal>=1.6.3,<2

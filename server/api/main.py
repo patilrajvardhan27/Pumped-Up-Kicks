@@ -1,15 +1,16 @@
 """Pumped Up Kicks API."""
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 from sqlalchemy import text
-from sqlalchemy.exc import InterfaceError, OperationalError
 
+from api import errors, middleware
 from api.config import settings
 from api.models.database import get_engine
-from api.routes import chat, videos
+from api.routes import account, chat, media, videos
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
 
 
 def _database_reachable() -> bool:
@@ -24,7 +25,7 @@ def _database_reachable() -> bool:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("\n" + "=" * 70)
-    print("Starting Pumped Up Kicks API")
+    print(f"Starting Pumped Up Kicks API ({settings.environment})")
     print("=" * 70)
 
     # Report configuration at boot rather than failing on the first request.
@@ -49,78 +50,41 @@ async def lifespan(app: FastAPI):
     print("\nShutting down.")
 
 
+# The interactive docs describe every route and schema: useful locally, a free
+# reconnaissance map in production.
+docs = {} if not settings.is_production else {"docs_url": None, "redoc_url": None, "openapi_url": None}
+
 app = FastAPI(
     title="Pumped Up Kicks API",
     description="Ask your lectures questions and get answers with timestamps.",
-    version="2.0.0",
+    version="2.1.0",
     lifespan=lifespan,
+    **docs,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+errors.install(app)
+middleware.install(app)
 
-
-@app.exception_handler(OperationalError)
-@app.exception_handler(InterfaceError)
-async def database_unavailable(request: Request, exc: Exception) -> JSONResponse:
-    """
-    A database that can't be reached is an outage, not a server bug.
-
-    Answering 503 with a JSON `detail` lets the client show a real message, and
-    because this handler sits inside the CORS middleware the browser can read it
-    (an unhandled 500 is sent without CORS headers and surfaces as a CORS error).
-    """
-    # One line, not the 250-line SQLAlchemy chain, which repeats on every poll.
-    reason = str(getattr(exc, "orig", exc)).strip().splitlines()[0]
-    print(f"[Database] {request.method} {request.url.path}: {reason}")
-    return JSONResponse(
-        status_code=503,
-        content={
-            "detail": "Can't reach the database. Check that Postgres is running and "
-                      "that DATABASE_URL in server/.env is correct."
-        },
-        headers={"Retry-After": "5"},
-    )
-
-
-app.include_router(chat.router)
-app.include_router(videos.router)
+for module in (chat, media, videos, account):  # media first: its /file/{path} route must win
+    app.include_router(module.router)
 
 
 @app.get("/")
 def root():
-    return {
-        "message": "Pumped Up Kicks API",
-        "version": "2.0.0",
-        "docs": "/docs",
-        "endpoints": {
-            "presign": "/api/videos/presign",
-            "videos": "/api/videos",
-            "chat": "/api/chat/query",
-            "chat_stream": "/api/chat/stream",
-            "conversations": "/api/chat/conversations",
-            "usage": "/api/chat/usage",
-        },
-    }
+    return {"message": "Pumped Up Kicks API"}
 
 
 @app.get("/health")
 def health():
-    """Liveness plus enough configuration detail for the client to warn early."""
-    ok = _database_reachable()
+    """
+    Public liveness check. Says whether the service can answer, and nothing
+    about how it is configured.
+    """
+    database = _database_reachable()
     return {
-        "status": "ok" if ok else "degraded",
-        "database": "ok" if ok else "unreachable",
-        "model": settings.puk_claude_model,
-        "claude_configured": bool(settings.anthropic_api_key),
-        "auth_mode": settings.auth_mode,
-        "storage_backend": settings.storage_backend,
-        "transcribe_backend": settings.transcribe_backend,
+        "status": "ok" if database else "degraded",
+        "database": "ok" if database else "unreachable",
+        "ready": database and bool(settings.anthropic_api_key),
     }
 
 

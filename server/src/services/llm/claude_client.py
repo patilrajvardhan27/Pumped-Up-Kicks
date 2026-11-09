@@ -139,52 +139,6 @@ class ClaudeClient:
             "output_config": {"effort": self.effort},
         }
 
-    def count_tokens(self, system: str, messages: List[Dict]) -> int:
-        """Token count for a request, before sending it. Used to guard context size."""
-        result = self._client.messages.count_tokens(
-            model=self.model, system=system, messages=messages
-        )
-        return result.input_tokens
-
-    # -- completion ------------------------------------------------------
-
-    def complete(
-        self,
-        system: str,
-        user_message: str,
-        max_tokens: Optional[int] = None,
-    ) -> Dict:
-        """
-        Send one grounded question and return the answer plus usage.
-
-        Returns {"text": str, "usage": ClaudeUsage, "stop_reason": str, "elapsed": float}
-        """
-        messages = [{"role": "user", "content": user_message}]
-        started = time.time()
-
-        response = self._client.messages.create(
-            **self._request_kwargs(system, messages, max_tokens)
-        )
-
-        text = "".join(b.text for b in response.content if b.type == "text").strip()
-        usage = ClaudeUsage.from_response_usage(response.usage, self.model)
-
-        if response.stop_reason == "refusal":
-            category = getattr(response.stop_details, "category", None)
-            text = (
-                "Claude declined to answer this question"
-                + (f" ({category})." if category else ".")
-                + " Try rephrasing it."
-            )
-
-        return {
-            "text": text,
-            "usage": usage,
-            "stop_reason": response.stop_reason,
-            "elapsed": round(time.time() - started, 2),
-            "request_id": response._request_id,
-        }
-
     def stream(
         self,
         system: str,
@@ -208,7 +162,7 @@ class ClaudeClient:
 
             final = stream.get_final_message()
 
-        text = "".join(b.text for b in final.content if b.type == "text").strip()
+        text = _answer_text(final)
         usage = ClaudeUsage.from_response_usage(final.usage, self.model)
 
         yield {
@@ -218,6 +172,18 @@ class ClaudeClient:
             "stop_reason": final.stop_reason,
             "elapsed": round(time.time() - started, 2),
         }
+
+
+def _answer_text(message) -> str:
+    """The reply's text, or a plain explanation when the model declined."""
+    if message.stop_reason == "refusal":
+        category = getattr(message.stop_details, "category", None)
+        return (
+            "This question could not be answered"
+            + (f" ({category})." if category else ".")
+            + " Try rephrasing it."
+        )
+    return "".join(b.text for b in message.content if b.type == "text").strip()
 
 
 def describe_api_error(exc: Exception) -> str:
