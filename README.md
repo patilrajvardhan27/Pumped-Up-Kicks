@@ -47,7 +47,7 @@ Ask: the question is embedded, the nearest chunks for that user and scope (one l
 
 | Layer | Technology |
 |---|---|
-| Client | Next.js 16, React 19, TypeScript 6, Tailwind CSS 4, Motion, Clerk |
+| Client | Next.js 16, React 19, TypeScript 6, Tailwind CSS 4, Clerk |
 | API | FastAPI, Pydantic v2, SQLAlchemy 2, Alembic |
 | Retrieval | PostgreSQL with pgvector (HNSW), Postgres full-text search, fastembed (ONNX) |
 | Transcription | faster-whisper on Modal, or local Whisper |
@@ -97,14 +97,15 @@ CI (`.github/workflows/ci.yml`) runs the server tests against a pgvector Postgre
 ```
 client/   Next.js app (see client/README.md)
 server/   FastAPI app, migrations, tests, evals, Modal worker (see server/README.md)
-docs/     SETUP.md, ARCHITECTURE.md, DESIGN.md
+docs/     SETUP.md, CANVAS.md, ARCHITECTURE.md, DESIGN.md
 ```
 
 ## Documentation
 
-- [docs/SETUP.md](docs/SETUP.md): accounts, keys, deployment, Canvas, and the pre-launch checklist.
+- [docs/SETUP.md](docs/SETUP.md): accounts, keys, deployment and the pre-launch checklist.
+- [docs/CANVAS.md](docs/CANVAS.md): enabling Canvas for a school, and what gets imported.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): design decisions, retrieval design, cost model, roadmap and risks.
-- [docs/DESIGN.md](docs/DESIGN.md): the visual and interaction specification.
+- [docs/DESIGN.md](docs/DESIGN.md): the design system (navy ink on cool marble): tokens, components and accessibility rules.
 - Policies, served by the client: `/privacy`, `/terms`, `/acceptable-use` (academic integrity and recording rules), `/cookies`, `/security`, and `/.well-known/security.txt`.
 
 ## Known limits

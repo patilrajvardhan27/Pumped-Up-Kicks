@@ -1,117 +1,127 @@
-# Design specification
+# Design system
 
-The visual and interaction rules for the client. The source of truth for every value is `client/src/styles/tokens.css`, a Tailwind `@theme` block. The default Tailwind palette, radii, shadows, type scale and easings are cleared there, so a value that is not a token fails to compile. Never hardcode a colour, size or duration in a component.
+> Navy ink on cool marble.
 
-## Principles
+A quiet, confident study workspace: a near-white canvas with generous room, crisp white cards floating on cool stone-grey, and every piece of text in deep navy rather than black. One vivid blue carries every primary action. Soft magenta and cyan blobs sit behind product visuals for warmth, never as UI. Components stay restrained: 1px hairline borders, blue-tinted shadows, 24px panel radii and 8px buttons.
 
-1. **One accent.** Cobalt `#2346c8` marks the primary action, links, focus and the lit moment in the logo. Nothing else competes with it.
-2. **Flat and bordered.** Surfaces are separated by 1px borders, not shadows.
-3. **Light theme only.** `color-scheme: light`. There is no dark mode.
-4. **The desktop metaphor.** The app is a window on a muted olive wallpaper. Windows are the only elevated objects.
-5. **Evidence first.** A cited timestamp is the product's proof, so citations, the timeline and the player get the most visual weight.
-6. **Plain language.** Short sentences, no jargon, no filler.
+The tokens live in `client/src/styles/tokens.css` and nowhere else. Tailwind's default palette, radii, shadows and type scale are cleared, so an off-system value fails to compile.
 
-## Typeface
+---
 
-Geist for text and Geist Mono for code, timestamps and tabular figures, both loaded through `next/font/google`. The stack is `var(--font-geist), -apple-system, system-ui, sans-serif`.
+## Colour
 
-## Colour tokens
-
-| Token | Value | Use |
+| Token | Value | Role |
 |---|---|---|
-| `primary` | `#2346c8` | Primary action, links, focus ring |
-| `primary-pressed` | `#1b38a3` | Hover on primary |
-| `primary-active` | `#152d85` | Pressed, and the edge under primary buttons |
-| `on-primary` | `#ffffff` | Text on primary |
-| `accent-on-dark` | `#8fa5f0` | Accent text and icons on dark surfaces |
-| `accent-soft` | `#e1e7fa` | Info callouts, highlights, quotes |
-| `canvas` | `#eef0ec` | Page background |
-| `surface-card` | `#ffffff` | Cards, inputs |
-| `surface-soft` | `#e4e8e3` | Skeletons, quiet fills |
-| `surface-doc` | `#fafbf9` | Window body |
-| `surface-dark` | `#1d2421` | Timeline strip, logo strip |
-| `on-dark`, `mute-on-dark` | `#ffffff`, `#aeb7b1` | Text on dark surfaces |
-| `hairline` | `#c3c9c3` | Card and divider borders |
-| `hairline-soft` | `#dbdfdb` | Quiet dividers |
-| `hairline-strong` | `#6a726c` | Control edges, 3:1 against the canvas |
-| `ink` | `#1d2421` | Headings, primary text |
-| `body` | `#454d48` | Body text |
-| `mute-strong` | `#515955` | Secondary text, placeholders |
-| `disabled` | `#8b938d` | Disabled controls |
-| `success`, `success-soft` | `#1b7347`, `#d9eee2` | Success text and fill |
-| `danger`, `danger-soft` | `#b3352d`, `#f8dedb` | Error text and fill |
-| `focus`, `focus-on-dark` | `primary`, `accent-on-dark` | Focus rings |
-| `wallpaper`, `wallpaper-deep` | `#c9d5b6`, `#b3c29c` | Desktop and its texture |
-| `tile-blue` `#2346c8`, `tile-green` `#1b7347`, `tile-red` `#b3352d`, `tile-purple` `#7a3f9a`, `tile-teal` `#0e7078`, `tile-olive` `#5f6b2a` | | Subject tiles, each 4.5:1 or better under white |
+| `ink-navy` | `#0b3558` | All text, headings, icons, dark buttons, inverse sections |
+| `signal-blue` | `#006bff` | Filled primary actions, inline links, selection, focus ring |
+| `slate-gray` | `#476788` | Secondary copy, helper text, muted labels |
+| `mist-gray` | `#a6bbd1` | Disabled text, icons and secondary text on navy |
+| `cloud` | `#f8f9fb` | Page canvas, footer |
+| `paper` | `#ffffff` | Cards, panels, text on dark fills |
+| `pebble` | `#f0f3f8` | Inputs, hover washes, subtle dividers |
+| `hairline` | `#d4e0ed` | Card and input borders |
+| `blue-wash` | `#e6f0ff` | Badges, selected rows, highlights |
+| `deep-cobalt` | `#004eba` | Badge text, section eyebrows (informational, never an action) |
+| `coral-magenta` | `#e55cff` | Decorative blob only |
+| `sky-cyan` | `#0099ff` | Decorative blob only |
 
-## Type ladder
+**Product extensions** (the marketing palette has no states or categories):
 
-The sizes are 12, 13, 14, 16, 18, 21, 25, 30 and 36px. Each role carries its own weight, line height and tracking, so components never set those.
+| Token | Value | Role |
+|---|---|---|
+| `signal-blue-hover` | `#0058d1` | Hover and pressed step of the primary blue |
+| `danger` / `danger-wash` | `#c0262d` / `#fdecee` | Errors and destructive actions |
+| `success` / `success-wash` | `#0f7b4a` / `#e3f5ec` | Completed steps, confirmations |
+| `tile-*` | blue, navy, teal, purple, green, red | Subject tiles; each holds 4.5:1 under white |
 
-| Role | Size | Weight | Line height |
-|---|---|---|---|
-| `display-xl` | 36 | 700 | 1.15 |
-| `display-lg` | 30 | 700 | 1.2 |
-| `display-md` | 25 | 700 | 1.25 |
-| `heading-lg` | 21 | 650 | 1.3 |
-| `heading-sm` | 18 | 600 | 1.4 |
-| `body-md`, `body-strong` | 16 | 400, 600 | 1.55 |
-| `body-sm`, `body-sm-strong` | 14 | 400, 600 | 1.5 |
-| `caption-sm` | 13 | 450 | 1.45 |
-| `utility-xs` | 12 | 600, tracked 0.04em | 1.35 |
-| `button-md`, `button-sm` | 14, 13 | 600 | 1.25 |
-| `code-sm`, `code-xs` | 14, 13 | 500, 400 | 1.45 |
+Rules:
+- Text is never `#000`. Navy for primary, slate for secondary.
+- Signal Blue is the only filled primary action. Navy is the secondary filled action; keep the two apart.
+- Magenta and cyan are atmosphere. They never fill a control or carry meaning.
+- No background gradients. Surfaces are flat; elevation comes from shadow.
 
-Body copy never runs wider than 65 characters (`measure`), short intros 52 (`measure-narrow`). Headings use `text-wrap: balance`.
+## Type
 
-## Shape, borders, shadow, spacing
+One family: **Manrope** (standing in for Gilroy), loaded with `next/font`. Hierarchy comes from size and weight; letter spacing stays normal. Timecodes and counts use `tabular-nums`.
 
-- **Border:** 1px everywhere. Decorative edges use `hairline`; edges that identify a control use `hairline-strong`.
-- **Radius:** `sm` 4px for inputs, chips and inline buttons. `md` 8px for cards and buttons. `xl` 16px for windows only. Pills and avatars use `rounded-full`.
-- **Shadow:** one, `shadow-window`, for a window floating over the wallpaper and for the consent banner. Nothing else has a shadow.
-- **Layout:** page column 80rem, with a 1rem gutter that becomes 1.5rem from 40rem. Section padding is 5rem, stepping to 4rem and 3rem on smaller screens. The sticky nav is 4rem and the only raised layer (`z-nav` 20, `z-banner` 30).
-- **Card padding:** 24px standard, 20px for compact tiles.
+| Token | Size / line height / weight | Use |
+|---|---|---|
+| `text-caption` | 12 / 1.5 / 400 | Meta, timestamps, helper text |
+| `text-caption-strong` | 12 / 1.5 / 600 | Eyebrows and footer headings (uppercase, `tracking-wide`) |
+| `text-label` | 14 / 1.4 / 500 | Card titles, inline labels, nav links |
+| `text-body-sm` | 14 / 1.5 / 400 | Dense body copy |
+| `text-body` | 16 / 1.5 / 400 | Body copy |
+| `text-body-strong` | 16 / 1.5 / 600 | Emphasis in body |
+| `text-button-sm` | 14 / 1.4 / 600 | Compact buttons |
+| `text-button` | 18 / 1.6 / 600 | Standard buttons |
+| `text-title-sm` | 18 / 1.4 / 600 | Panel and list headings |
+| `text-body-lg` | 20 / 1.4 / 400 | Intros, hero copy |
+| `text-title` | 24 / 1.4 / 600 | Card headings, step titles |
+| `text-subheading` | 28 / 1.4 / 600 | Sub-section heads |
+| `text-heading-sm` | 38 / 1.21 / 700 | H2 minimum; page titles |
+| `text-heading` | 50 / 1.2 / 700 | Section headings |
+| `text-heading-lg` | 68 / 1.2 / 700 | Hero on tablets |
+| `text-display` | 80 / 1.2 / 700 | Hero on desktop |
 
-## Motion
+Body roles use 1.5 leading rather than the reference's 1.0, which only suits one-line labels; `leading-none` covers those. On marketing and policy pages H2 never drops below 38px. Inside the workspace, where panels are narrow, headings use the title roles instead.
 
-- One curve, `ease-brand` `cubic-bezier(0.16, 1, 0.3, 1)`, at three speeds: 150ms, 250ms, 400ms.
-- Only `transform` and `opacity` animate.
-- Every animation sits behind `prefers-reduced-motion: no-preference`, so the resting state is the fully visible one. Scroll reveals are armed only when the element is below the fold and motion is allowed, so nothing is hidden without JavaScript.
-- Named animations: `rise` (entrance), `mark-in` (timeline markers), `pulse-dot` (loading), `hatch` (work in progress), `spin`.
-- Drag, layout and exit animation use `motion`, loaded once through `LazyMotion`.
+## Shape, space and elevation
+
+| Radius | Value | Use |
+|---|---|---|
+| `rounded-md` | 4px | Small chips, focus outlines on inline items |
+| `rounded-lg` | 8px | Buttons, inputs, list rows |
+| `rounded-2xl` | 16px | Product cards, the player |
+| `rounded-3xl` | 24px | Panels (the `panel` utility), dialogs, the closing band |
+| `rounded-full` | pill | Badges, step numbers |
+
+Buttons stay at 8px: sharper reads harsh, pill reads soft.
+
+Spacing runs on an 8px base. The page is 1200px wide (`page` utility, 16px gutter, 24px from small screens). Sections step 48 → 64 → 96px (`section-y`). Cards pad 24px; elements sit 8–16px apart.
+
+Shadows are blue-tinted, never neutral black:
+
+| Token | Use |
+|---|---|
+| `shadow-link` | Panels and link cards |
+| `shadow-button` | Filled buttons on hover |
+| `shadow-elevated` | Product cards, dialogs, the consent banner |
 
 ## Components
 
-All in `client/src/components/ui/`.
+All in `client/src/components/ui` unless noted. Reuse them; don't restyle locally.
 
-| Component | Notes |
-|---|---|
-| `Button`, `ButtonLink` | Variants `primary`, `secondary`, `tertiary`; sizes `sm`, `md`. A face on a darker edge: hover lifts, press drops flush. |
-| `IconButton` | 44px square on touch screens, 36px from the `sm` breakpoint. Needs an accessible label. |
-| `Input` | 44px high on touch, 40px above. `hairline-strong` border, `danger` border in the error state. |
-| `Card` | White, 1px `hairline` border, `md` radius. Padding `none`, `tile` or `standard`. |
-| `Badge` | Outlined pill for status and mode labels. |
-| `Alert` | Tones `success`, `info`, `danger`. Danger uses `role="alert"`, others `role="status"`. |
-| `Dialog` | Native `<dialog>`: focus trap, Escape to close, inert page behind. |
-| `ProgressBar` | Tones `primary`, `success`, `danger`; `busy` slides hatching across the fill. Always labelled. |
-| `Skeleton`, `SkeletonLines` | Flat blocks at rest; announce what is loading. |
-| `Wordmark` | Dark strip with one lit tick, beside the product name. |
-| `icons` | Re-exports of Phosphor icons. Add new icons here, not inline. |
+- **Button** (`buttonClasses` is shared by `Button` and `ButtonLink`): `primary` Signal Blue, `dark` Ink Navy, `secondary` white with hairline border, `tertiary` text only. Sizes `md` (18px, 48px tall) and `sm` (14px, 36px tall).
+- **TextLink** (`TEXT_LINK`): inline link in running text. Signal Blue, always underlined.
+- **Card**: a `panel`. White, hairline, 24px radius, `shadow-link`.
+- **Badge**: blue-wash pill with Deep Cobalt text. Informational only.
+- **Input** (`FIELD` is shared with native selects): Pebble fill, hairline edge, white with a blue border on focus.
+- **Alert**: tinted callout (info, success, danger). Errors use `role="alert"`.
+- **Dialog**: native `<dialog>`, 24px radius, navy backdrop at 40%.
+- **Wordmark**: navy tile with a blue playhead on a mist timeline, beside the name.
+
+Site shell (`components/site`):
+- **SiteHeader**: 64px sticky bar. Wordmark left, menu centred (hidden in the workspace), actions right. The marketing action is a dark "Get started".
+- **SiteFooter**: column links on the canvas, slate uppercase headings, navy links. Columns come from `lib/navigation.ts`; policy links from `lib/legal.ts`.
+- **PageShell / ArticleShell**: header, main and footer; `ArticleShell` puts reading pages in one white panel.
+
+Landing (`components/landing`), with all copy in `content.ts`:
+- **Hero**: two columns. Badge, display headline, body-lg copy and two actions on the left; the answer card on its blobs on the right.
+- **ProductStage / ProductCard**: the blob backdrop and the 16px white card in front of it.
+- **TrustStrip**: plain names of recording sources, centred on the canvas.
+- **SectionHeader**: eyebrow, heading, intro; centred or left-aligned.
+- **FeatureBlock**: text and accordion on one side, a product visual on the other, alternating sides.
+- **FeatureList**: accordion. The open item is navy with a blue icon; closed items are slate.
+- **ClosingCta**: navy inverse band with one primary action.
 
 ## Accessibility
 
-- **Contrast:** 4.5:1 for text, 3:1 for borders, focus rings and other UI, checked for every pairing in the tokens file. The accent on the wallpaper is 4.0:1 at its lowest. Disabled controls are exempt.
-- **Focus:** one treatment everywhere, a solid 2px outline in `focus` with a 2px offset on `:focus-visible`. On dark surfaces use `focus-on-dark`.
-- **Touch targets:** interactive controls are at least 44px on touch screens. Taps use `touch-action: manipulation`.
-- **Reduced motion:** see Motion. Skeletons rest as flat blocks.
-- **Semantics:** native elements first (`dialog`, `button`, `a`). Icon-only controls and progress bars carry labels. The product name is marked `translate="no"` so machine translation leaves it alone.
-- **Testing:** `npm run e2e` runs Playwright with axe at 1280px and 375px widths.
+- Every text pairing meets WCAG AA (4.5:1); focus rings and control edges meet 3:1.
+- Two adjustments to the reference follow from that. Signal Blue text on the canvas is about 4.4:1, so small blue labels (eyebrows) use Deep Cobalt instead. Mist Gray text on light surfaces is about 1.9:1, so mist is kept for disabled states and for text on navy; closed accordion items and the trust strip use slate.
+- Focus is a solid 2px Signal Blue outline everywhere, white on navy (`focus-on-dark`).
+- Motion is limited to short rises, pulses and colour transitions, and switches off under `prefers-reduced-motion`.
+- Playwright runs axe on every public page, the workspace and the 404, at desktop and phone sizes (`client/e2e/site.spec.ts`).
 
-## Copy
+## Imagery
 
-- Sentence case for every heading, button, label and menu item. Proper nouns keep their capitals.
-- No em dashes or en dashes. Use a period, comma, colon or hyphen.
-- One label per intent. The same action is always called the same thing everywhere it appears: "Upload", "Delete", "Cancel", "Connect".
-- State what happened and what to do next in errors: "That file is larger than the 4 GB limit." Do not blame the user and do not expose internals.
-- Time is written `12:04` or `1:02:04`, in Geist Mono.
-- No emoji.
+Product visuals only: clean UI cards on white with generous radii, each backed by a soft magenta or cyan blob offset behind it. No photography. Icons come from Phosphor in the regular (line) weight, mono-tone, coloured by the text they sit in (`components/ui/icons.tsx`).
