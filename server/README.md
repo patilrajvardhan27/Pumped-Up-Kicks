@@ -7,15 +7,21 @@ FastAPI service that turns lecture recordings and Canvas course material into a 
 ```
 server/
   api/
-    main.py         app, middleware (security headers, TrustedHost, CORS, upload limit), /health
+    main.py         app setup, exception handlers, router registration, /health
+    middleware.py   generic 500s, upload size cap, security headers
     config.py       every setting, read from the environment and server/.env
     deps.py         request context: the database session and the signed-in user
-    models/         SQLAlchemy models
-    routes/         chat, videos, workspaces, documents, canvas, study, search
-    services/       claude_client, embedder, indexer, video_processor, storage, auth, canvas_*, quota, ratelimit
+    models/         SQLAlchemy models by domain (library, chat, study, canvas); database.py holds the engine
+    schemas/        request and response models (chat, videos, canvas, study)
+    routes/         chat, conversations, videos, media, workspaces, documents, canvas, canvas_courses,
+                    study, practice, search, account
+    services/       one job per module: answering (lecture_rag_service, retrieval, sources, turns),
+                    study (study, practice, study_records), Canvas (canvas_auth, token_crypto,
+                    canvas_connection, canvas_sync, canvas_course, canvas_readers), uploads, pipeline,
+                    cleanup, claude_client, claude_usage, quota, ratelimit and the rest
   alembic/          migrations
   scripts/          transcribe_video.py, the local Whisper subprocess
-  tests/            pytest suite (Postgres with pgvector required)
+  tests/            pytest suite (Postgres with pgvector required); support.py, fakes.py, db_setup.py are shared
   evals/            transcript quality checks, run with the tests
   modal_app.py      serverless GPU transcription worker
   start_server.sh   uvicorn with reload on port 8000

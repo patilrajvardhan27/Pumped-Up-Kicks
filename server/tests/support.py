@@ -14,20 +14,15 @@ Two things are swapped out, both outside the code under test:
 - The embedding model, which is a download. A small hashing embedder stands in:
   texts that share words land near each other, which is all retrieval needs.
 """
-import hashlib
-import math
 import os
-import re
 from pathlib import Path
-from typing import Optional
 
 from fastapi import Header
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
-from sqlalchemy.engine import make_url
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
-SERVER_DIR = Path(__file__).resolve().parent.parent
+from tests.fakes import FakeClaude, HashingEmbedder
 
 # Settings are read at import. server/conftest.py does this under pytest.
 os.environ.setdefault("ENV", "development")
@@ -37,6 +32,7 @@ from api.config import settings  # noqa: E402
 from api.deps import RequestContext, _upsert_user, get_ctx  # noqa: E402
 from api.main import app  # noqa: E402
 from api.models import database  # noqa: E402
+from tests.db_setup import ensure_database, migrate  # noqa: E402
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL", "postgresql+psycopg://postgres@127.0.0.1:5432/kicks_test"
@@ -56,45 +52,6 @@ def skip(reason: str):
 
 
 # --- database ---------------------------------------------------------------
-
-
-def ensure_database(url: str, recreate: bool = False) -> None:
-    """Create the database (with pgvector) if it does not exist yet."""
-    target = make_url(url)
-    admin = create_engine(target.set(database="postgres"), isolation_level="AUTOCOMMIT")
-    try:
-        with admin.connect() as conn:
-            exists = conn.execute(
-                text("select 1 from pg_database where datname = :name"),
-                {"name": target.database},
-            ).scalar()
-            if exists and recreate:
-                conn.execute(text(f'drop database "{target.database}" with (force)'))
-                exists = False
-            if not exists:
-                conn.execute(text(f'create database "{target.database}"'))
-    finally:
-        admin.dispose()
-
-
-def alembic_config():
-    from alembic.config import Config
-
-    config = Config(str(SERVER_DIR / "alembic.ini"))
-    config.set_main_option("script_location", str(SERVER_DIR / "alembic"))
-    return config
-
-
-def migrate(url: str, revision: str = "head", direction: str = "upgrade") -> None:
-    """Run alembic against `url`. alembic/env.py reads the URL from settings."""
-    from alembic import command
-
-    previous = settings.database_url
-    settings.database_url = url
-    try:
-        getattr(command, direction)(alembic_config(), revision)
-    finally:
-        settings.database_url = previous
 
 
 def use_database(url: str) -> None:
@@ -160,57 +117,8 @@ def client(user_id: str) -> TestClient:
 # --- stand-ins --------------------------------------------------------------
 
 
-class HashingEmbedder:
-    """Bag of words hashed into the real model's 384 dimensions, L2-normalised."""
-
-    embedding_dim = 384
-
-    def _vector(self, text_: str):
-        vector = [0.0] * self.embedding_dim
-        for word in re.findall(r"\w+", text_.lower()):
-            index = int(hashlib.md5(word.encode()).hexdigest(), 16) % self.embedding_dim
-            vector[index] += 1.0
-        norm = math.sqrt(sum(v * v for v in vector))
-        if norm == 0:
-            vector[0], norm = 1.0, 1.0
-        return [v / norm for v in vector]
-
-    def embed_one(self, text_: str):
-        return self._vector(text_)
-
-    def embed_many(self, texts, batch_size: int = 64):
-        return [self._vector(t) for t in texts]
-
-
-class FakeClaude:
-    """Answers with a fixed reply and records what it was sent."""
-
-    USAGE = {
-        "input_tokens": 100, "output_tokens": 5, "cache_read_tokens": 0,
-        "cache_write_tokens": 0, "model": "test-model", "cost_usd": 0.001,
-    }
-
-    def __init__(self, reply: str = "It is covered [0:10]."):
-        self.reply = reply
-        self.prompts: list[str] = []
-
-    def stream(self, system, user):
-        self.prompts.append(user)
-        yield {"type": "delta", "text": self.reply}
-        yield {"type": "done", "text": self.reply, "usage": dict(self.USAGE)}
-
-    def complete(self, system, user, max_tokens: Optional[int] = None):
-        from api.services.claude_client import ClaudeUsage
-
-        self.prompts.append(user)
-        usage = ClaudeUsage(**{k: v for k, v in self.USAGE.items() if k != "cost_usd"})
-        usage.cost_usd = self.USAGE["cost_usd"]
-        return {"text": self.reply, "usage": usage, "stop_reason": "end_turn", "elapsed": 0.0}
-
-
 def install_fakes() -> None:
     import api.services.embedder as embedder_module
-
     from api.routes import videos as videos_module
 
     embedder_module._embedder = HashingEmbedder()

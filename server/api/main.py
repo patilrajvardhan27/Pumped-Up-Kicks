@@ -10,13 +10,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import InterfaceError, OperationalError
-from starlette.datastructures import MutableHeaders
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from api.config import settings
+from api.middleware import CatchAllMiddleware, SecurityHeadersMiddleware, UploadSizeMiddleware, server_error
 from api.models.database import get_engine
-from api.routes import account, canvas, chat, documents, search, study, videos, workspaces
-from api.services.errors import GENERIC_MESSAGE, new_request_id, request_id
+from api.routes import (
+    account,
+    canvas,
+    canvas_courses,
+    chat,
+    conversations,
+    documents,
+    media,
+    practice,
+    search,
+    study,
+    videos,
+    workspaces,
+)
 
 log = logging.getLogger("api")
 
@@ -108,99 +120,9 @@ app = FastAPI(
 )
 
 
-# --- middleware --------------------------------------------------------------
 # add_middleware wraps what was added before it, so the last one added is the
 # outermost: security headers see every response, and errors are turned into a
 # response inside CORS so the browser can read them.
-
-UPLOAD_PATH = "/api/videos/upload"
-# Multipart framing and form fields on top of the file itself.
-UPLOAD_OVERHEAD_BYTES = 64 * 1024
-
-
-def _server_error(request: Request, exc: Exception) -> JSONResponse:
-    rid = request_id(request)
-    log.error("Unhandled error on %s %s (request %s)", request.method, request.url.path, rid, exc_info=exc)
-    return JSONResponse(status_code=500, content={"detail": GENERIC_MESSAGE, "request_id": rid})
-
-
-class CatchAllMiddleware:
-    """Turns an unhandled exception into the generic 500, inside the CORS layer."""
-
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
-            return await self.app(scope, receive, send)
-        started = False
-
-        async def tracked(message):
-            nonlocal started
-            if message["type"] == "http.response.start":
-                started = True
-            await send(message)
-
-        try:
-            await self.app(scope, receive, tracked)
-        except Exception as exc:
-            if started:
-                raise
-            response = _server_error(Request(scope), exc)
-            await response(scope, receive, send)
-
-
-class UploadSizeMiddleware:
-    """Refuses an oversized upload from its Content-Length, before the body is read."""
-
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] == "http" and scope["method"] == "POST" and scope["path"] == UPLOAD_PATH:
-            declared = dict(scope["headers"]).get(b"content-length", b"")
-            if declared.isdigit() and int(declared) > settings.max_upload_bytes + UPLOAD_OVERHEAD_BYTES:
-                limit_gb = settings.max_upload_bytes // (1024 ** 3)
-                response = JSONResponse(
-                    status_code=413, content={"detail": f"That file is larger than the {limit_gb} GB limit."}
-                )
-                return await response(scope, receive, send)
-        await self.app(scope, receive, send)
-
-
-class SecurityHeadersMiddleware:
-    """Gives every request an id and every response the standard hardening headers."""
-
-    HEADERS = {
-        "X-Content-Type-Options": "nosniff",
-        "Referrer-Policy": "no-referrer",
-        "X-Frame-Options": "DENY",
-        "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
-    }
-    HSTS = "max-age=63072000; includeSubDomains"
-
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
-            return await self.app(scope, receive, send)
-        rid = new_request_id()
-        scope.setdefault("state", {})["request_id"] = rid
-
-        async def with_headers(message):
-            if message["type"] == "http.response.start":
-                headers = MutableHeaders(scope=message)
-                for name, value in self.HEADERS.items():
-                    headers[name] = value
-                if not settings.is_development:
-                    headers["Strict-Transport-Security"] = self.HSTS
-                headers["X-Request-ID"] = rid
-            await send(message)
-
-        await self.app(scope, receive, with_headers)
-
-
 app.add_middleware(CatchAllMiddleware)
 app.add_middleware(UploadSizeMiddleware)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_host_list)
@@ -248,17 +170,13 @@ async def invalid_request(request: Request, exc: RequestValidationError) -> JSON
 
 @app.exception_handler(Exception)
 async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
-    return _server_error(request, exc)
+    return server_error(request, exc)
 
 
-app.include_router(chat.router)
-app.include_router(videos.router)
-app.include_router(workspaces.router)
-app.include_router(documents.router)
-app.include_router(canvas.router)
-app.include_router(study.router)
-app.include_router(search.router)
-app.include_router(account.router)
+# media before videos: its /file/{path} route must win over /{video_id}.
+ROUTERS = (chat, conversations, media, videos, workspaces, documents, canvas, canvas_courses, study, practice, search, account)
+for module in ROUTERS:
+    app.include_router(module.router)
 
 
 @app.get("/")

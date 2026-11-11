@@ -16,7 +16,7 @@ from sqlalchemy import func, literal_column, select
 
 from api.deps import Ctx, RequestContext
 from api.models.database import Chunk, Document, Video
-from api.services.lecture_rag_service import format_timestamp, page_label
+from api.services.sources import format_timestamp, page_label
 
 router = APIRouter(prefix="/api/search", tags=["search"])
 

@@ -9,7 +9,7 @@ cheaper and more accurate than the old three-segment grouping.
 Document chunks are built the same way from characters instead of seconds, and
 never cross a page or slide, so every chunk can be cited by its page number.
 """
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from sqlalchemy.orm import Session
 

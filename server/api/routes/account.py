@@ -6,18 +6,27 @@ account and all of it. These back the rights the privacy policy describes
 import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from sqlalchemy import delete
 
 from api.config import settings
 from api.deps import Ctx, RequestContext
 from api.models.database import (
-    CanvasConnection, Conversation, Deadline, Document, StudyGuide, StudySet, User, Video, Workspace,
+    CanvasConnection,
+    Conversation,
+    Deadline,
+    Document,
+    StudyGuide,
+    StudySet,
+    User,
+    Video,
+    Workspace,
 )
 from api.services.cleanup import purge_video_files, revoke_canvas
 from api.services.ratelimit import rate_limit
 from api.services.study import lecture_lines
+from api.services.uploads import owned_video
 
 router = APIRouter(tags=["account"])
 
@@ -46,9 +55,7 @@ def _owned(ctx: RequestContext, model, *order):
 @router.get("/api/videos/{video_id}/transcript")
 def get_transcript(video_id: int, ctx: RequestContext = Ctx):
     """The lecture as readable text with timestamps. Costs no AI tokens."""
-    video = ctx.db.query(Video).filter(Video.id == video_id, Video.user_id == ctx.user_id).first()
-    if video is None:
-        raise HTTPException(status_code=404, detail="Video not found")
+    video = owned_video(ctx, video_id)
     return {"video_id": video.id, "title": video.title or video.filename, "lines": _lines(ctx, video)}
 
 
