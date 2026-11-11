@@ -13,9 +13,9 @@ interface AlertProps {
 }
 
 const TONE: Record<Tone, string> = {
-  success: 'bg-success-soft',
-  info: 'bg-accent-soft',
-  danger: 'bg-danger-soft',
+  success: 'bg-success-wash',
+  info: 'bg-blue-wash',
+  danger: 'bg-danger-wash',
 };
 
 /** A tinted callout. Errors interrupt the screen reader; the rest wait their turn. */
@@ -23,10 +23,10 @@ export function Alert({ children, tone = 'info', title, onClose }: AlertProps) {
   return (
     <div
       role={tone === 'danger' ? 'alert' : 'status'}
-      className={cn('flex items-start gap-3 rounded-md py-3 pr-2 pl-4 text-ink', TONE[tone])}
+      className={cn('flex items-start gap-3 rounded-lg py-3 pr-2 pl-4 text-ink-navy', TONE[tone])}
     >
       <div className="min-w-0 flex-1 py-1">
-        {title && <p className="text-body-sm-strong">{title}</p>}
+        {title && <p className="text-label">{title}</p>}
         <p className="break-words text-body-sm">{children}</p>
       </div>
       {onClose && (

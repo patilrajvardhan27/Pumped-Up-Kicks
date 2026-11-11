@@ -61,7 +61,7 @@ export function PanelTabs<K extends string>({ tabs, active, onChange, label, chi
                 onKeyDown={(event) => move(event, index)}
                 className={cn(
                   'min-h-9 rounded-full px-3.5 text-button-sm',
-                  selected ? 'bg-ink text-on-dark focus-on-dark' : 'text-body hover:bg-surface-soft',
+                  selected ? 'bg-ink-navy text-paper focus-on-dark' : 'text-slate-gray hover:bg-pebble',
                 )}
               >
                 {tab.label}

@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { Desktop } from '@/components/shell/Desktop';
 import { Workspace } from '@/components/workspace/Workspace';
 import { WorkspaceHeader } from '@/components/workspace/WorkspaceHeader';
 
@@ -12,9 +11,9 @@ export const metadata: Metadata = {
 
 export default function AppPage() {
   return (
-    <Desktop>
+    <div className="flex min-h-dvh flex-col">
       <WorkspaceHeader />
       <Workspace />
-    </Desktop>
+    </div>
   );
 }

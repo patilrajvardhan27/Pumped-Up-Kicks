@@ -2,6 +2,7 @@
 
 import { useId, useState } from 'react';
 import { Alert } from '@/components/ui/Alert';
+import { FIELD } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { Input } from '@/components/ui/Input';
@@ -43,7 +44,7 @@ export function PracticePanel({ workspaceId, subject, onSeek }: PracticePanelPro
         }}
         className="flex flex-col gap-4"
       >
-        <h2 className="text-display-md text-ink">Practise {subject}</h2>
+        <h2 className="text-title text-ink-navy">Practise {subject}</h2>
 
         <fieldset className="flex flex-wrap items-center gap-2">
           <legend className="sr-only">What to make</legend>
@@ -59,9 +60,9 @@ export function PracticePanel({ workspaceId, subject, onSeek }: PracticePanelPro
               />
               <span
                 className={cn(
-                  'inline-flex min-h-9 cursor-pointer items-center rounded-full border border-hairline-strong px-3.5 text-button-sm text-body',
-                  'peer-checked:border-ink peer-checked:bg-ink peer-checked:text-on-dark',
-                  'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus',
+                  'inline-flex min-h-9 cursor-pointer items-center rounded-full border border-hairline px-3.5 text-button-sm text-slate-gray',
+                  'peer-checked:border-ink-navy peer-checked:bg-ink-navy peer-checked:text-paper',
+                  'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-signal-blue',
                 )}
               >
                 {option.label}
@@ -75,7 +76,7 @@ export function PracticePanel({ workspaceId, subject, onSeek }: PracticePanelPro
             id={`${id}-count`}
             value={count}
             onChange={(event) => setCount(Number(event.target.value))}
-            className="h-9 rounded-full border border-hairline-strong bg-surface-card px-3 text-button-sm text-ink"
+            className={cn(FIELD, 'h-10 px-3 text-label')}
           >
             {COUNTS.map((n) => (
               <option key={n} value={n}>
@@ -148,10 +149,10 @@ function PracticeSetView({
   const heading = `${pluralise(set.items.length, noun)}${set.focus ? ` on ${set.focus}` : ''}`;
 
   return (
-    <details open={open} className="group/set rounded-md border border-hairline bg-surface-doc">
+    <details open={open} className="group/set rounded-lg border border-hairline bg-cloud">
       <summary className="flex min-h-12 list-none items-center gap-3 px-4 [&::-webkit-details-marker]:hidden">
-        <span className="min-w-0 flex-1 truncate text-body-sm-strong text-ink">{heading}</span>
-        <span className="shrink-0 text-caption-sm text-mute-strong">{formatRelativeTime(set.created_at)}</span>
+        <span className="min-w-0 flex-1 truncate text-label text-ink-navy">{heading}</span>
+        <span className="shrink-0 text-caption text-slate-gray">{formatRelativeTime(set.created_at)}</span>
         <IconButton
           tone="danger"
           aria-label={`Delete ${heading}`}
@@ -163,7 +164,7 @@ function PracticeSetView({
           <TrashIcon />
         </IconButton>
       </summary>
-      <ol className="flex flex-col gap-3 border-t border-hairline-soft p-4">
+      <ol className="flex flex-col gap-3 border-t border-pebble p-4">
         {set.items.map((item, index) =>
           set.kind === 'flashcards' ? (
             <Flashcard key={index} item={item} onSeek={onSeek} />
@@ -179,15 +180,15 @@ function PracticeSetView({
 function Question({ item, number, onSeek }: { item: PracticeItem; number: number; onSeek?: SeekHandler }) {
   return (
     <li className="flex flex-col gap-2">
-      <p className="text-body-sm text-ink">
-        <span className="font-mono text-code-xs tabular-nums text-mute-strong">{number}.</span> {item.question}
+      <p className="text-body-sm text-ink-navy">
+        <span className="tabular-nums text-caption text-slate-gray">{number}.</span> {item.question}
       </p>
       <details className="pl-5">
-        <summary className="inline-flex min-h-8 cursor-pointer items-center text-body-sm-strong text-ink hover:underline">
+        <summary className="inline-flex min-h-8 cursor-pointer items-center text-label text-ink-navy hover:underline">
           Show answer
         </summary>
         <div className="mt-1 flex flex-col items-start gap-2">
-          <p className="text-body-sm text-body">{item.answer}</p>
+          <p className="text-body-sm text-slate-gray">{item.answer}</p>
           <SourceCitation source={item.source} onSeek={onSeek} />
         </div>
       </details>
@@ -206,8 +207,8 @@ function Flashcard({ item, onSeek }: { item: PracticeItem; onSeek?: SeekHandler 
         aria-pressed={flipped}
         aria-label={flipped ? `Answer: ${item.back}. Show the question.` : `${item.front}. Show the answer.`}
         className={cn(
-          'flex min-h-24 w-full items-center justify-center rounded-md border px-5 py-4 text-center text-body-md transition-transform active:scale-[0.99]',
-          flipped ? 'border-ink bg-surface-dark text-on-dark focus-on-dark' : 'border-hairline bg-surface-card text-ink',
+          'flex min-h-24 w-full items-center justify-center rounded-lg border px-5 py-4 text-center text-body transition-transform active:scale-[0.99]',
+          flipped ? 'border-ink-navy bg-ink-navy text-paper focus-on-dark' : 'border-hairline bg-paper text-ink-navy',
         )}
       >
         <span aria-hidden="true">{flipped ? item.back : item.front}</span>

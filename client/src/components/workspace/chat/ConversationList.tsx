@@ -43,7 +43,7 @@ export function ConversationList({ filter, heading, activeId, refreshTrigger, on
   return (
     <Card as="section" padding="tile" aria-labelledby="chats-heading" className="flex flex-col gap-3">
       <div className="flex min-h-8 items-center justify-between gap-3">
-        <h2 id="chats-heading" className="flex min-w-0 items-center gap-2 text-heading-sm text-ink">
+        <h2 id="chats-heading" className="flex min-w-0 items-center gap-2 text-title-sm text-ink-navy">
           <ChatsIcon className="size-5" />
           <span className="truncate">{heading}</span>
         </h2>
@@ -56,7 +56,7 @@ export function ConversationList({ filter, heading, activeId, refreshTrigger, on
       {loading ? (
         <SkeletonRows label="Loading chats" rows={3} rowClassName="h-10" />
       ) : conversations.length === 0 ? (
-        <p className="py-4 text-center text-body-sm text-body">
+        <p className="py-4 text-center text-body-sm text-slate-gray">
           No chats yet. Ask a question to start one.
         </p>
       ) : (
@@ -69,8 +69,8 @@ export function ConversationList({ filter, heading, activeId, refreshTrigger, on
               <li
                 key={conversation.id}
                 className={cn(
-                  'relative flex items-center gap-1 rounded-md py-1.5 pr-1 pl-3',
-                  active ? 'bg-surface-soft' : 'hover:bg-surface-doc',
+                  'relative flex items-center gap-1 rounded-lg py-1.5 pr-1 pl-3',
+                  active ? 'bg-pebble' : 'hover:bg-cloud',
                 )}
               >
                 <div className="min-w-0 flex-1">
@@ -80,13 +80,13 @@ export function ConversationList({ filter, heading, activeId, refreshTrigger, on
                     aria-current={active ? 'true' : undefined}
                     title={title}
                     className={cn(
-                      'block max-w-full truncate rounded-sm text-left after:absolute after:inset-0 after:rounded-md',
-                      active ? 'text-body-sm-strong text-ink' : 'text-body-sm text-ink',
+                      'block max-w-full truncate rounded-md text-left after:absolute after:inset-0 after:rounded-lg',
+                      active ? 'text-label text-ink-navy' : 'text-body-sm text-ink-navy',
                     )}
                   >
                     {title}
                   </button>
-                  <p className="truncate text-caption-sm text-mute-strong">
+                  <p className="truncate text-caption text-slate-gray">
                     {summary(conversation, !videoId)}
                   </p>
                 </div>

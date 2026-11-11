@@ -9,8 +9,8 @@ interface CitationChipProps {
   href?: string;
 }
 
-const BASE = 'mx-0.5 inline-flex max-w-full items-center gap-1 rounded-sm px-1.5 align-baseline font-mono text-code-xs tabular-nums';
-const LIVE = `${BASE} bg-surface-dark text-on-dark transition-transform hover:text-accent-on-dark active:scale-95 focus-on-dark`;
+const BASE = 'mx-0.5 inline-flex max-w-full items-center gap-1 rounded-md px-1.5 align-baseline tabular-nums text-caption';
+const LIVE = `${BASE} bg-ink-navy text-paper transition-transform hover:text-mist-gray active:scale-95 focus-on-dark`;
 
 /**
  * A [12:04] citation plays the lecture from that moment. A [Doc 3] citation
@@ -19,7 +19,7 @@ const LIVE = `${BASE} bg-surface-dark text-on-dark transition-transform hover:te
 export function CitationChip({ label, kind = 'video', onPlay, href }: CitationChipProps) {
   if (kind === 'document') {
     if (!href) {
-      return <span className={`${BASE} bg-surface-soft text-ink`}>{label}</span>;
+      return <span className={`${BASE} bg-pebble text-ink-navy`}>{label}</span>;
     }
     return (
       <a
@@ -36,7 +36,7 @@ export function CitationChip({ label, kind = 'video', onPlay, href }: CitationCh
   }
 
   if (!onPlay) {
-    return <span className={`${BASE} bg-surface-soft text-ink`}>{label}</span>;
+    return <span className={`${BASE} bg-pebble text-ink-navy`}>{label}</span>;
   }
 
   return (

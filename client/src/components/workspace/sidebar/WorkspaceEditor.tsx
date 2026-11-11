@@ -24,7 +24,7 @@ interface WorkspaceEditorProps {
 }
 
 const SWATCH_RING =
-  'peer-checked:outline-2 peer-checked:outline-offset-2 peer-checked:outline-ink peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus';
+  'peer-checked:outline-2 peer-checked:outline-offset-2 peer-checked:outline-ink-navy peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-signal-blue';
 
 /** Name, colour and icon for a subject, inline in the sidebar. */
 export function WorkspaceEditor({
@@ -60,7 +60,7 @@ export function WorkspaceEditor({
         setSaving(false);
         if (saved) onCancel();
       }}
-      className="mx-1 mt-1 mb-2 flex flex-col gap-4 rounded-md border border-hairline bg-surface-card p-3"
+      className="mx-1 mt-1 mb-2 flex flex-col gap-4 rounded-lg border border-hairline bg-paper p-3"
     >
       <Input
         id={`${id}-name`}
@@ -74,7 +74,7 @@ export function WorkspaceEditor({
       />
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-body-sm-strong text-ink">Colour</legend>
+        <legend className="mb-2 text-label text-ink-navy">Colour</legend>
         <div className="grid grid-cols-6 gap-2">
           {WORKSPACE_COLORS.map((option) => (
             <label key={option.key} className="relative">
@@ -86,7 +86,7 @@ export function WorkspaceEditor({
                 onChange={() => setDraft((prev) => ({ ...prev, color: option.key }))}
                 className="peer sr-only"
               />
-              <span aria-hidden="true" className={cn('block aspect-square w-full cursor-pointer rounded-sm', option.tile, SWATCH_RING)} />
+              <span aria-hidden="true" className={cn('block aspect-square w-full cursor-pointer rounded-md', option.tile, SWATCH_RING)} />
               <span className="sr-only">{option.label}</span>
             </label>
           ))}
@@ -94,7 +94,7 @@ export function WorkspaceEditor({
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-body-sm-strong text-ink">Icon</legend>
+        <legend className="mb-2 text-label text-ink-navy">Icon</legend>
         <div className="grid grid-cols-6 gap-1.5">
           {WORKSPACE_ICONS.map((option) => {
             const Glyph = SUBJECT_ICONS[option.key];
@@ -111,9 +111,9 @@ export function WorkspaceEditor({
                 <span
                   aria-hidden="true"
                   className={cn(
-                    'flex aspect-square w-full cursor-pointer items-center justify-center rounded-sm bg-surface-soft text-ink',
-                    'peer-checked:bg-ink peer-checked:text-on-dark',
-                    'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus',
+                    'flex aspect-square w-full cursor-pointer items-center justify-center rounded-md bg-pebble text-ink-navy',
+                    'peer-checked:bg-ink-navy peer-checked:text-paper',
+                    'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-signal-blue',
                   )}
                 >
                   <Glyph />
@@ -127,7 +127,7 @@ export function WorkspaceEditor({
 
       {(onMoveUp || onMoveDown) && (
         <div className="flex items-center gap-2">
-          <span className="text-caption-sm text-mute-strong">Position</span>
+          <span className="text-caption text-slate-gray">Position</span>
           <Button variant="secondary" size="sm" disabled={!onMoveUp} onClick={onMoveUp} aria-label="Move up">
             <MoveUpIcon className="size-3.5" />
           </Button>

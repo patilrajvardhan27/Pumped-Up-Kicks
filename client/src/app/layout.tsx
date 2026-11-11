@@ -1,22 +1,15 @@
 import type { Metadata, Viewport } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
-import { MotionProvider } from '@/components/providers/MotionProvider';
+import { Manrope } from 'next/font/google';
 import { AnalyticsProvider } from '@/components/consent/AnalyticsProvider';
 import { ConsentBanner } from '@/components/consent/ConsentBanner';
 import { site } from '@/lib/site';
 import '@/styles/globals.css';
 
-// One sans for every text role, with hierarchy built from weight; mono is
-// reserved for readouts: timecodes, token counts, sizes.
-const geist = Geist({
+// One family for every text role, with hierarchy built from size and weight.
+// Manrope stands in for Gilroy (see docs/DESIGN.md).
+const manrope = Manrope({
   subsets: ['latin'],
-  variable: '--font-geist',
-  display: 'swap',
-});
-
-const geistMono = Geist_Mono({
-  subsets: ['latin'],
-  variable: '--font-geist-mono',
+  variable: '--font-manrope',
   display: 'swap',
 });
 
@@ -48,20 +41,17 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geist.variable} ${geistMono.variable}`} data-scroll-behavior="smooth">
+    <html lang="en" className={manrope.variable} data-scroll-behavior="smooth">
       <body>
         <a
           href="#main"
-          className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-2 focus-visible:left-2 focus-visible:z-(--z-nav) focus-visible:rounded-md focus-visible:bg-surface-dark focus-visible:px-4 focus-visible:py-2 focus-visible:text-on-dark"
+          className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-2 focus-visible:left-2 focus-visible:z-(--z-nav) focus-visible:rounded-lg focus-visible:bg-ink-navy focus-visible:px-4 focus-visible:py-2 focus-visible:text-paper"
         >
           Skip to content
         </a>
-        {/* Everything that animates, the banner included, must sit inside the provider. */}
-        <MotionProvider>
-          {children}
-          <AnalyticsProvider />
-          <ConsentBanner />
-        </MotionProvider>
+        {children}
+        <AnalyticsProvider />
+        <ConsentBanner />
       </body>
     </html>
   );

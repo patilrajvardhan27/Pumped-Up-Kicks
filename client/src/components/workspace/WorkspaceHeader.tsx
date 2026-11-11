@@ -1,10 +1,12 @@
-import { MenuBar } from '@/components/shell/MenuBar';
+import { SiteHeader } from '@/components/site/SiteHeader';
 import { ServerStatus } from './ServerStatus';
 import { UserBar } from './UserBar';
 
-export function WorkspaceHeader() {
+/** The site bar without the marketing menu, carrying the workspace's own controls. */
+export function WorkspaceHeader({ title = 'Workspace' }: { title?: string }) {
   return (
-    <MenuBar
+    <SiteHeader
+      showNav={false}
       actions={
         <>
           <ServerStatus compact />
@@ -12,7 +14,8 @@ export function WorkspaceHeader() {
         </>
       }
     >
-      <h1 className="sr-only text-button-sm text-mute-strong sm:not-sr-only">Workspace</h1>
-    </MenuBar>
+      <span aria-hidden="true" className="hidden h-6 w-px bg-hairline sm:block" />
+      <h1 className="sr-only text-label text-slate-gray sm:not-sr-only">{title}</h1>
+    </SiteHeader>
   );
 }

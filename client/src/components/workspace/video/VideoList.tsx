@@ -11,7 +11,7 @@ import { VideoListItem } from './VideoListItem';
 interface VideoListProps {
   /** The lectures in the open subject. */
   videos: VideoInfo[];
-  /** Shown as the card's heading: the open subject's name. */
+  /** Shown as the panel's heading: the open subject's name. */
   heading: string;
   /** Every subject, for each lecture's "Subject" menu. */
   workspaces: WorkspaceInfo[];
@@ -51,7 +51,7 @@ export function VideoList({
   return (
     <Card as="section" padding="tile" aria-labelledby="library-heading" className="flex flex-col gap-4">
       <div className="flex min-h-8 items-center justify-between gap-3">
-        <h2 id="library-heading" className="flex min-w-0 items-center gap-2 text-heading-sm text-ink">
+        <h2 id="library-heading" className="flex min-w-0 items-center gap-2 text-title-sm text-ink-navy">
           <LibraryIcon className="size-5" />
           <span className="truncate">{heading}</span>
         </h2>
@@ -61,7 +61,7 @@ export function VideoList({
               Search all
             </Button>
           )}
-          <span className="font-mono text-code-xs tabular-nums text-mute-strong">
+          <span className="tabular-nums text-caption text-slate-gray">
             {readyCount}/{videos.length} ready
           </span>
         </div>
@@ -76,7 +76,7 @@ export function VideoList({
       {loading ? (
         <SkeletonRows label="Loading lectures" rows={2} rowClassName="h-20" />
       ) : videos.length === 0 ? (
-        <p className="py-6 text-center text-body-sm text-body">
+        <p className="py-6 text-center text-body-sm text-slate-gray">
           No lectures here yet. Add one above, or drag one in from another subject.
         </p>
       ) : (

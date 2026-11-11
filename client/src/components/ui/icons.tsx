@@ -58,9 +58,9 @@ import { cn } from '@/lib/cn';
 /*
  * Every glyph in the app comes from Phosphor and passes through here, so
  * there is one family, one default size and one place to swap an icon.
- * Controls use the bold weight; feature illustrations use duotone.
+ * Line style throughout (the regular weight), mono-tone, coloured by the text it sits in.
  */
-function wrap(Glyph: Icon, weight: IconProps['weight'] = 'bold', extraClass?: string) {
+function wrap(Glyph: Icon, weight: IconProps['weight'] = 'regular', extraClass?: string) {
   return function AppIcon({ className, ...rest }: IconProps) {
     return (
       <Glyph
@@ -81,12 +81,12 @@ export const TrashIcon = wrap(PhTrash);
 export const PlusIcon = wrap(PhPlus);
 export const ArrowRightIcon = wrap(PhArrowRight);
 export const ArrowLeftIcon = wrap(PhArrowLeft);
-export const CookieIcon = wrap(PhCookie, 'duotone');
+export const CookieIcon = wrap(PhCookie);
 export const CaretDownIcon = wrap(PhCaretDown);
 export const DisclosureIcon = wrap(CaretRightIcon);
 export const MenuIcon = wrap(ListIcon);
 export const DragIcon = wrap(ArrowsHorizontalIcon);
-export const SpinnerIcon = wrap(CircleNotchIcon, 'bold', 'animate-spin');
+export const SpinnerIcon = wrap(CircleNotchIcon, 'regular', 'animate-spin');
 export const EditIcon = wrap(PencilSimpleIcon);
 export const MoveUpIcon = wrap(PhArrowUp);
 export const MoveDownIcon = wrap(PhArrowDown);
@@ -94,24 +94,24 @@ export const SidebarIcon = wrap(SidebarSimpleIcon);
 export const ExternalIcon = wrap(ArrowSquareOutIcon);
 
 // Features
-export const UploadIcon = wrap(UploadSimpleIcon, 'duotone');
-export const WaveformIcon = wrap(PhWaveform, 'duotone');
-export const SearchIcon = wrap(MagnifyingGlassIcon, 'duotone');
-export const AskIcon = wrap(ChatCircleTextIcon, 'duotone');
-export const VerifiedIcon = wrap(SealCheckIcon, 'duotone');
-export const MeaningIcon = wrap(PhBrain, 'duotone');
-export const CostIcon = wrap(PhCoins, 'duotone');
-export const AnswerIcon = wrap(PhTarget, 'duotone');
-export const LibraryIcon = wrap(BooksIcon, 'duotone');
-export const ChatsIcon = wrap(ChatsCircleIcon, 'duotone');
-export const PreviewIcon = wrap(MonitorPlayIcon, 'duotone');
-export const PrivacyIcon = wrap(ShieldCheckIcon, 'duotone');
-export const TermsIcon = wrap(FileTextIcon, 'duotone');
-export const LostIcon = wrap(CompassIcon, 'duotone');
-export const AllLecturesIcon = wrap(StackIcon, 'duotone');
-export const UnsortedIcon = wrap(TrayIcon, 'duotone');
-export const CanvasIcon = wrap(GraduationCapIcon, 'duotone');
-export const DeadlineIcon = wrap(CalendarBlankIcon, 'duotone');
+export const UploadIcon = wrap(UploadSimpleIcon);
+export const WaveformIcon = wrap(PhWaveform);
+export const SearchIcon = wrap(MagnifyingGlassIcon);
+export const AskIcon = wrap(ChatCircleTextIcon);
+export const VerifiedIcon = wrap(SealCheckIcon);
+export const MeaningIcon = wrap(PhBrain);
+export const CostIcon = wrap(PhCoins);
+export const AnswerIcon = wrap(PhTarget);
+export const LibraryIcon = wrap(BooksIcon);
+export const ChatsIcon = wrap(ChatsCircleIcon);
+export const PreviewIcon = wrap(MonitorPlayIcon);
+export const PrivacyIcon = wrap(ShieldCheckIcon);
+export const TermsIcon = wrap(FileTextIcon);
+export const LostIcon = wrap(CompassIcon);
+export const AllLecturesIcon = wrap(StackIcon);
+export const UnsortedIcon = wrap(TrayIcon);
+export const CanvasIcon = wrap(GraduationCapIcon);
+export const DeadlineIcon = wrap(CalendarBlankIcon);
 
 // Kinds of imported course material.
 export const PdfIcon = wrap(FilePdfIcon);

@@ -20,7 +20,7 @@ function Highlighted({ text, query }: { text: string; query: string }) {
     <>
       {text.split(new RegExp(`(${escaped})`, 'gi')).map((part, i) =>
         part.toLowerCase() === query.toLowerCase() ? (
-          <mark key={i} className="rounded-sm bg-primary/30 text-ink">
+          <mark key={i} className="rounded-md bg-blue-wash text-ink-navy">
             {part}
           </mark>
         ) : (
@@ -69,7 +69,7 @@ export function TranscriptPanel({ videoId, onSeek }: TranscriptPanelProps) {
 
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
         {transcript.status === 'loading' ? (
-          <p className="py-6 text-body-xs text-mute-strong">Loading transcript…</p>
+          <p className="py-6 text-caption text-slate-gray">Loading transcript…</p>
         ) : (
           <ol className="flex flex-col gap-4 py-1">
             {lines.map((line) => (
@@ -77,12 +77,12 @@ export function TranscriptPanel({ videoId, onSeek }: TranscriptPanelProps) {
                 <button
                   type="button"
                   onClick={() => onSeek?.(videoId, line.start)}
-                  className="self-start rounded-sm text-left font-mono text-code-xs tabular-nums text-link-blue hover:underline"
+                  className="self-start rounded-md text-left tabular-nums text-caption text-signal-blue hover:underline"
                   aria-label={`Play from ${formatClock(line.start)}`}
                 >
                   {formatClock(line.start)}
                 </button>
-                <p className="text-body-sm text-body">
+                <p className="text-body-sm text-slate-gray">
                   <Highlighted text={line.text} query={needle} />
                 </p>
               </li>

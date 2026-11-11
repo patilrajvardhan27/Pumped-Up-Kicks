@@ -10,11 +10,11 @@ import type { ServerState } from '@/hooks/useServerStatus';
  * only. The condition sits at each string so the bundler drops them from production.
  */
 const COPY: Record<ServerState, { label: string; dot: string; hint?: string }> = {
-  checking: { label: 'Connecting', dot: 'bg-mute-strong animate-pulse-dot' },
+  checking: { label: 'Connecting', dot: 'bg-slate-gray animate-pulse-dot' },
   online: { label: 'Live', dot: 'bg-success' },
   'no-key': {
     label: 'No API key',
-    dot: 'bg-primary',
+    dot: 'bg-signal-blue',
     hint:
       process.env.NODE_ENV !== 'production'
         ? 'The server is running but ANTHROPIC_API_KEY is not set. Add it to server/.env'
@@ -42,7 +42,7 @@ export function ServerStatus({ compact = false }: { compact?: boolean }) {
       {/* Phones get the dot alone; the label stays available to screen readers. */}
       <span className={compact ? 'sr-only sm:not-sr-only' : undefined}>{copy.label}</span>
       {state === 'online' && model && (
-        <span className="hidden font-mono text-code-xs text-mute-strong md:inline">{model}</span>
+        <span className="hidden tabular-nums text-caption text-slate-gray md:inline">{model}</span>
       )}
     </Badge>
   );

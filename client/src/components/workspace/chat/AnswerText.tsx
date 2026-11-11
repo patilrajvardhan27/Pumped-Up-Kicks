@@ -26,7 +26,7 @@ const IS_CITATION = /^\[(\d|Doc\s)/;
  */
 export function AnswerText({ text, sources, onSeek }: AnswerTextProps) {
   return (
-    <p className="whitespace-pre-wrap text-body-md text-ink">
+    <p className="whitespace-pre-wrap text-body text-ink-navy">
       {text.split(CITATION_SPLIT).map((part, index) => {
         if (!part || !IS_CITATION.test(part)) return part;
 

@@ -1,9 +1,6 @@
 'use client';
 
-import * as m from 'motion/react-m';
-import { useId } from 'react';
 import { cn } from '@/lib/cn';
-import { SNAP_SPRING } from '@/lib/motion';
 import { formatClock } from '@/lib/format';
 import type { Source } from '@/types/api';
 
@@ -18,7 +15,7 @@ interface TimelineStripProps {
 /**
  * The product's signature: an answer's citations plotted on the lecture's own
  * runtime, so you can see whether it drew on one passage or the whole hour
- * before reading a word of it. The lit mark slides to whichever excerpt you pick.
+ * before reading a word of it. The excerpt you pick is marked in Signal Blue.
  */
 export function TimelineStrip({
   sources,
@@ -26,7 +23,6 @@ export function TimelineStrip({
   activeIndex = null,
   onSelect,
 }: TimelineStripProps) {
-  const stripId = useId();
   const cited = sources
     .map((source, index) => ({ source, index }))
     .filter(({ source }) => typeof source.start === 'number');
@@ -37,7 +33,7 @@ export function TimelineStrip({
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-button-sm text-ink">Where this came from</p>
+      <p className="text-button-sm text-ink-navy">Where this came from</p>
 
       {lectures.map((lecture) => {
         const marks = cited.filter(({ source }) => source.video === lecture);
@@ -50,14 +46,14 @@ export function TimelineStrip({
         return (
           <div key={lecture} className="flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-3">
-              <span className="min-w-0 truncate text-caption-sm text-body">{lecture}</span>
-              <span className="shrink-0 font-mono text-code-xs tabular-nums text-mute-strong">
+              <span className="min-w-0 truncate text-caption text-slate-gray">{lecture}</span>
+              <span className="shrink-0 tabular-nums text-caption text-slate-gray">
                 {known ? formatClock(known) : `~${formatClock(latest)}`}
               </span>
             </div>
 
             {/* Room above the strip is reserved for the timestamp labels. */}
-            <div className="strip-ribs relative mt-7 h-11 rounded-md bg-surface-dark">
+            <div className="relative mt-7 h-11 rounded-lg border border-hairline bg-pebble">
               {marks.map(({ source, index }) => {
                 const left = Math.min(97, Math.max(3, ((source.start ?? 0) / runtime) * 100));
                 const active = activeIndex === index;
@@ -69,23 +65,21 @@ export function TimelineStrip({
                     onClick={() => onSelect?.(index)}
                     aria-label={`Excerpt at ${source.timestamp} in ${lecture}`}
                     aria-pressed={active}
-                    className="group/mark focus-on-dark absolute inset-y-0 w-6 -translate-x-1/2 rounded-sm focus-visible:outline-inset"
+                    className="group/mark absolute inset-y-0 w-6 -translate-x-1/2 rounded-md focus-visible:outline-inset"
                     style={{ left: `${left}%` }}
                   >
-                    <span className="mx-auto block h-full w-tick rounded-full bg-hairline-strong transition-transform group-hover/mark:scale-x-150 group-active/mark:scale-y-90" />
-                    {active && (
-                      <m.span
-                        layoutId={`${stripId}-${lecture}-lit`}
-                        transition={SNAP_SPRING}
-                        className="absolute inset-y-0 left-1/2 -ml-0.5 w-1 rounded-full bg-primary"
-                      />
-                    )}
                     <span
                       className={cn(
-                        'pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 rounded-sm px-1.5 py-0.5',
-                        'font-mono text-code-xs tabular-nums whitespace-nowrap transition-opacity',
+                        'mx-auto block h-full rounded-full transition-[width,background-color]',
+                        active ? 'w-1 bg-signal-blue' : 'w-0.5 bg-ink-navy group-hover/mark:w-1',
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        'pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 rounded-md px-1.5 py-0.5',
+                        'tabular-nums text-caption whitespace-nowrap transition-opacity',
                         'group-hover/mark:opacity-100 group-focus-visible/mark:opacity-100',
-                        active ? 'bg-primary text-on-primary opacity-100' : 'bg-surface-dark text-on-dark opacity-0',
+                        active ? 'bg-signal-blue text-paper opacity-100' : 'bg-ink-navy text-paper opacity-0',
                       )}
                     >
                       {source.timestamp}

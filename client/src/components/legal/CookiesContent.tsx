@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { TextLink } from '@/components/ui/TextLink';
 import { site } from '@/lib/site';
 import { ContactLine, LegalBody, LegalHeader, LegalSection, P, Strong } from './prose';
 
@@ -25,12 +25,13 @@ const OPTIONAL: Entry[] = [
 ];
 
 function Table({ caption, rows }: { caption: string; rows: Entry[] }) {
+  // Focusable and labelled, so keyboard users can scroll it on narrow screens.
   return (
-    <div className="max-w-full overflow-x-auto">
-      <table className="w-full min-w-[36rem] border-collapse text-left text-body-xs text-body">
+    <div role="region" aria-label={caption} tabIndex={0} className="max-w-full overflow-x-auto rounded-md">
+      <table className="w-full min-w-[36rem] border-collapse text-left text-caption text-slate-gray">
         <caption className="sr-only">{caption}</caption>
         <thead>
-          <tr className="border-b border-hairline text-ink">
+          <tr className="border-b border-hairline text-ink-navy">
             {['Name', 'Type', 'Set by', 'Purpose', 'Lasts'].map((heading) => (
               <th key={heading} scope="col" className="py-2 pr-3 font-semibold">
                 {heading}
@@ -40,8 +41,8 @@ function Table({ caption, rows }: { caption: string; rows: Entry[] }) {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.name} className="border-b border-hairline-soft align-top">
-              <td className="py-2 pr-3 font-mono text-code-xs text-ink">{row.name}</td>
+            <tr key={row.name} className="border-b border-pebble align-top">
+              <td className="py-2 pr-3 tabular-nums text-caption text-ink-navy">{row.name}</td>
               <td className="py-2 pr-3">{row.kind}</td>
               <td className="py-2 pr-3">{row.setBy}</td>
               <td className="py-2 pr-3">{row.purpose}</td>
@@ -86,9 +87,9 @@ export function CookiesContent() {
           </P>
           <P>
             We do not use advertising cookies, and we do not sell or share data for advertising. See the{' '}
-            <Link href="/privacy" className="text-link-blue underline">
+            <TextLink href="/privacy">
               privacy policy
-            </Link>{' '}
+            </TextLink>{' '}
             for everything else we collect.
           </P>
         </LegalSection>

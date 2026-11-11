@@ -38,12 +38,12 @@ export function CanvasEntry({ status, onOpen, compact = false }: CanvasEntryProp
       type="button"
       onClick={onOpen}
       aria-haspopup="dialog"
-      className="flex min-h-10 w-full items-center gap-2 rounded-md px-2 text-left hover:bg-surface-soft"
+      className="flex min-h-10 w-full items-center gap-2 rounded-lg px-2 text-left hover:bg-pebble"
     >
-      <CanvasIcon className="size-5 text-ink" />
-      <span className="text-body-sm text-ink">Canvas</span>
+      <CanvasIcon className="size-5 text-ink-navy" />
+      <span className="text-body-sm text-ink-navy">Canvas</span>
       <span
-        className={`ml-auto truncate text-caption-sm ${status?.sync?.stage === 'failed' ? 'text-danger' : 'text-mute-strong'}`}
+        className={`ml-auto truncate text-caption ${status?.sync?.stage === 'failed' ? 'text-danger' : 'text-slate-gray'}`}
       >
         {summary}
       </span>

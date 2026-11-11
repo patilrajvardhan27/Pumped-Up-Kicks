@@ -7,7 +7,7 @@ test.describe('landing', () => {
   test('renders with a visible primary call to action', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    const cta = page.getByRole('link', { name: 'Open workspace' }).first();
+    const cta = page.getByRole('link', { name: 'Start studying free' });
     await expect(cta).toBeVisible();
     await expect(cta).toHaveAttribute('href', '/app');
   });
@@ -58,7 +58,7 @@ test.describe('other routes', () => {
   test('an unknown route shows the 404 page', async ({ page }) => {
     const response = await page.goto('/no-such-page');
     expect(response?.status()).toBe(404);
-    await expect(page.getByRole('heading', { name: 'This page is not here.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Nothing at this timestamp.' })).toBeVisible();
   });
 
   test('the workspace loads in dev auth', async ({ page }) => {
@@ -69,7 +69,7 @@ test.describe('other routes', () => {
 });
 
 test.describe('accessibility', () => {
-  for (const path of ['/', '/privacy', '/terms', '/acceptable-use', '/cookies', '/security', '/app/account']) {
+  for (const path of ['/', '/privacy', '/terms', '/acceptable-use', '/cookies', '/security', '/app', '/app/account', '/no-such-page']) {
     test(`${path} has no serious or critical axe violations`, async ({ page }) => {
       await page.goto(path);
       await page.waitForLoadState('networkidle');

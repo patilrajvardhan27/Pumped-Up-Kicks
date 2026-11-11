@@ -42,26 +42,27 @@ npm run e2e        # Playwright with axe, desktop and mobile; starts the dev ser
 
 ```
 src/
-  app/            routes and layouts only (/, /app, /privacy, /terms)
+  app/            routes and layouts only (/, /app, /app/account, policy pages, 404)
   components/
     ui/           buttons, inputs, cards, badges, alerts, dialog, icons
-    shell/        wallpapered desktop, document window, menu bar
-    landing/      the marketing page
+    site/         sticky header, footer and page shells shared outside the workspace
+    landing/      the marketing page; all copy in content.ts
     workspace/    chat, video, upload, sidebar, study, search, canvas, documents
     consent/      cookie banner and analytics provider
-    legal/        privacy and terms content
-    providers/    Clerk, auth token bridge, motion
+    legal/        policy texts; the page list lives in lib/legal.ts
+    account/      data export and account deletion
+    providers/    Clerk and the auth token bridge
   hooks/          stateful logic, including useIdleSignOut
-  lib/            formatting, timestamps, analytics, consent, site config
+  lib/            formatting, timestamps, analytics, consent, site config, navigation
   services/       API clients
-  styles/         tokens.css, motion.css, globals.css
-  types/          API and chat types
+  styles/         tokens.css (design tokens), globals.css (base and utilities)
+  types/          API types by domain (api, library, integrations), chat, transcript
 e2e/              Playwright specs
 ```
 
 ## Design system
 
-The specification is [../docs/DESIGN.md](../docs/DESIGN.md). Every colour, type role, radius and motion value lives in `src/styles/tokens.css`; Tailwind's defaults are cleared, so an off-token value does not compile. Icons are re-exported from `components/ui/icons.tsx`. Motion elements come from `motion/react-m` under the single `LazyMotion` in `components/providers/MotionProvider.tsx`.
+The specification is [../docs/DESIGN.md](../docs/DESIGN.md): navy ink on cool marble. Every colour, type role, radius and shadow lives in `src/styles/tokens.css`; Tailwind's defaults are cleared, so an off-token value does not compile. Shared building blocks (`buttonClasses`, `FIELD`, `TEXT_LINK`, `panel`) keep components from restyling locally. Icons are re-exported from `components/ui/icons.tsx`. Animation is plain CSS (`animate-rise`, `animate-pulse-dot`) and stops under `prefers-reduced-motion`.
 
 ## Security headers
 

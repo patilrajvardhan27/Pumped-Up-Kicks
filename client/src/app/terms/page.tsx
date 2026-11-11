@@ -1,13 +1,13 @@
 import { TermsContent } from '@/components/legal/TermsContent';
-import { DocumentWindow } from '@/components/shell/DocumentWindow';
-import { legalMetadata, legalPage } from '@/lib/legal';
+import { ArticleShell } from '@/components/site/PageShell';
+import { legalMetadata } from '@/lib/legal';
 
 export const metadata = legalMetadata('/terms');
 
 export default function Page() {
   return (
-    <DocumentWindow title={legalPage('/terms').title}>
+    <ArticleShell>
       <TermsContent />
-    </DocumentWindow>
+    </ArticleShell>
   );
 }

@@ -8,9 +8,9 @@ interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const TONE = {
-  neutral: 'text-mute-strong hover:bg-surface-soft hover:text-ink',
-  danger: 'text-mute-strong hover:bg-danger-soft hover:text-danger',
-  'on-dark': 'text-on-dark hover:text-accent-on-dark',
+  neutral: 'text-slate-gray hover:bg-pebble hover:text-ink-navy',
+  danger: 'text-slate-gray hover:bg-danger-wash hover:text-danger',
+  'on-dark': 'text-paper hover:text-mist-gray',
 };
 
 export function IconButton({ tone = 'neutral', className, type = 'button', ...rest }: IconButtonProps) {
@@ -18,8 +18,8 @@ export function IconButton({ tone = 'neutral', className, type = 'button', ...re
     <button
       type={type}
       className={cn(
-        'inline-flex size-11 shrink-0 sm:size-9 items-center justify-center rounded-md',
-        'transition-transform active:translate-y-px disabled:text-disabled disabled:active:translate-y-0',
+        'inline-flex size-11 shrink-0 sm:size-9 items-center justify-center rounded-lg',
+        'transition-transform active:translate-y-px disabled:text-mist-gray disabled:active:translate-y-0',
         TONE[tone],
         className,
       )}

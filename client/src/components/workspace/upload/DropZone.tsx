@@ -35,10 +35,10 @@ export function DropZone({ inputRef, file, accept, disabled, onFile }: DropZoneP
         if (dropped && !disabled) onFile(dropped);
       }}
       className={cn(
-        'relative flex min-h-32 flex-col items-center justify-center gap-1 rounded-md border border-dashed px-4 py-6 text-center',
-        'has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus',
-        dragging ? 'border-ink bg-surface-soft' : 'border-hairline-strong bg-surface-doc',
-        disabled ? 'opacity-60' : 'hover:border-ink',
+        'relative flex min-h-32 flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-4 py-6 text-center',
+        'has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-signal-blue',
+        dragging ? 'border-ink-navy bg-pebble' : 'border-hairline bg-cloud',
+        disabled ? 'opacity-60' : 'hover:border-ink-navy',
       )}
     >
       <input
@@ -56,16 +56,16 @@ export function DropZone({ inputRef, file, accept, disabled, onFile }: DropZoneP
 
       {file ? (
         <>
-          <p className="max-w-full truncate text-body-sm-strong text-ink">{file.name}</p>
-          <p className="font-mono text-code-xs tabular-nums text-mute-strong">
+          <p className="max-w-full truncate text-label text-ink-navy">{file.name}</p>
+          <p className="tabular-nums text-caption text-slate-gray">
             {formatBytes(file.size, 1)}
           </p>
         </>
       ) : (
         <>
-          <UploadIcon className="mb-1 size-5 text-mute-strong" />
-          <p className="text-body-sm text-ink">Drop a recording here, or click to choose one</p>
-          <p className="text-caption-sm text-mute-strong">Up to 4&nbsp;GB</p>
+          <UploadIcon className="mb-1 size-5 text-slate-gray" />
+          <p className="text-body-sm text-ink-navy">Drop a recording here, or click to choose one</p>
+          <p className="text-caption text-slate-gray">Up to 4&nbsp;GB</p>
         </>
       )}
     </div>

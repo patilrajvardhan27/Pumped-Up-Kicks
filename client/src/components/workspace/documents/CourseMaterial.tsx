@@ -56,27 +56,27 @@ export function CourseMaterial({ documents }: CourseMaterialProps) {
   return (
     <Card as="section" padding="tile" aria-labelledby="material-heading" className="flex flex-col gap-4">
       <div className="flex min-h-8 items-center justify-between gap-3">
-        <h2 id="material-heading" className="flex items-center gap-2 text-heading-sm text-ink">
+        <h2 id="material-heading" className="flex items-center gap-2 text-title-sm text-ink-navy">
           <CanvasIcon className="size-5" />
           Course material
         </h2>
-        <span className="font-mono text-code-xs tabular-nums text-mute-strong">{documents.length}</span>
+        <span className="tabular-nums text-caption text-slate-gray">{documents.length}</span>
       </div>
 
       {groups.map((group) => (
         <div key={group.heading} className="flex flex-col gap-1">
-          <h3 className="text-caption-sm text-mute-strong">{group.heading}</h3>
+          <h3 className="text-caption text-slate-gray">{group.heading}</h3>
           <ul className="flex flex-col">
             {group.items.map((doc) => {
               const { label, Icon } = kindOf(doc);
               const href = safeUrl(doc.url);
               const detail = doc.num_pages ? `${label}, ${pluralise(doc.num_pages, label === 'Slides' ? 'slide' : 'page')}` : label;
               return (
-                <li key={doc.id} className="flex min-h-9 items-center gap-2 border-b border-hairline-soft last:border-b-0">
-                  <Icon className="size-4 text-mute-strong" />
+                <li key={doc.id} className="flex min-h-9 items-center gap-2 border-b border-pebble last:border-b-0">
+                  <Icon className="size-4 text-slate-gray" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-body-sm text-ink">{doc.title}</span>
-                    <span className="block text-caption-sm text-mute-strong">{detail}</span>
+                    <span className="block truncate text-body-sm text-ink-navy">{doc.title}</span>
+                    <span className="block text-caption text-slate-gray">{detail}</span>
                   </span>
                   {href && (
                     <a
@@ -84,7 +84,7 @@ export function CourseMaterial({ documents }: CourseMaterialProps) {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={`Open ${doc.title} in Canvas (new tab)`}
-                      className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-mute-strong hover:bg-surface-soft hover:text-ink"
+                      className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-slate-gray hover:bg-pebble hover:text-ink-navy"
                     >
                       <ExternalIcon />
                     </a>

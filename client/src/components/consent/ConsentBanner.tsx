@@ -1,13 +1,10 @@
 'use client';
 
-import { AnimatePresence } from 'motion/react';
-import * as m from 'motion/react-m';
-import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { TextLink } from '@/components/ui/TextLink';
 import { CookieIcon } from '@/components/ui/icons';
 import { analyticsConfigured } from '@/lib/analytics';
 import { useConsent, writeConsent } from '@/lib/consent';
-import { DURATION } from '@/lib/motion';
 
 /**
  * Asks before any analytics run. Sign-in cookies are strictly necessary and
@@ -18,43 +15,37 @@ export function ConsentBanner() {
   const consent = useConsent();
   const open = analyticsConfigured && consent === 'unset';
 
+  if (!open) return null;
+
   return (
-    <AnimatePresence>
-      {open && (
-        <m.section
+        <section
           aria-label="Analytics consent"
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 24 }}
-          transition={{ duration: DURATION.base }}
-          className="card fixed inset-x-3 bottom-3 z-(--z-banner) flex flex-col gap-3 p-4 shadow-window sm:right-auto sm:bottom-5 sm:left-5 sm:w-banner"
+          className="panel fixed inset-x-3 bottom-3 z-(--z-banner) flex animate-rise flex-col gap-4 p-6 shadow-elevated sm:right-auto sm:bottom-6 sm:left-6 sm:w-banner"
         >
           <div className="flex items-start gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-soft text-ink">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-pebble text-ink-navy">
               <CookieIcon className="size-5" />
             </span>
             <div className="flex flex-col gap-1">
-              <h2 className="text-body-strong text-ink">Count visits with PostHog?</h2>
-              <p className="text-body-sm text-body">
+              <h2 className="text-body-strong text-ink-navy">Count visits with PostHog?</h2>
+              <p className="text-body-sm text-slate-gray">
                 Sign-in cookies are always on. With your OK we also measure which features get used.
                 Lecture and chat content is never sent, and screen recording is off.{' '}
-                <Link href="/privacy#cookies" className="text-primary underline">
+                <TextLink href="/privacy#cookies">
                   Details
-                </Link>
+                </TextLink>
               </p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" block onClick={() => writeConsent('denied')}>
+            <Button variant="secondary" size="sm" block onClick={() => writeConsent('denied')}>
               Decline
             </Button>
-            <Button variant="secondary" block onClick={() => writeConsent('granted')}>
+            <Button variant="secondary" size="sm" block onClick={() => writeConsent('granted')}>
               Accept
             </Button>
           </div>
-        </m.section>
-      )}
-    </AnimatePresence>
+        </section>
   );
 }
 

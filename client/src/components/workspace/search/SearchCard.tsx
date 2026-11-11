@@ -25,7 +25,7 @@ interface SearchCardProps {
 function highlighted(snippet: string): ReactNode[] {
   return snippet.split(/(⟦[^⟧]*⟧)/).map((part, index) =>
     part.startsWith('⟦') && part.endsWith('⟧') ? (
-      <mark key={index} className="rounded-sm bg-accent-soft px-0.5 text-ink">
+      <mark key={index} className="rounded-md bg-blue-wash px-0.5 text-ink-navy">
         {part.slice(1, -1)}
       </mark>
     ) : (
@@ -100,10 +100,10 @@ export function SearchCard({ scope, label, onSeek }: SearchCardProps) {
         {busy ? (
           <SkeletonRows label="Searching" rows={2} rowClassName="h-16" />
         ) : hits === null ? null : hits.length === 0 ? (
-          <p className="text-body-sm text-body">Nothing in {label} matches &ldquo;{searched}&rdquo;.</p>
+          <p className="text-body-sm text-slate-gray">Nothing in {label} matches &ldquo;{searched}&rdquo;.</p>
         ) : (
           <>
-            <p className="mb-2 text-caption-sm text-mute-strong">{pluralise(hits.length, 'match')}</p>
+            <p className="mb-2 text-caption text-slate-gray">{pluralise(hits.length, 'match')}</p>
             <ul className="flex flex-col gap-2">
               {hits.map((hit) => (
                 <li key={hit.chunk_id}>
@@ -123,14 +123,14 @@ function Hit({ hit, onSeek }: { hit: SearchHit; onSeek: SeekHandler }) {
   const body = (
     <>
       <span className="flex items-center gap-2">
-        {hit.kind === 'video' ? <PlayIcon className="size-3 text-mute-strong" /> : <PageIcon className="size-3.5 text-mute-strong" />}
-        <span className="min-w-0 flex-1 truncate text-body-sm text-ink">{hit.title}</span>
-        <span className="shrink-0 font-mono text-code-xs tabular-nums text-mute-strong">{where}</span>
+        {hit.kind === 'video' ? <PlayIcon className="size-3 text-slate-gray" /> : <PageIcon className="size-3.5 text-slate-gray" />}
+        <span className="min-w-0 flex-1 truncate text-body-sm text-ink-navy">{hit.title}</span>
+        <span className="shrink-0 tabular-nums text-caption text-slate-gray">{where}</span>
       </span>
-      <span className="mt-1 block text-caption-sm text-body">{highlighted(hit.snippet)}</span>
+      <span className="mt-1 block text-caption text-slate-gray">{highlighted(hit.snippet)}</span>
     </>
   );
-  const box = 'block w-full rounded-md border border-hairline bg-surface-doc p-3 text-left hover:border-hairline-strong';
+  const box = 'block w-full rounded-lg border border-hairline bg-cloud p-3 text-left hover:border-hairline';
 
   if (hit.kind === 'video' && typeof hit.video_id === 'number') {
     return (

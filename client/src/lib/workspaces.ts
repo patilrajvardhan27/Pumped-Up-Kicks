@@ -13,7 +13,8 @@ export const WORKSPACE_COLORS: { key: WorkspaceColor; label: string; tile: strin
   { key: 'red', label: 'Red', tile: 'bg-tile-red' },
   { key: 'purple', label: 'Purple', tile: 'bg-tile-purple' },
   { key: 'teal', label: 'Teal', tile: 'bg-tile-teal' },
-  { key: 'olive', label: 'Olive', tile: 'bg-tile-olive' },
+  // Stored as 'olive' for compatibility with saved subjects; drawn in navy.
+  { key: 'olive', label: 'Navy', tile: 'bg-tile-navy' },
 ];
 
 export const WORKSPACE_ICONS: { key: WorkspaceIcon; label: string }[] = [
@@ -32,13 +33,26 @@ export const WORKSPACE_ICONS: { key: WorkspaceIcon; label: string }[] = [
 ];
 
 export const tileClass = (color: WorkspaceColor) =>
-  WORKSPACE_COLORS.find((option) => option.key === color)?.tile ?? 'bg-tile-olive';
+  WORKSPACE_COLORS.find((option) => option.key === color)?.tile ?? 'bg-tile-navy';
 
 /** New subjects take the next colour in turn, so neighbours rarely match. */
 export const nextColor = (existing: WorkspaceInfo[]): WorkspaceColor =>
   WORKSPACE_COLORS[existing.length % WORKSPACE_COLORS.length].key;
 
 /** Which subject a lecture belongs in, as a key. */
+/** Branch on the open part of the library once, instead of at every call site. */
+export function matchKey<T>(key: WorkspaceKey, cases: { all: T; unsorted: T; subject: (id: number) => T }): T {
+  if (key === 'all') return cases.all;
+  if (key === 'unsorted') return cases.unsorted;
+  return cases.subject(key);
+}
+
+/** The query filter for the open part of the library, as the list and search APIs take it. */
+export type LibraryFilter = { workspaceId?: number; unsorted?: boolean };
+
+export const filterOf = (key: WorkspaceKey): LibraryFilter =>
+  matchKey<LibraryFilter>(key, { all: {}, unsorted: { unsorted: true }, subject: (workspaceId) => ({ workspaceId }) });
+
 export const keyOfVideo = (video: VideoInfo): WorkspaceKey => video.workspace_id ?? 'unsorted';
 
 export function videosIn(videos: VideoInfo[], key: WorkspaceKey): VideoInfo[] {

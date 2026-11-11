@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { TextLink } from '@/components/ui/TextLink';
 import { site } from '@/lib/site';
 import { ContactLine, LegalBody, LegalHeader, LegalSection, List, Operator, P, Strong } from './prose';
 
@@ -111,9 +111,9 @@ export function PrivacyContent() {
           <P>
             You can change your mind at any time with &ldquo;Cookie settings&rdquo; in the footer. Declining stops
             analytics and clears the analytics id. The{' '}
-            <Link href="/cookies" className="text-link-blue underline">
+            <TextLink href="/cookies">
               cookie policy
-            </Link>{' '}
+            </TextLink>{' '}
             lists every entry.
           </P>
         </LegalSection>
@@ -145,9 +145,9 @@ export function PrivacyContent() {
             Traffic is encrypted in transit. Every database query is limited to the signed-in account, and video links
             are signed and expire, and idle sessions sign out after 30 minutes. No system is perfectly secure, so keep
             your sign-in details private and tell us if you suspect a problem. Details are on the{' '}
-            <Link href="/security" className="text-link-blue underline">
+            <TextLink href="/security">
               security page
-            </Link>
+            </TextLink>
             .
           </P>
         </LegalSection>

@@ -14,7 +14,7 @@ const PIPELINE: { stage: VideoStage; label: string }[] = [
 
 export function PipelineTrack({ video }: { video: VideoInfo }) {
   if (video.stage === 'failed') {
-    return <p className="text-caption-sm text-danger">Processing failed</p>;
+    return <p className="text-caption text-danger">Processing failed</p>;
   }
 
   const currentIndex =
@@ -37,16 +37,14 @@ export function PipelineTrack({ video }: { video: VideoInfo }) {
             <span
               aria-hidden="true"
               className={cn(
-                'relative block h-1.5 overflow-hidden rounded-full',
-                done ? 'bg-success' : active ? 'bg-surface-dark' : 'bg-hairline-soft',
+                'block h-1.5 rounded-full',
+                done ? 'bg-success' : active ? 'animate-pulse-dot bg-signal-blue' : 'bg-pebble',
               )}
-            >
-              {active && <span className="hatch-layer animate-hatch" />}
-            </span>
+            />
             <span
               className={cn(
                 'truncate',
-                active ? 'text-button-sm text-ink' : done ? 'text-caption-sm text-body' : 'text-caption-sm text-mute-strong',
+                active ? 'text-caption-strong text-ink-navy' : 'text-caption text-slate-gray',
               )}
             >
               {step.label}

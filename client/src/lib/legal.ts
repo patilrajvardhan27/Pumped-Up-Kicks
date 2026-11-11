@@ -55,7 +55,7 @@ export const LEGAL_PAGES = [
 
 export type LegalPath = (typeof LEGAL_PAGES)[number]['path'];
 
-export function legalPage(path: LegalPath): LegalPage {
+function legalPage(path: LegalPath): LegalPage {
   return LEGAL_PAGES.find((page) => page.path === path) as LegalPage;
 }
 

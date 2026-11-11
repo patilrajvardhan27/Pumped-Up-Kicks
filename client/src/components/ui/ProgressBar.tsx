@@ -5,12 +5,12 @@ interface ProgressBarProps {
   value: number;
   label: string;
   tone?: 'primary' | 'success' | 'danger';
-  /** Slides tape hatching across the fill while work is in progress. */
+  /** Pulses the fill while work is in progress. */
   busy?: boolean;
 }
 
 const TONE = {
-  primary: 'bg-primary',
+  primary: 'bg-signal-blue',
   success: 'bg-success',
   danger: 'bg-danger',
 };
@@ -29,14 +29,12 @@ export function ProgressBar({ value, label, tone = 'primary', busy = false }: Pr
       aria-valuenow={Math.round(clamped)}
       aria-valuemin={0}
       aria-valuemax={100}
-      className="h-2 overflow-hidden rounded-full bg-hairline"
+      className="h-2 overflow-hidden rounded-full bg-pebble"
     >
       <div
-        className={cn('relative h-full overflow-hidden transition-transform duration-(--duration-base)', TONE[tone])}
+        className={cn('h-full rounded-full transition-transform duration-300', TONE[tone], busy && 'animate-pulse-dot')}
         style={{ transform: `translateX(${clamped - 100}%)` }}
-      >
-        {busy && <span aria-hidden="true" className="hatch-layer animate-hatch [--hatch-color:var(--color-primary-active)]" />}
-      </div>
+      />
     </div>
   );
 }

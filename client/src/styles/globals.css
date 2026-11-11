@@ -1,6 +1,5 @@
 @import "tailwindcss";
 @import "./tokens.css";
-@import "./motion.css";
 
 @layer base {
   html {
@@ -11,23 +10,23 @@
   }
 
   body {
-    background-color: var(--color-canvas);
-    color: var(--color-body);
+    background-color: var(--color-cloud);
+    color: var(--color-ink-navy);
     font-family: var(--font-sans);
-    font-size: var(--text-body-md);
-    line-height: var(--text-body-md--line-height);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
     -webkit-font-smoothing: antialiased;
     overflow-x: clip;
   }
 
   ::selection {
-    background-color: var(--color-primary);
-    color: var(--color-on-primary);
+    background-color: var(--color-signal-blue);
+    color: var(--color-paper);
   }
 
-  /* One focus treatment everywhere: solid, 3:1 against every surface. */
+  /* One focus treatment everywhere: a solid Signal Blue ring. */
   :focus-visible {
-    outline: 2px solid var(--color-focus);
+    outline: 2px solid var(--color-signal-blue);
     outline-offset: 2px;
   }
 
@@ -55,14 +54,14 @@
   }
 }
 
-/* For controls drawn on a dark surface, where the usual focus blue would disappear. */
+/* On navy surfaces the blue ring would vanish; use white. */
 @utility focus-on-dark {
   &:focus-visible {
-    outline-color: var(--color-focus-on-dark);
+    outline-color: var(--color-paper);
   }
 }
 
-/* Page gutter and 1280px content column. */
+/* The 1200px content column with a 16px (24px from small screens) gutter. */
 @utility page {
   width: 100%;
   max-width: var(--container-page);
@@ -74,60 +73,42 @@
   }
 }
 
-/* The 80px section rhythm, stepping down on smaller screens. */
+/* Section rhythm: 48px on phones, 64px from tablets, 96px on desktop. */
 @utility section-y {
-  padding-block: var(--spacing-section-sm);
+  padding-block: 3rem;
 
   @media (min-width: 48rem) {
-    padding-block: var(--spacing-section-md);
+    padding-block: 4rem;
   }
 
   @media (min-width: 64rem) {
-    padding-block: var(--spacing-section);
+    padding-block: 6rem;
   }
 }
 
-/* Flat card: white on the canvas with a 1px border. Only windows and the consent banner carry a shadow. */
-@utility card {
-  background-color: var(--color-surface-card);
+/* A white panel on the canvas: 1px hairline, 24px radius, soft blue shadow. */
+@utility panel {
+  background-color: var(--color-paper);
   border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-3xl);
+  box-shadow: var(--shadow-link);
 }
 
-/*
- * The desktop wallpaper: a flat field scattered with short tape ticks. Each
- * layer draws one tick per tile; three tile sizes keep the repeat from showing.
- */
-@utility wallpaper {
-  background-color: var(--color-wallpaper);
-  background-image:
-    radial-gradient(ellipse 1.5px 9px at 24px 30px, var(--color-wallpaper-deep) 98%, transparent),
-    radial-gradient(ellipse 1.5px 7px at 70px 96px, var(--color-wallpaper-deep) 98%, transparent),
-    radial-gradient(ellipse 9px 1.5px at 110px 40px, var(--color-wallpaper-deep) 98%, transparent);
-  background-size:
-    97px 113px,
-    151px 139px,
-    193px 167px;
-}
-
-/* Reading widths: body copy never runs wider than 65 characters, short intros 52. */
+/* Reading widths: body copy never runs wider than 65 characters, intros 52. */
 @utility measure {
-  max-width: var(--measure);
+  max-width: 65ch;
 }
 
 @utility measure-narrow {
-  max-width: var(--measure-narrow);
+  max-width: 52ch;
 }
 
-/*
- * The sticky workspace panes on large screens: pinned under the menu bar and
- * as tall as what is left of the viewport. Sidebar and chat card share this.
- */
+/* Workspace panes on large screens: pinned under the nav, as tall as what is left. */
 @utility workspace-pane {
   @media (min-width: 64rem) {
     position: sticky;
-    top: calc(var(--spacing-nav) + 0.25rem);
-    height: calc(100dvh - var(--spacing-nav) - 1rem);
+    top: calc(var(--spacing-nav) + 1rem);
+    height: calc(100dvh - var(--spacing-nav) - 2rem);
   }
 }
 
@@ -150,4 +131,33 @@
 /* A focus ring drawn inside the element, for targets that clip their own outline. */
 @utility outline-inset {
   outline-offset: -2px;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes pulse-dot {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }

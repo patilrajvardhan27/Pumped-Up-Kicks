@@ -16,7 +16,7 @@ export function ExportNotesButton({ turns, title, disabled }: { turns: Turn[]; t
         track('notes_exported', {});
         downloadNotes(`Notes: ${title}`, turns);
       }}
-      className="self-end rounded-sm text-caption-sm text-body underline-offset-2 hover:text-ink hover:underline disabled:opacity-50"
+      className="self-end rounded-md text-caption text-slate-gray underline-offset-2 hover:text-ink-navy hover:underline disabled:opacity-50"
     >
       Download notes (.md)
     </button>

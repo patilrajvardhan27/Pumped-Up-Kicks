@@ -35,19 +35,19 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
         // A click on the backdrop lands on the dialog element itself.
         if (event.target === ref.current) onClose();
       }}
-      className="m-auto dialog-box max-w-none overflow-hidden rounded-md border border-hairline bg-canvas p-0 text-body shadow-window backdrop:bg-ink/40"
+      className="m-auto dialog-box max-w-none overflow-hidden rounded-3xl border border-hairline bg-paper p-0 text-slate-gray shadow-elevated backdrop:bg-ink-navy/40"
     >
       {open && (
         <div className="flex max-h-[inherit] flex-col">
-          <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-hairline-soft pr-2 pl-5">
-            <h2 id={titleId} className="text-heading-sm text-ink">
+          <div className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-pebble pr-3 pl-6">
+            <h2 id={titleId} className="text-title-sm text-ink-navy">
               {title}
             </h2>
             <IconButton aria-label="Close" onClick={onClose}>
               <CloseIcon />
             </IconButton>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-6">{children}</div>
         </div>
       )}
     </dialog>

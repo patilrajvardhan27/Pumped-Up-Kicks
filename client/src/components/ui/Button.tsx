@@ -1,8 +1,14 @@
 import Link from 'next/link';
-import type { ButtonHTMLAttributes, ComponentProps, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ComponentProps } from 'react';
 import { cn } from '@/lib/cn';
 
-type Variant = 'primary' | 'secondary' | 'tertiary';
+/*
+ * primary: Signal Blue, the one main action on a screen.
+ * dark: Ink Navy, a secondary filled action. Keep it apart from primary.
+ * secondary: white with a hairline border, for quieter actions.
+ * tertiary: text only, for inline and toolbar actions.
+ */
+type Variant = 'primary' | 'dark' | 'secondary' | 'tertiary';
 type Size = 'sm' | 'md';
 
 interface StyleProps {
@@ -11,75 +17,39 @@ interface StyleProps {
   block?: boolean;
 }
 
-/*
- * A button is a face sitting on a darker edge. Hover lifts the face, press
- * drops it flush. Only transform moves, so it costs nothing to animate.
- */
-const EDGE: Record<Variant, string> = {
-  primary: 'bg-primary-active',
-  secondary: 'bg-hairline-strong',
-  tertiary: 'bg-transparent',
-};
-
-const FACE: Record<Variant, string> = {
-  primary: 'bg-primary text-on-primary group-active/btn:bg-primary-pressed',
-  secondary: 'border border-hairline-strong bg-surface-soft text-ink',
-  tertiary: 'text-ink group-hover/btn:bg-surface-soft',
+const VARIANT: Record<Variant, string> = {
+  primary: 'bg-signal-blue text-paper hover:bg-signal-blue-hover hover:shadow-button',
+  dark: 'bg-ink-navy text-paper focus-on-dark hover:shadow-button',
+  secondary: 'border border-hairline bg-paper text-ink-navy hover:bg-pebble',
+  tertiary: 'text-ink-navy hover:bg-pebble',
 };
 
 const SIZE: Record<Size, string> = {
-  sm: 'h-9 px-3 text-button-sm sm:h-8',
-  md: 'h-11 px-4 text-button-md sm:h-10',
+  sm: 'min-h-9 px-3 text-button-sm',
+  md: 'min-h-12 px-4 text-button',
 };
 
-function edgeClasses({ variant = 'primary', block }: StyleProps, className?: string) {
+/** Shared by <Button> and <ButtonLink>, so a link and a button look the same. */
+export function buttonClasses({ variant = 'primary', size = 'md', block }: StyleProps, className?: string) {
   return cn(
-    'group/btn mt-0.5 inline-flex shrink-0 rounded-md align-middle no-underline active:translate-y-px',
-    'disabled:bg-transparent',
-    EDGE[variant],
-    block && 'flex w-full',
+    'inline-flex shrink-0 items-center justify-center gap-2 rounded-lg whitespace-nowrap no-underline',
+    'transition-[background-color,box-shadow,transform] active:translate-y-px',
+    'disabled:bg-pebble disabled:text-mist-gray disabled:shadow-none disabled:active:translate-y-0',
+    VARIANT[variant],
+    SIZE[size],
+    block && 'w-full',
     className,
-  );
-}
-
-function Face({ variant = 'primary', size = 'md', children }: StyleProps & { children: ReactNode }) {
-  return (
-    <span
-      className={cn(
-        'flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md',
-        '-translate-y-0.5 transition-transform',
-        'group-hover/btn:-translate-y-[3px] group-active/btn:translate-y-0',
-        'group-disabled/btn:translate-y-0 group-disabled/btn:border-transparent',
-        'group-disabled/btn:bg-surface-soft group-disabled/btn:text-disabled',
-        FACE[variant],
-        SIZE[size],
-      )}
-    >
-      {children}
-    </span>
   );
 }
 
 type ButtonProps = StyleProps & ButtonHTMLAttributes<HTMLButtonElement>;
 
-export function Button({ variant, size, block, className, children, type = 'button', ...rest }: ButtonProps) {
-  return (
-    <button type={type} className={edgeClasses({ variant, block }, className)} {...rest}>
-      <Face variant={variant} size={size}>
-        {children}
-      </Face>
-    </button>
-  );
+export function Button({ variant, size, block, className, type = 'button', ...rest }: ButtonProps) {
+  return <button type={type} className={buttonClasses({ variant, size, block }, className)} {...rest} />;
 }
 
 type ButtonLinkProps = StyleProps & ComponentProps<typeof Link>;
 
-export function ButtonLink({ variant, size, block, className, children, ...rest }: ButtonLinkProps) {
-  return (
-    <Link className={edgeClasses({ variant, block }, className)} {...rest}>
-      <Face variant={variant} size={size}>
-        {children as ReactNode}
-      </Face>
-    </Link>
-  );
+export function ButtonLink({ variant, size, block, className, ...rest }: ButtonLinkProps) {
+  return <Link className={buttonClasses({ variant, size, block }, className)} {...rest} />;
 }

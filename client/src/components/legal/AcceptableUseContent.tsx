@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { TextLink } from '@/components/ui/TextLink';
 import { site } from '@/lib/site';
 import { ContactLine, LegalBody, LegalHeader, LegalSection, List, P, Strong } from './prose';
 
@@ -71,9 +71,9 @@ export function AcceptableUseContent() {
             We may remove content, limit features, or suspend or close an account, depending on how serious the
             problem is. Where we can, we will tell you why and give you a chance to respond. Rights holders can ask for
             content to be removed using the route in the{' '}
-            <Link href="/terms#copyright" className="text-link-blue underline">
+            <TextLink href="/terms#copyright">
               terms of service
-            </Link>
+            </TextLink>
             .
           </P>
         </LegalSection>

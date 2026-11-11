@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
+import { TextLink } from '@/components/ui/TextLink';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -59,10 +59,10 @@ export function AccountPanel({ afterDelete }: AccountPanelProps) {
       )}
 
       <Card as="section" aria-labelledby="export-heading" className="flex flex-col items-start gap-3">
-        <h2 id="export-heading" className="text-heading-md text-ink">
+        <h2 id="export-heading" className="text-title-sm text-ink-navy">
           Download your data
         </h2>
-        <p className="max-w-[60ch] text-body-sm text-body">
+        <p className="max-w-[60ch] text-body-sm text-slate-gray">
           One JSON file with your account details, every lecture&rsquo;s transcript, and all your chats. Video files
           are not included, since you already have them.
         </p>
@@ -72,14 +72,14 @@ export function AccountPanel({ afterDelete }: AccountPanelProps) {
       </Card>
 
       <Card as="section" aria-labelledby="delete-heading" className="flex flex-col items-start gap-3">
-        <h2 id="delete-heading" className="text-heading-md text-ink">
+        <h2 id="delete-heading" className="text-title-sm text-ink-navy">
           Delete your account
         </h2>
-        <p className="max-w-[60ch] text-body-sm text-body">
+        <p className="max-w-[60ch] text-body-sm text-slate-gray">
           Permanently deletes every lecture, transcript, chat and your account. This cannot be undone. See the{' '}
-          <Link href="/privacy#retention" className="text-link-blue underline">
+          <TextLink href="/privacy#retention">
             privacy policy
-          </Link>{' '}
+          </TextLink>{' '}
           for what happens to backups.
         </p>
         <Input

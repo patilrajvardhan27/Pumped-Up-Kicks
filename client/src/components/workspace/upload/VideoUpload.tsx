@@ -34,14 +34,14 @@ export function VideoUpload({ workspaceId, destination, onUploadSuccess }: Video
   return (
     <Card as="section" padding="tile" aria-labelledby="upload-heading" className="flex flex-col gap-4">
       <div className="flex min-h-8 items-center justify-between gap-3">
-        <h2 id="upload-heading" className="flex items-center gap-2 text-heading-sm text-ink">
+        <h2 id="upload-heading" className="flex items-center gap-2 text-title-sm text-ink-navy">
           <UploadIcon className="size-5" />
           Add a lecture
         </h2>
-        <span className="text-caption-sm text-mute-strong">MP4, MOV, MKV, WEBM</span>
+        <span className="text-caption text-slate-gray">MP4, MOV, MKV, WEBM</span>
       </div>
-      <p className="-mt-2 truncate text-caption-sm text-body">
-        Files into <span className="text-body-sm-strong text-ink">{destination}</span>
+      <p className="-mt-2 truncate text-caption text-slate-gray">
+        Files into <span className="text-label text-ink-navy">{destination}</span>
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">

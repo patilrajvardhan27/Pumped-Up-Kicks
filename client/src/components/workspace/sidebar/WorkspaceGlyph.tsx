@@ -46,18 +46,18 @@ const SIZE = { sm: 'size-6 [&>svg]:size-3.5', md: 'size-7 [&>svg]:size-4' };
 
 /** The square tile that stands for a subject everywhere it appears. Decorative. */
 export function WorkspaceGlyph({ subject, size = 'md', className }: WorkspaceGlyphProps) {
-  const base = cn('inline-flex shrink-0 items-center justify-center rounded-sm', SIZE[size], className);
+  const base = cn('inline-flex shrink-0 items-center justify-center rounded-md', SIZE[size], className);
 
   if (subject === 'all') {
     return (
-      <span aria-hidden="true" className={cn(base, 'bg-surface-dark text-on-dark')}>
+      <span aria-hidden="true" className={cn(base, 'bg-ink-navy text-paper')}>
         <AllLecturesIcon />
       </span>
     );
   }
   if (subject === 'unsorted') {
     return (
-      <span aria-hidden="true" className={cn(base, 'border border-hairline-strong bg-surface-card text-ink')}>
+      <span aria-hidden="true" className={cn(base, 'border border-hairline bg-paper text-ink-navy')}>
         <UnsortedIcon />
       </span>
     );
@@ -65,7 +65,7 @@ export function WorkspaceGlyph({ subject, size = 'md', className }: WorkspaceGly
 
   const Glyph = SUBJECT_ICONS[subject.icon] ?? SubjectBookIcon;
   return (
-    <span aria-hidden="true" className={cn(base, tileClass(subject.color), 'text-on-dark')}>
+    <span aria-hidden="true" className={cn(base, tileClass(subject.color), 'text-paper')}>
       <Glyph />
     </span>
   );

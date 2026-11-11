@@ -27,7 +27,7 @@ export function ChatComposer({ placeholder, disabled, busy, onAsk, onStop }: Cha
         onAsk(question);
         setQuestion('');
       }}
-      className="flex shrink-0 items-start gap-3 border-t border-hairline-soft pt-4"
+      className="flex shrink-0 items-start gap-3 border-t border-pebble pt-4"
     >
       <Input
         id="chat-question"

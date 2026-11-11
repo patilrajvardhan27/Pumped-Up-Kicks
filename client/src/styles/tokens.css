@@ -1,11 +1,8 @@
 /*
- * Design tokens. Every colour, type role, radius and motion value used by a
- * component is defined here and nowhere else.
- *
- * The default Tailwind palette, radii, shadows and type scale are cleared so
- * an off-system value fails to compile instead of slipping in. Light theme
- * only. Contrast of every text and UI pairing below was checked against WCAG
- * AA: 4.5:1 for text, 3:1 for borders, focus rings and other UI.
+ * Design tokens, from docs/DESIGN.md: navy ink on cool marble. Every colour,
+ * type role, radius and shadow a component uses is defined here and nowhere
+ * else. Tailwind's defaults are cleared so an off-system value fails to
+ * compile instead of slipping in.
  */
 @theme {
   --color-*: initial;
@@ -15,168 +12,126 @@
   --ease-*: initial;
   --animate-*: initial;
 
-  /* Accent: one cobalt, used for the primary action, links and focus. */
-  --color-primary: #2346c8;
-  --color-primary-pressed: #1b38a3;
-  --color-primary-active: #152d85;
-  --color-on-primary: #ffffff;
-  /* The same accent lightened for text and icons that sit on dark surfaces. */
-  --color-accent-on-dark: #8fa5f0;
-  /* Info callouts, highlights and quoted blocks. */
-  --color-accent-soft: #e1e7fa;
-
-  /* Surfaces */
-  --color-canvas: #eef0ec;
-  --color-surface-card: #ffffff;
-  --color-surface-soft: #e4e8e3;
-  --color-surface-doc: #fafbf9;
-  --color-surface-dark: #1d2421;
-  --color-on-dark: #ffffff;
-  --color-mute-on-dark: #aeb7b1;
-
-  /* Lines. Hairline is decoration; hairline-strong is 3:1 and carries control edges. */
-  --color-hairline: #c3c9c3;
-  --color-hairline-soft: #dbdfdb;
-  --color-hairline-strong: #6a726c;
-
-  /* Text */
-  --color-ink: #1d2421;
-  --color-body: #454d48;
-  --color-mute-strong: #515955;
-  --color-disabled: #8b938d;
-
-  /* Semantic. Info is the accent tint above. */
-  --color-success: #1b7347;
-  --color-success-soft: #d9eee2;
-  --color-danger: #b3352d;
-  --color-danger-soft: #f8dedb;
+  /* Palette */
+  --color-ink-navy: #0b3558; /* all text, headings, icons, dark buttons */
+  --color-signal-blue: #006bff; /* filled primary actions, links, selection */
+  --color-slate-gray: #476788; /* secondary copy, helper text */
+  --color-mist-gray: #a6bbd1; /* disabled text, inactive labels, icons on navy */
+  --color-cloud: #f8f9fb; /* page canvas, footer */
+  --color-paper: #ffffff; /* cards, panels, text on dark fills */
+  --color-pebble: #f0f3f8; /* inputs, badges, dividers, hover washes */
+  --color-hairline: #d4e0ed; /* card and input borders */
+  --color-deep-cobalt: #004eba; /* badge text on blue-wash */
+  --color-blue-wash: #e6f0ff; /* badge and selected-row fill */
+  /* Decorative only: the blobs behind product visuals, never a UI fill. */
+  --color-coral-magenta: #e55cff;
+  --color-sky-cyan: #0099ff;
 
   /*
-   * Focus rings need 3:1 against whatever is behind them. The cobalt accent
-   * clears that on every light surface including the wallpaper (4.0:1 at the
-   * lowest); on dark surfaces the lightened accent does (6.6:1).
+   * Product extensions (not in the marketing spec). Each keeps 4.5:1 for text
+   * on white and stays in the navy family.
    */
-  --color-focus: var(--color-primary);
-  --color-focus-on-dark: var(--color-accent-on-dark);
-
-  /* The desktop the app sits on: a muted olive with a deeper step for its texture. */
-  --color-wallpaper: #c9d5b6;
-  --color-wallpaper-deep: #b3c29c;
-
-  /* Subject tiles. Six hues, each with 4.5:1 or better under white. */
-  --color-tile-blue: #2346c8;
+  --color-signal-blue-hover: #0058d1;
+  --color-danger: #c0262d;
+  --color-danger-wash: #fdecee;
+  --color-success: #0f7b4a;
+  --color-success-wash: #e3f5ec;
+  /* Subject tiles: six hues, each 4.5:1 or better under white text. */
+  --color-tile-blue: #006bff;
+  --color-tile-navy: #0b3558;
+  --color-tile-teal: #0e7078;
+  --color-tile-purple: #7a3f9a;
   --color-tile-green: #1b7347;
   --color-tile-red: #b3352d;
-  --color-tile-purple: #7a3f9a;
-  --color-tile-teal: #0e7078;
-  --color-tile-olive: #5f6b2a;
 
   /*
-   * Type: one ladder of 12, 13, 14, 16, 18, 21, 25, 30 and 36px. Each role
-   * carries its own weight, line height and tracking, so components never set
-   * those on their own.
+   * Type. One family; each role carries its own size, line height and weight.
+   * Body roles use 1.5 leading for paragraphs (the spec's 1.0 is for one-line
+   * labels, which `leading-none` covers).
    */
-  --text-display-xl: 2.25rem;
-  --text-display-xl--line-height: 1.15;
-  --text-display-xl--font-weight: 700;
-  --text-display-xl--letter-spacing: -0.025em;
-  --text-display-lg: 1.875rem;
-  --text-display-lg--line-height: 1.2;
-  --text-display-lg--font-weight: 700;
-  --text-display-lg--letter-spacing: -0.02em;
-  --text-display-md: 1.5625rem;
-  --text-display-md--line-height: 1.25;
-  --text-display-md--font-weight: 700;
-  --text-display-md--letter-spacing: -0.015em;
-  --text-heading-lg: 1.3125rem;
-  --text-heading-lg--line-height: 1.3;
-  --text-heading-lg--font-weight: 650;
-  --text-heading-lg--letter-spacing: -0.01em;
-  --text-heading-sm: 1.125rem;
-  --text-heading-sm--line-height: 1.4;
-  --text-heading-sm--font-weight: 600;
-  --text-heading-sm--letter-spacing: -0.005em;
-  --text-body-md: 1rem;
-  --text-body-md--line-height: 1.55;
-  --text-body-md--font-weight: 400;
-  --text-body-strong: 1rem;
-  --text-body-strong--line-height: 1.55;
-  --text-body-strong--font-weight: 600;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.5;
+  --text-caption--font-weight: 400;
+  --text-caption-strong: 0.75rem;
+  --text-caption-strong--line-height: 1.5;
+  --text-caption-strong--font-weight: 600;
+  --text-label: 0.875rem;
+  --text-label--line-height: 1.4;
+  --text-label--font-weight: 500;
   --text-body-sm: 0.875rem;
   --text-body-sm--line-height: 1.5;
   --text-body-sm--font-weight: 400;
-  --text-body-sm-strong: 0.875rem;
-  --text-body-sm-strong--line-height: 1.5;
-  --text-body-sm-strong--font-weight: 600;
-  --text-caption-sm: 0.8125rem;
-  --text-caption-sm--line-height: 1.45;
-  --text-caption-sm--font-weight: 450;
-  --text-utility-xs: 0.75rem;
-  --text-utility-xs--line-height: 1.35;
-  --text-utility-xs--font-weight: 600;
-  --text-utility-xs--letter-spacing: 0.04em;
-  --text-button-md: 0.875rem;
-  --text-button-md--line-height: 1.25;
-  --text-button-md--font-weight: 600;
-  --text-button-sm: 0.8125rem;
-  --text-button-sm--line-height: 1.25;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5;
+  --text-body--font-weight: 400;
+  --text-body-strong: 1rem;
+  --text-body-strong--line-height: 1.5;
+  --text-body-strong--font-weight: 600;
+  --text-button-sm: 0.875rem;
+  --text-button-sm--line-height: 1.4;
   --text-button-sm--font-weight: 600;
-  --text-code-sm: 0.875rem;
-  --text-code-sm--line-height: 1.45;
-  --text-code-sm--font-weight: 500;
-  --text-code-xs: 0.8125rem;
-  --text-code-xs--line-height: 1.45;
-  --text-code-xs--font-weight: 400;
+  --text-button: 1.125rem;
+  --text-button--line-height: 1.6;
+  --text-button--font-weight: 600;
+  --text-title-sm: 1.125rem;
+  --text-title-sm--line-height: 1.4;
+  --text-title-sm--font-weight: 600;
+  --text-body-lg: 1.25rem;
+  --text-body-lg--line-height: 1.4;
+  --text-body-lg--font-weight: 400;
+  --text-title: 1.5rem;
+  --text-title--line-height: 1.4;
+  --text-title--font-weight: 600;
+  --text-subheading: 1.75rem;
+  --text-subheading--line-height: 1.4;
+  --text-subheading--font-weight: 600;
+  --text-heading-sm: 2.375rem;
+  --text-heading-sm--line-height: 1.21;
+  --text-heading-sm--font-weight: 700;
+  --text-heading: 3.125rem;
+  --text-heading--line-height: 1.2;
+  --text-heading--font-weight: 700;
+  --text-heading-lg: 4.25rem;
+  --text-heading-lg--line-height: 1.2;
+  --text-heading-lg--font-weight: 700;
+  --text-display: 5rem;
+  --text-display--line-height: 1.2;
+  --text-display--font-weight: 700;
 
-  /*
-   * Shape. sm: inputs, chips and inline buttons. md: cards and buttons.
-   * xl: windows only. Pills and avatars use rounded-full.
-   */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-xl: 16px;
+  /* Shape: 4 small, 8 buttons and inputs, 16 product cards, 24 panels. */
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 24px;
 
-  /* The only shadow: a window floating over the wallpaper, and the consent banner. */
-  --shadow-window:
-    0 1px 2px color-mix(in srgb, var(--color-ink) 12%, transparent),
-    0 16px 48px -8px color-mix(in srgb, var(--color-ink) 38%, transparent);
+  /* Elevation: blue-tinted, never neutral black. */
+  --shadow-link:
+    rgba(71, 103, 136, 0.04) 0 4px 5px, rgba(71, 103, 136, 0.03) 0 4px 10px,
+    rgba(71, 103, 136, 0.05) 0 10px 20px;
+  --shadow-button:
+    rgba(71, 103, 136, 0.04) 0 4px 5px, rgba(71, 103, 136, 0.03) 0 8px 15px,
+    rgba(71, 103, 136, 0.06) 0 15px 30px;
+  --shadow-elevated:
+    rgba(71, 103, 136, 0.04) 0 4px 5px, rgba(71, 103, 136, 0.03) 0 8px 15px,
+    rgba(71, 103, 136, 0.08) 0 30px 50px;
 
-  /* Layout */
-  --container-page: 80rem;
+  /* Layout: 8px base unit, 1200px page, 64px sticky nav. */
+  --container-page: 75rem;
   --container-banner: 26rem;
   --spacing-nav: 4rem;
-  --spacing-section: 5rem;
-  --spacing-section-md: 4rem;
-  --spacing-section-sm: 3rem;
-  /* The 3px bar of a timeline marker. */
-  --spacing-tick: 3px;
-
-  /* Layers: the sticky nav is the only raised layer in the app. */
   --z-nav: 20;
   --z-banner: 30;
 
-  /* Motion: one curve, three speeds. */
+  /* Motion: one curve. Movement is small; nothing bounces. */
   --ease-brand: cubic-bezier(0.16, 1, 0.3, 1);
-  --duration-fast: 150ms;
-  --duration-base: 250ms;
-  --duration-slow: 400ms;
   --default-transition-duration: 150ms;
   --default-transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-
-  --animate-rise: rise var(--duration-slow) var(--ease-brand) both;
-  --animate-mark-in: mark-in var(--duration-slow) var(--ease-brand) both;
+  --animate-rise: rise 400ms var(--ease-brand) both;
   --animate-pulse-dot: pulse-dot 1.6s var(--ease-brand) infinite;
-  --animate-hatch: hatch 1.2s linear infinite;
   --animate-spin: spin 0.8s linear infinite;
 }
 
-/* Reading widths, used through the measure and measure-narrow utilities. */
-:root {
-  --measure: 65ch;
-  --measure-narrow: 52ch;
-}
-
 @theme inline {
-  --font-sans: var(--font-geist), -apple-system, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }

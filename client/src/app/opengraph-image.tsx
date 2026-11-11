@@ -6,96 +6,62 @@ export const alt = `${site.name}: ${site.tagline}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
-const TICKS = 72;
-const ANSWER_AT = 0.513;
-const CHIP_WIDTH = 104;
+const flex = { display: 'flex' } as const;
 
+const blob = (color: string, left: number, top: number) => ({
+  ...flex,
+  position: 'absolute' as const,
+  left,
+  top,
+  width: 300,
+  height: 300,
+  borderRadius: 300,
+  background: color,
+  opacity: 0.35,
+});
+
+/** Navy headline on the cloud canvas, beside an answer card backed by the two accent blobs. */
 export default function OpengraphImage() {
-  const ink = tokenColor('ink');
-  const body = tokenColor('body');
-  const dark = tokenColor('surface-dark');
-  const primary = tokenColor('primary');
-  const onPrimary = tokenColor('on-primary');
-  const tick = tokenColor('mute-on-dark');
-  const needle = tokenColor('accent-on-dark');
+  const navy = tokenColor('ink-navy');
+  const slate = tokenColor('slate-gray');
+  const paper = tokenColor('paper');
 
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          background: tokenColor('canvas'),
-          padding: 72,
-          color: ink,
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: 1, color: body, display: 'flex' }}>
-            LECTURE INTELLIGENCE
-          </div>
-          <div style={{ fontSize: 80, fontWeight: 700, lineHeight: 1.1, marginTop: 20, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex' }}>Rewind your lectures,</div>
-            <div style={{ display: 'flex' }}>fast-forward your learning.</div>
+      <div style={{ ...flex, width: '100%', height: '100%', background: tokenColor('cloud'), padding: 72, color: navy }}>
+        <div style={{ ...flex, flexDirection: 'column', justifyContent: 'center', width: 600 }}>
+          <div style={{ ...flex, fontSize: 28, fontWeight: 700 }}>{site.name}</div>
+          <div style={{ ...flex, fontSize: 76, fontWeight: 700, lineHeight: 1.1, marginTop: 24 }}>{site.tagline}.</div>
+          <div style={{ ...flex, fontSize: 28, color: slate, marginTop: 24, lineHeight: 1.4 }}>
+            Every answer links to the second your professor said it.
           </div>
         </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', position: 'relative', height: 44 }}>
-            {/* A fixed-width box centred on the needle (strip x + half the needle). */}
-            <div
-              style={{
-                position: 'absolute',
-                left: ANSWER_AT * 1056 + 4 - CHIP_WIDTH / 2,
-                top: 0,
-                width: CHIP_WIDTH,
-                display: 'flex',
-                justifyContent: 'center',
-                background: primary,
-                color: onPrimary,
-                fontSize: 26,
-                fontWeight: 700,
-                padding: '2px 0',
-                borderRadius: 4,
-              }}
-            >
-              34:12
-            </div>
-          </div>
+        <div style={{ ...flex, position: 'relative', flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <div style={blob(tokenColor('coral-magenta'), 10, 40)} />
+          <div style={blob(tokenColor('sky-cyan'), 150, 200)} />
           <div
             style={{
-              display: 'flex',
-              position: 'relative',
-              height: 120,
-              background: dark,
-              borderRadius: 12,
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0 24px',
+              ...flex,
+              flexDirection: 'column',
+              width: 400,
+              padding: 32,
+              borderRadius: 16,
+              background: paper,
+              border: `1px solid ${tokenColor('hairline')}`,
             }}
           >
-            {Array.from({ length: TICKS }, (_, i) => (
+            <div style={{ ...flex, fontSize: 22, color: slate }}>Why does the gradient vanish?</div>
+            <div style={{ ...flex, fontSize: 26, fontWeight: 600, marginTop: 16, lineHeight: 1.4 }}>
+              Small derivatives multiply across many layers
+            </div>
+            <div style={{ ...flex, marginTop: 24 }}>
               <div
-                key={i}
-                style={{ width: 3, height: i % 6 === 0 ? 64 : 28, background: tick, opacity: 0.5, borderRadius: 2 }}
-              />
-            ))}
-            <div
-              style={{
-                position: 'absolute',
-                left: ANSWER_AT * 1056,
-                top: 0,
-                width: 8,
-                height: 120,
-                background: needle,
-                borderRadius: 4,
-              }}
-            />
+                style={{ ...flex, padding: '8px 16px', borderRadius: 8, background: tokenColor('signal-blue'), color: paper, fontSize: 22 }}
+              >
+                [12:04]
+              </div>
+            </div>
           </div>
-          <div style={{ marginTop: 20, fontSize: 30, fontWeight: 700, display: 'flex' }}>{site.name}</div>
         </div>
       </div>
     ),

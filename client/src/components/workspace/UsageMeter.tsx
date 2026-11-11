@@ -21,11 +21,11 @@ export function UsageMeter({ refreshTrigger }: { refreshTrigger?: number }) {
   return (
     <Card as="section" padding="tile" aria-labelledby="usage-heading" className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="usage-heading" className="text-button-sm text-ink">
+        <h2 id="usage-heading" className="text-button-sm text-ink-navy">
           This month, {quota.plan} plan
         </h2>
         <span
-          className={`font-mono text-code-xs tabular-nums ${quota.exhausted ? 'text-danger' : 'text-body'}`}
+          className={`tabular-nums text-caption ${quota.exhausted ? 'text-danger' : 'text-slate-gray'}`}
         >
           {formatUsd(quota.spent_usd, 4)} / {formatUsd(quota.limit_usd)}
         </span>
@@ -35,25 +35,25 @@ export function UsageMeter({ refreshTrigger }: { refreshTrigger?: number }) {
 
       <dl className="grid grid-cols-3 gap-3">
         <div>
-          <dt className="text-caption-sm text-mute-strong">Questions</dt>
-          <dd className="font-mono text-code-sm tabular-nums text-ink">{usage.questions_asked}</dd>
+          <dt className="text-caption text-slate-gray">Questions</dt>
+          <dd className="tabular-nums text-body-sm text-ink-navy">{usage.questions_asked}</dd>
         </div>
         <div>
-          <dt className="text-caption-sm text-mute-strong">From cache</dt>
-          <dd className="font-mono text-code-sm tabular-nums text-ink">{cacheRate}%</dd>
+          <dt className="text-caption text-slate-gray">From cache</dt>
+          <dd className="tabular-nums text-body-sm text-ink-navy">{cacheRate}%</dd>
         </div>
         <div className="text-right">
-          <dt className="text-caption-sm text-mute-strong">Left</dt>
-          <dd className="font-mono text-code-sm tabular-nums text-ink">
+          <dt className="text-caption text-slate-gray">Left</dt>
+          <dd className="tabular-nums text-body-sm text-ink-navy">
             {formatUsd(quota.remaining_usd)}
           </dd>
         </div>
       </dl>
 
       {content && (
-        <p className="flex items-baseline justify-between gap-3 border-t border-hairline-soft pt-3 text-caption-sm text-mute-strong">
+        <p className="flex items-baseline justify-between gap-3 border-t border-pebble pt-3 text-caption text-slate-gray">
           <span>Indexed passages, lectures and course material</span>
-          <span className={`font-mono text-code-xs tabular-nums ${content.remaining_chunks === 0 ? 'text-danger' : 'text-body'}`}>
+          <span className={`tabular-nums text-caption ${content.remaining_chunks === 0 ? 'text-danger' : 'text-slate-gray'}`}>
             {content.used_chunks.toLocaleString('en-US')} / {content.limit_chunks.toLocaleString('en-US')}
           </span>
         </p>

@@ -8,7 +8,7 @@ export function TurnMeta({ turn }: { turn: Turn }) {
   const cost = turn.usage?.cost_usd ?? turn.costUsd ?? 0;
 
   return (
-    <p className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-code-xs tabular-nums text-mute-strong">
+    <p className="flex flex-wrap items-center gap-x-4 gap-y-1 tabular-nums text-caption text-slate-gray">
       {turn.responseTime != null && <span>{turn.responseTime.toFixed(1)}s</span>}
       {turn.usage && (
         <span>

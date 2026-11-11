@@ -10,7 +10,7 @@ interface PlayerScrubberProps {
 
 const STEP_SECONDS = 5;
 
-/** The scrubber is the lecture timeline: ribs, cited passages and the needle. */
+/** The scrubber is the lecture timeline: cited passages and the playhead. */
 export function PlayerScrubber({ currentTime, duration, citations, onSeek }: PlayerScrubberProps) {
   const progress = duration ? Math.min(100, (currentTime / duration) * 100) : 0;
 
@@ -41,14 +41,14 @@ export function PlayerScrubber({ currentTime, duration, citations, onSeek }: Pla
         onSeek(((event.clientX - bounds.left) / bounds.width) * duration);
       }}
       onKeyDown={handleKeyDown}
-      className="strip-ribs relative h-10 min-w-0 flex-1 cursor-pointer overflow-hidden rounded-md bg-surface-dark"
+      className="relative h-10 min-w-0 flex-1 cursor-pointer overflow-hidden rounded-lg border border-hairline bg-pebble"
     >
       {duration > 0 &&
         citations.map((citation, index) => (
           <span
             key={index}
             aria-hidden="true"
-            className="absolute bottom-0 h-1 rounded-full bg-primary"
+            className="absolute inset-y-2 rounded-md bg-blue-wash"
             style={{
               left: `${Math.min(100, (citation.start / duration) * 100)}%`,
               width: `${Math.max(1, ((citation.end - citation.start) / duration) * 100)}%`,
@@ -56,13 +56,13 @@ export function PlayerScrubber({ currentTime, duration, citations, onSeek }: Pla
           />
         ))}
 
-      {/* The needle rides a full-width carrier, so it moves by transform alone. */}
+      {/* The playhead rides a full-width carrier, so it moves by transform alone. */}
       <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-y-0 right-0.5 left-0 transition-transform ease-linear"
         style={{ transform: `translateX(${progress}%)` }}
       >
-        <span className="absolute inset-y-0 left-0 w-0.5 bg-on-dark" />
+        <span className="absolute inset-y-0 left-0 w-0.5 bg-signal-blue" />
       </span>
     </div>
   );

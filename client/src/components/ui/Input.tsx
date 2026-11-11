@@ -1,6 +1,10 @@
 import type { InputHTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
+/** The look every form field shares (inputs and native selects): Pebble fill, hairline edge, blue on focus. */
+export const FIELD =
+  'rounded-lg border border-hairline bg-pebble text-ink-navy focus-visible:border-signal-blue focus-visible:bg-paper disabled:text-mist-gray';
+
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   /** Shown above the field. Pass labelHidden to keep it for screen readers only. */
   label: string;
@@ -17,31 +21,30 @@ export function Input({ label, id, labelHidden, helperText, error, leading, clas
 
   return (
     <div className={cn('flex min-w-0 flex-col gap-2', className)}>
-      <label htmlFor={id} className={labelHidden ? 'sr-only' : 'text-body-sm-strong text-ink'}>
+      <label htmlFor={id} className={labelHidden ? 'sr-only' : 'text-label text-ink-navy'}>
         {label}
       </label>
       <span className="relative flex items-center">
-        {leading && <span className="pointer-events-none absolute left-3 flex text-mute-strong">{leading}</span>}
+        {leading && <span className="pointer-events-none absolute left-3 flex text-slate-gray">{leading}</span>}
         <input
           id={id}
           aria-invalid={error ? true : undefined}
           aria-describedby={noteId}
           className={cn(
-            'h-11 w-full rounded-sm border bg-surface-card px-3 text-body-md text-ink sm:h-10',
+            FIELD,
+            'h-11 w-full px-3 text-body placeholder:text-slate-gray',
             Boolean(leading) && 'pl-9',
-            'placeholder:text-mute-strong focus-visible:border-focus',
-            'disabled:bg-surface-soft disabled:text-mute-strong',
-            error ? 'border-danger' : 'border-hairline-strong',
+            error && 'border-danger',
           )}
           {...rest}
         />
       </span>
       {error ? (
-        <p id={noteId} className="text-caption-sm text-danger">
+        <p id={noteId} className="text-caption text-danger">
           {error}
         </p>
       ) : helperText ? (
-        <p id={noteId} className="text-caption-sm text-mute-strong">
+        <p id={noteId} className="text-caption text-slate-gray">
           {helperText}
         </p>
       ) : null}

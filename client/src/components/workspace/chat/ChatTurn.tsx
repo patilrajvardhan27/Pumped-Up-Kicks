@@ -48,9 +48,9 @@ export function ChatTurn({ turn, durations, onSeek }: ChatTurnProps) {
 
   return (
     <article className="flex animate-rise flex-col gap-4">
-      <h3 className="text-heading-sm text-ink">{turn.question}</h3>
+      <h3 className="text-title-sm text-ink-navy">{turn.question}</h3>
 
-      <div className="flex flex-col gap-5 rounded-md bg-accent-soft p-4">
+      <div className="flex flex-col gap-5 rounded-lg bg-blue-wash p-4">
         {turn.error ? (
           <Alert tone="danger" title="Could not answer">
             {turn.error}

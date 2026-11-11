@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { TextLink } from '@/components/ui/TextLink';
 import { site } from '@/lib/site';
 import { ContactLine, LegalBody, LegalHeader, LegalSection, List, Operator, P, Strong } from './prose';
 
@@ -47,9 +47,9 @@ export function TermsContent() {
           </List>
           <P>
             The{' '}
-            <Link href="/acceptable-use" className="text-link-blue underline">
+            <TextLink href="/acceptable-use">
               acceptable use and academic integrity policy
-            </Link>{' '}
+            </TextLink>{' '}
             explains these rules in more detail and forms part of these terms.
           </P>
         </LegalSection>

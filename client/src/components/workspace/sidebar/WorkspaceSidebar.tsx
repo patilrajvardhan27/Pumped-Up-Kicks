@@ -1,12 +1,10 @@
 'use client';
 
-import { useState, type DragEvent, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
-import { IconButton } from '@/components/ui/IconButton';
-import { CloseIcon, PlusIcon, SidebarIcon } from '@/components/ui/icons';
+import { PlusIcon } from '@/components/ui/icons';
 import { useModifierLabel } from '@/hooks/useWorkspaceShortcuts';
-import { cn } from '@/lib/cn';
 import {
   keyOfConversation,
   nextColor,
@@ -15,10 +13,9 @@ import {
   type WorkspaceKey,
 } from '@/lib/workspaces';
 import type { CanvasStatus, ConversationItem, Deadline, VideoInfo, WorkspaceDraft, WorkspaceInfo } from '@/types/api';
-import { CanvasEntry } from '../canvas/CanvasEntry';
-import { VIDEO_DRAG, carries, draggedId } from './dnd';
 import { WorkspaceEditor } from './WorkspaceEditor';
-import { WorkspaceGlyph } from './WorkspaceGlyph';
+import { SidebarFooter, SidebarHeader } from './SidebarChrome';
+import { SidebarRail } from './SidebarRail';
 import { WorkspaceRow } from './WorkspaceRow';
 
 export interface WorkspaceSidebarProps {
@@ -120,39 +117,35 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps) {
     onReorder(next);
   };
 
-  const shared = {
-    modifierLabel: modifier,
-    selectedVideoId,
-    activeConversationId,
-    onOpenLecture,
-    onOpenConversation,
+  /** The props every row shares, for one part of the library. */
+  const rowProps = (key: WorkspaceKey, label: string) => {
+    const inKey = videosIn(videos, key);
+    return {
+      modifierLabel: modifier,
+      selectedVideoId,
+      activeConversationId,
+      onOpenLecture,
+      onOpenConversation,
+      rowKey: key,
+      label,
+      count: inKey.length,
+      videos: inKey,
+      active: activeKey === key,
+      expanded: expanded.has(key),
+      conversations: chatsIn(key),
+      onActivate: () => activate(key),
+      onToggle: () => toggle(key),
+    };
   };
 
   return (
-    <nav aria-label="Subjects" className="flex h-full min-h-0 flex-col rounded-md border border-hairline bg-canvas">
-      <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-hairline-soft pr-1 pl-3">
-        <h2 className="text-body-sm-strong text-ink">Subjects</h2>
-        <div className="flex items-center">
-          <IconButton aria-label="New subject" onClick={() => setEditing('new')}>
-            <PlusIcon />
-          </IconButton>
-          {onToggleCollapsed && (
-            <IconButton
-              aria-label="Hide the subject list"
-              aria-keyshortcuts="Control+\ Meta+\"
-              title={`Hide (${modifier} \\)`}
-              onClick={onToggleCollapsed}
-            >
-              <SidebarIcon />
-            </IconButton>
-          )}
-          {onClose && (
-            <IconButton aria-label="Close the subject list" onClick={onClose}>
-              <CloseIcon />
-            </IconButton>
-          )}
-        </div>
-      </div>
+    <nav aria-label="Subjects" className="panel flex h-full min-h-0 flex-col overflow-hidden">
+      <SidebarHeader
+        modifier={modifier}
+        onNew={() => setEditing('new')}
+        onToggleCollapsed={onToggleCollapsed}
+        onClose={onClose}
+      />
 
       {error && (
         <div className="shrink-0 p-2">
@@ -164,38 +157,18 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps) {
 
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         <ul className="flex flex-col gap-0.5">
-          <WorkspaceRow
-            {...shared}
-            rowKey="all"
-            label="All lectures"
-            count={videos.length}
-            active={activeKey === 'all'}
-            expanded={expanded.has('all')}
-            videos={videos}
-            conversations={chatsIn('all')}
-            onActivate={() => activate('all')}
-            onToggle={() => toggle('all')}
-          />
+          <WorkspaceRow {...rowProps('all', 'All lectures')} />
         </ul>
 
-        <ul aria-label="Your subjects" className="mt-2 flex flex-col gap-0.5 border-t border-hairline-soft pt-2">
+        <ul aria-label="Your subjects" className="mt-2 flex flex-col gap-0.5 border-t border-pebble pt-2">
           {workspaces.map((workspace, index) => (
             <WorkspaceRow
-              {...shared}
+              {...rowProps(workspace.id, workspace.name)}
               key={workspace.id}
-              rowKey={workspace.id}
               workspace={workspace}
-              label={workspace.name}
-              count={videosIn(videos, workspace.id).length}
-              active={activeKey === workspace.id}
-              expanded={expanded.has(workspace.id)}
               shortcut={index < 9 ? index + 1 : undefined}
-              videos={videosIn(videos, workspace.id)}
               documentCount={workspace.document_count}
               deadlines={deadlines.filter((deadline) => deadline.workspace_id === workspace.id)}
-              conversations={chatsIn(workspace.id)}
-              onActivate={() => activate(workspace.id)}
-              onToggle={() => toggle(workspace.id)}
               onDropVideo={(videoId) => onMoveVideo(videoId, workspace.id)}
               onDropWorkspace={dropSubject(index)}
               onEdit={() => setEditing(editing === workspace.id ? null : workspace.id)}
@@ -234,7 +207,7 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps) {
           !loading &&
           workspaces.length === 0 && (
             <div className="flex flex-col items-start gap-3 px-2 py-3">
-              <p className="text-caption-sm text-body">
+              <p className="text-caption text-slate-gray">
                 Make one subject per course. New lectures go into whichever subject is open.
               </p>
               <Button variant="secondary" size="sm" onClick={() => setEditing('new')}>
@@ -245,150 +218,20 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps) {
           )
         )}
 
-        <ul className="mt-2 flex flex-col gap-0.5 border-t border-hairline-soft pt-2">
+        <ul className="mt-2 flex flex-col gap-0.5 border-t border-pebble pt-2">
           <WorkspaceRow
-            {...shared}
-            rowKey="unsorted"
-            label="Unsorted"
-            count={videosIn(videos, 'unsorted').length}
-            active={activeKey === 'unsorted'}
-            expanded={expanded.has('unsorted')}
-            videos={videosIn(videos, 'unsorted')}
-            conversations={chatsIn('unsorted')}
-            onActivate={() => activate('unsorted')}
-            onToggle={() => toggle('unsorted')}
+            {...rowProps('unsorted', 'Unsorted')}
             onDropVideo={(videoId) => onMoveVideo(videoId, null)}
           />
         </ul>
       </div>
 
-      <div className="shrink-0 border-t border-hairline-soft p-2">
-        <CanvasEntry status={canvasStatus} onOpen={onOpenCanvas} />
-      </div>
-
-      {onToggleCollapsed && (
-        <p className="shrink-0 border-t border-hairline-soft px-3 py-2 text-caption-sm text-mute-strong">
-          <Kbd>{modifier}</Kbd> <Kbd>1</Kbd> to <Kbd>9</Kbd> opens a subject. <Kbd>{modifier}</Kbd>{' '}
-          <Kbd>\</Kbd> hides this list.
-        </p>
-      )}
+      <SidebarFooter
+        modifier={modifier}
+        showShortcuts={Boolean(onToggleCollapsed)}
+        canvasStatus={canvasStatus}
+        onOpenCanvas={onOpenCanvas}
+      />
     </nav>
-  );
-}
-
-function Kbd({ children }: { children: ReactNode }) {
-  return <kbd className="rounded-sm bg-surface-soft px-1 font-mono text-code-xs text-ink">{children}</kbd>;
-}
-
-/** The collapsed sidebar: one tile per subject, still a drop target for lectures. */
-function SidebarRail({
-  workspaces,
-  videos,
-  activeKey,
-  onToggleCollapsed,
-  onSelect,
-  onMoveVideo,
-  canvasStatus,
-  onOpenCanvas,
-}: WorkspaceSidebarProps) {
-  const modifier = useModifierLabel();
-
-  return (
-    <nav
-      aria-label="Subjects"
-      className="flex h-full min-h-0 flex-col items-center gap-1 overflow-y-auto rounded-md border border-hairline bg-canvas py-2"
-    >
-      <IconButton
-        aria-label="Show the subject list"
-        aria-keyshortcuts="Control+\ Meta+\"
-        title={`Show subjects (${modifier} \\)`}
-        onClick={onToggleCollapsed}
-      >
-        <SidebarIcon />
-      </IconButton>
-      <span aria-hidden="true" className="my-1 h-px w-6 bg-hairline-soft" />
-      <ul className="flex flex-col items-center gap-1">
-        <RailTile
-          label={`All lectures, ${videos.length}`}
-          active={activeKey === 'all'}
-          onClick={() => onSelect('all')}
-          glyph={<WorkspaceGlyph subject="all" />}
-        />
-        {workspaces.map((workspace, index) => (
-          <RailTile
-            key={workspace.id}
-            label={workspace.name}
-            shortcut={index < 9 ? `${modifier} ${index + 1}` : undefined}
-            active={activeKey === workspace.id}
-            onClick={() => onSelect(workspace.id)}
-            onDropVideo={(id) => onMoveVideo(id, workspace.id)}
-            glyph={<WorkspaceGlyph subject={workspace} />}
-          />
-        ))}
-        <RailTile
-          label="Unsorted"
-          active={activeKey === 'unsorted'}
-          onClick={() => onSelect('unsorted')}
-          onDropVideo={(id) => onMoveVideo(id, null)}
-          glyph={<WorkspaceGlyph subject="unsorted" />}
-        />
-      </ul>
-      <span aria-hidden="true" className="mt-auto mb-1 h-px w-6 bg-hairline-soft" />
-      <CanvasEntry status={canvasStatus} onOpen={onOpenCanvas} compact />
-    </nav>
-  );
-}
-
-function RailTile({
-  label,
-  shortcut,
-  active,
-  glyph,
-  onClick,
-  onDropVideo,
-}: {
-  label: string;
-  shortcut?: string;
-  active: boolean;
-  glyph: ReactNode;
-  onClick: () => void;
-  onDropVideo?: (videoId: number) => void;
-}) {
-  const [dropping, setDropping] = useState(false);
-
-  const over = (event: DragEvent) => {
-    if (!onDropVideo || !carries(event, VIDEO_DRAG)) return;
-    event.preventDefault();
-    setDropping(true);
-  };
-
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={onClick}
-        aria-label={label}
-        aria-current={active ? 'page' : undefined}
-        title={shortcut ? `${label} (${shortcut})` : label}
-        onDragOver={over}
-        onDragLeave={() => setDropping(false)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDropping(false);
-          const id = draggedId(event, VIDEO_DRAG);
-          if (id != null) onDropVideo?.(id);
-        }}
-        className={cn(
-          'flex size-10 items-center justify-center rounded-md border',
-          dropping
-            ? 'border-ink bg-surface-soft'
-            : active
-              ? 'border-hairline bg-surface-card'
-              : 'border-transparent hover:bg-surface-soft',
-        )}
-      >
-        {glyph}
-      </button>
-    </li>
   );
 }
