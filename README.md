@@ -86,11 +86,12 @@ The example server env sets `ENV=development` and `AUTH_MODE=dev`, so no sign-in
 ```bash
 cd server && pip install -r requirements-dev.txt && python -m pytest tests evals   # 142 tests, needs Postgres + pgvector
 cd client && npm run lint && npm run typecheck && npm run e2e                     # Playwright + axe
+cd client && npm run test-storybook                                                 # every story, with a11y checks
 ```
 
 Set `TEST_DATABASE_URL` to point the server tests at a different database. They create and empty it, so never aim it at real data.
 
-CI (`.github/workflows/ci.yml`) runs the server tests against a pgvector Postgres, `pip-audit`, client lint and build, and `npm audit --audit-level=high` on every push and pull request. Dependabot proposes dependency updates weekly.
+CI (`.github/workflows/ci.yml`) runs the server tests against a pgvector Postgres, `pip-audit`, client lint, typecheck and build, `npm audit --audit-level=high`, every Storybook story as a test (failing on any accessibility violation), and the Playwright and axe suite, on every push and pull request. Dependabot proposes dependency updates weekly.
 
 ## Repository layout
 

@@ -5,7 +5,12 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   reporter: [['list']],
-  use: { baseURL: 'http://localhost:3000', trace: 'retain-on-failure' },
+  use: {
+    baseURL: 'http://localhost:3000',
+    trace: 'retain-on-failure',
+    // CHROMIUM_PATH pointed at a browser already on the machine; CI installed its own.
+    launchOptions: { executablePath: process.env.CHROMIUM_PATH || undefined },
+  },
   projects: [
     { name: 'desktop', use: { viewport: { width: 1280, height: 800 } } },
     { name: 'mobile', use: { viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true } },

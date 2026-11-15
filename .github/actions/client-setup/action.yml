@@ -1,0 +1,13 @@
+name: Client setup
+description: Node 22 with the npm cache, and the client's dependencies installed.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
+        cache-dependency-path: client/package-lock.json
+    - run: npm ci
+      shell: bash
+      working-directory: client

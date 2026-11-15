@@ -36,7 +36,22 @@ npm start          # serve the production build
 npm run lint       # ESLint
 npm run typecheck  # tsc --noEmit
 npm run e2e        # Playwright with axe, desktop and mobile; starts the dev server
+npm run storybook        # component library at http://localhost:6006
+npm run test-storybook   # every story as a test in Chromium, failing on any accessibility violation
+npm run build-storybook  # static Storybook in storybook-static/
 ```
+
+Set `CHROMIUM_PATH` to use a Chromium already on your machine; otherwise run `npx playwright install chromium` once.
+
+## Storybook
+
+Stories sit next to their components (`*.stories.tsx`) and are grouped as UI, Chat, Upload and Workspace. They never touch the network: `src/stories/handlers.ts` answers the API with MSW, and anything without a mock gets a 501. Fixtures live in `src/stories/fixtures.ts`, and `src/stories/sse.ts` replays a recorded answer stream, so `Chat/ChatPanel` fills in token by token like the real app. Clerk and PostHog stay off in Storybook (`.storybook/main.ts` pins their keys empty), every request carries a fake session token, and the store resets before each story.
+
+Interaction tests cover sending with Enter and adding a line with Shift+Enter, stopping an answer mid-stream, a citation seeking the player, the transcript search, closing the dialog with Esc with focus returning, and a rejected file type in the drop zone.
+
+## State
+
+Client state the workspace shares lives in one Zustand store (`src/stores/`): the chat thread and its stream (`chatSlice`) and what is open (`viewSlice`). Components read it through selectors, so a streamed token only re-renders the turn showing it. Stories set the same store directly. Server data stays in the fetch hooks under `src/hooks/`, and the open subject and sidebar width stay in local storage (`lib/persisted.ts`), which sign-out clears along with the store.
 
 ## Structure
 
@@ -52,12 +67,15 @@ src/
     legal/        policy texts; the page list lives in lib/legal.ts
     account/      data export and account deletion
     providers/    Clerk and the auth token bridge
-  hooks/          stateful logic, including useIdleSignOut
+  hooks/          server data and browser effects, including useIdleSignOut
+  stores/         the Zustand app store: chat and view slices
+  stories/        Storybook fixtures, MSW handlers and the recorded answer stream
   lib/            formatting, timestamps, analytics, consent, site config, navigation
   services/       API clients
   styles/         tokens.css (design tokens), globals.css (base and utilities)
   types/          API types by domain (api, library, integrations), chat, transcript
-e2e/              Playwright specs
+e2e/              Playwright specs, including the chat flow against the real app
+.storybook/       Storybook config; public/ holds the MSW service worker
 ```
 
 ## Design system
