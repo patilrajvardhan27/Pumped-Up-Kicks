@@ -38,3 +38,7 @@ next-env.d.ts
 # playwright
 /test-results/
 /playwright-report/
+
+# storybook
+/storybook-static/
+*storybook.log
