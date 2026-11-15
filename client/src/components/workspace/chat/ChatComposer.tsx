@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { TextArea } from '@/components/ui/Input';
 
 interface ChatComposerProps {
   placeholder: string;
@@ -23,14 +23,15 @@ export function ChatComposer({ placeholder, disabled, busy, onAsk, onStop }: Cha
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        if (!question.trim() || busy) return;
+        if (!question.trim() || busy || disabled) return;
         onAsk(question);
         setQuestion('');
       }}
       className="flex shrink-0 items-start gap-3 border-t border-pebble pt-4"
     >
-      <Input
+      <TextArea
         id="chat-question"
+        rows={1}
         name="question"
         label="Your question"
         labelHidden
@@ -46,6 +47,12 @@ export function ChatComposer({ placeholder, disabled, busy, onAsk, onStop }: Cha
         disabled={busy || disabled}
         autoComplete="off"
         className="flex-1"
+        onKeyDown={(event) => {
+          // Enter sent the question; Shift+Enter, or Enter while an IME was composing, added a line.
+          if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
+          event.preventDefault();
+          event.currentTarget.form?.requestSubmit();
+        }}
       />
       {busy ? (
         <Button variant="secondary" onClick={onStop}>

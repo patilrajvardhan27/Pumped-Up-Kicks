@@ -31,6 +31,12 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
       ref={ref}
       aria-labelledby={titleId}
       onClose={onClose}
+      onKeyDown={(event) => {
+        // Handled Esc ourselves, so it always closed, even when the browser ignored a repeat press.
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        onClose();
+      }}
       onClick={(event) => {
         // A click on the backdrop lands on the dialog element itself.
         if (event.target === ref.current) onClose();

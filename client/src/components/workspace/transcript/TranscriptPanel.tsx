@@ -77,7 +77,7 @@ export function TranscriptPanel({ videoId, onSeek }: TranscriptPanelProps) {
                 <button
                   type="button"
                   onClick={() => onSeek?.(videoId, line.start)}
-                  className="self-start rounded-md text-left tabular-nums text-caption text-signal-blue hover:underline"
+                  className="self-start rounded-md text-left tabular-nums text-caption text-deep-cobalt hover:underline"
                   aria-label={`Play from ${formatClock(line.start)}`}
                 >
                   {formatClock(line.start)}

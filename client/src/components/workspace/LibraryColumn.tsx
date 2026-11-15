@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import type { useVideoLibrary } from '@/hooks/useVideoLibrary';
 import type { WorkspaceView } from '@/hooks/useWorkspaceView';
 import { filterOf } from '@/lib/workspaces';
+import { useAppStore } from '@/stores/appStore';
 import type { DocumentInfo, VideoInfo, WorkspaceInfo } from '@/types/api';
 import { ConversationList } from './chat/ConversationList';
 import { CourseMaterial } from './documents/CourseMaterial';
@@ -22,7 +23,6 @@ interface LibraryColumnProps {
   workspaces: WorkspaceInfo[];
   activeSubject?: WorkspaceInfo;
   subjectName: string;
-  threadsTrigger: number;
   onUploaded: () => void;
   onMoveVideo: (id: number, workspaceId: number | null) => Promise<void>;
 }
@@ -36,11 +36,11 @@ export function LibraryColumn({
   workspaces,
   activeSubject,
   subjectName,
-  threadsTrigger,
   onUploaded,
   onMoveVideo,
 }: LibraryColumnProps) {
   const { activeKey, videoId } = view;
+  const threadsVersion = useAppStore((s) => s.threadsVersion);
   const subjectId = typeof activeKey === 'number' ? activeKey : null;
 
   const filter = filterOf(activeKey);
@@ -80,10 +80,10 @@ export function LibraryColumn({
         filter={videoId != null ? { videoId } : filter}
         heading={threadsHeading}
         activeId={view.conversationId}
-        refreshTrigger={threadsTrigger}
+        refreshTrigger={threadsVersion}
         onSelect={view.selectConversation}
       />
-      <UsageMeter refreshTrigger={threadsTrigger} />
+      <UsageMeter refreshTrigger={threadsVersion} />
     </aside>
   );
 }

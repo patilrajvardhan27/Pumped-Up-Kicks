@@ -3,10 +3,9 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Alert } from '@/components/ui/Alert';
 import { SkeletonLines } from '@/components/ui/Skeleton';
-import { type NewChatScope, useAskStream } from '@/hooks/useAskStream';
-import { useChatThread } from '@/hooks/useChatThread';
-import type { Source, VideoInfo } from '@/types/api';
-import type { SeekHandler } from '@/types/chat';
+import { selectThreadLoading, selectTurns, useAppStore } from '@/stores/appStore';
+import type { VideoInfo } from '@/types/api';
+import type { NewChatScope, SeekHandler } from '@/types/chat';
 import { ChatComposer } from './ChatComposer';
 import { ChatEmptyState } from './ChatEmptyState';
 import { ChatTurn } from './ChatTurn';
@@ -21,39 +20,30 @@ interface ChatPanelProps {
   scopeLabel: string;
   /** Whether anything in scope is ready to be asked. */
   hasContent: boolean;
-  conversationId: number | null;
-  onConversationStarted: (id: number) => void;
-  onTurnComplete: () => void;
   onSeek?: SeekHandler;
-  /** The latest answer's excerpts, so the player can mark them on its scrubber. */
-  onSourcesChange?: (sources: Source[]) => void;
 }
 
-export function ChatPanel({
-  videos,
-  scope,
-  scopeLabel,
-  hasContent,
-  conversationId,
-  onConversationStarted,
-  onTurnComplete,
-  onSeek,
-  onSourcesChange,
-}: ChatPanelProps) {
-  const thread = useChatThread(conversationId);
-  const { turns } = thread;
-  const stream = useAskStream({
-    scope,
-    conversationId,
-    append: thread.append,
-    patch: thread.patch,
-    remove: thread.remove,
-    adopt: thread.adopt,
-    onConversationStarted,
-    onTurnComplete,
-  });
-
+/** The chat for whatever is open. Its thread and stream lived in the app store. */
+export function ChatPanel({ videos, scope, scopeLabel, hasContent, onSeek }: ChatPanelProps) {
+  const turns = useAppStore(selectTurns);
+  const loading = useAppStore(selectThreadLoading);
+  const conversationId = useAppStore((s) => s.conversationId);
+  const busy = useAppStore((s) => s.busy);
+  const quotaError = useAppStore((s) => s.quotaError);
+  const { ask, stop, loadThread, clearQuotaError } = useAppStore.getState();
   const threadEndRef = useRef<HTMLDivElement>(null);
+
+  // Fetched a saved chat when one was opened.
+  useEffect(() => {
+    if (loading && conversationId != null) void loadThread(conversationId);
+  }, [loading, conversationId, loadThread]);
+
+  // Stopped any answer still streaming when the pane went away.
+  useEffect(() => () => stop(), [stop]);
+
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [turns]);
 
   const durations = useMemo(() => {
     const byTitle: Record<string, number> = {};
@@ -63,29 +53,15 @@ export function ChatPanel({
     return byTitle;
   }, [videos]);
 
-  useEffect(() => {
-    threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [turns]);
-
-  // Mark the most recent answer's excerpts on the player's scrubber.
-  const latestSources = turns.length ? turns[turns.length - 1].sources : null;
-  useEffect(() => {
-    if (latestSources) onSourcesChange?.(latestSources);
-  }, [latestSources, onSourcesChange]);
-
+  const askHere = (question: string) => ask(question, scope);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="min-h-0 flex-1 overflow-y-auto pr-1" tabIndex={-1}>
-        {thread.loading ? (
+        {loading ? (
           <SkeletonLines label="Loading chat" lines={4} className="py-6" />
         ) : turns.length === 0 ? (
-          <ChatEmptyState
-            hasContent={hasContent}
-            scope={scope.scope ?? 'all'}
-            scopeLabel={scopeLabel}
-            onAsk={stream.ask}
-          />
+          <ChatEmptyState hasContent={hasContent} scope={scope.scope ?? 'all'} scopeLabel={scopeLabel} onAsk={askHere} />
         ) : (
           <div className="flex flex-col gap-10 py-2">
             {turns.map((turn) => (
@@ -96,20 +72,20 @@ export function ChatPanel({
         )}
       </div>
 
-      {stream.quotaError && (
-        <Alert tone="danger" title="Monthly limit reached" onClose={stream.clearQuotaError}>
-          {stream.quotaError}
+      {quotaError && (
+        <Alert tone="danger" title="Monthly limit reached" onClose={clearQuotaError}>
+          {quotaError}
         </Alert>
       )}
 
-      <ExportNotesButton turns={turns} title={scopeLabel} disabled={stream.busy} />
+      <ExportNotesButton turns={turns} title={scopeLabel} disabled={busy} />
 
       <ChatComposer
         placeholder={hasContent ? `Ask ${scopeLabel}…` : 'Add a lecture first'}
-        disabled={!hasContent || thread.loading}
-        busy={stream.busy}
-        onAsk={stream.ask}
-        onStop={stream.stop}
+        disabled={!hasContent || loading}
+        busy={busy}
+        onAsk={askHere}
+        onStop={stop}
       />
     </div>
   );

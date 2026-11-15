@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import type { NewChatScope } from '@/hooks/useAskStream';
 import { useCanvas } from '@/hooks/useCanvas';
 import { useConversations } from '@/hooks/useConversations';
 import { useDocuments } from '@/hooks/useDocuments';
@@ -12,7 +11,9 @@ import { useWorkspaceShortcuts } from '@/hooks/useWorkspaceShortcuts';
 import { useWorkspaceView } from '@/hooks/useWorkspaceView';
 import { cn } from '@/lib/cn';
 import { filterOf, matchKey, nameOf, scopeOf, videosIn } from '@/lib/workspaces';
+import { useAppStore } from '@/stores/appStore';
 import type { WorkspaceInfo } from '@/types/api';
+import type { NewChatScope } from '@/types/chat';
 import { CanvasDialog } from './canvas/CanvasDialog';
 import { LibraryColumn } from './LibraryColumn';
 import { SidebarDrawer } from './sidebar/SidebarDrawer';
@@ -28,12 +29,13 @@ const bump = (n: number) => n + 1;
  */
 export function Workspace() {
   const [libraryTrigger, setLibraryTrigger] = useState(0);
-  const [threadsTrigger, setThreadsTrigger] = useState(0);
   const [materialTrigger, setMaterialTrigger] = useState(0);
 
   const library = useVideoLibrary(libraryTrigger);
   const subjects = useWorkspaces(materialTrigger);
-  const allChats = useConversations({}, threadsTrigger);
+  const threadsVersion = useAppStore((s) => s.threadsVersion);
+  const refreshThreads = useAppStore((s) => s.bumpThreads);
+  const allChats = useConversations({}, threadsVersion);
   const deadlines = useDeadlines(materialTrigger);
   const { videos } = library;
   const { workspaces } = subjects;
@@ -46,8 +48,6 @@ export function Workspace() {
   const canvas = useCanvas(materialChanged);
   const [canvasOpen, setCanvasOpen] = useState(false);
   const [returnSeen, setReturnSeen] = useState(false);
-
-  const refreshThreads = useCallback(() => setThreadsTrigger(bump), []);
 
   const moveVideo = useCallback(
     async (id: number, workspaceId: number | null) => {
@@ -137,7 +137,6 @@ export function Workspace() {
           workspaces={workspaces}
           activeSubject={activeSubject}
           subjectName={subjectName}
-          threadsTrigger={threadsTrigger}
           onUploaded={() => setLibraryTrigger(bump)}
           onMoveVideo={moveVideo}
         />
@@ -150,7 +149,6 @@ export function Workspace() {
           chatScope={chatScope}
           scopeLabel={scopeLabel}
           hasContent={hasContent}
-          onTurnComplete={refreshThreads}
         />
       </main>
 

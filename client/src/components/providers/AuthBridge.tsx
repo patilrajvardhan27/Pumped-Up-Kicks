@@ -6,6 +6,7 @@ import { useIdleSignOut } from '@/hooks/useIdleSignOut';
 import { resetIdentity } from '@/lib/analytics';
 import { setTokenGetter } from '@/lib/authToken';
 import { forgetWorkspaceState } from '@/lib/persisted';
+import { resetAppStore } from '@/stores/appStore';
 
 /**
  * Publishes Clerk's session token to the API client, which is plain fetch and
@@ -25,6 +26,7 @@ export function AuthBridge() {
     // Signed out or the session is gone: keep nothing of the last user.
     setTokenGetter(null);
     forgetWorkspaceState();
+    resetAppStore();
     resetIdentity();
   }, [getToken, isLoaded, isSignedIn]);
 

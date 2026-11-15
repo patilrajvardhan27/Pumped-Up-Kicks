@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "test-storybook": "vitest run --project storybook"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.25",
@@ -16,20 +19,33 @@
     "next": "^16.4.5",
     "posthog-js": "^1.447.3",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "zustand": "^5.1.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.64.1",
+    "@storybook/addon-a11y": "^10.6.7",
+    "@storybook/addon-docs": "^10.6.7",
+    "@storybook/addon-vitest": "^10.6.7",
+    "@storybook/nextjs-vite": "^10.6.7",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^24.19.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@vitest/browser": "^5.1.0",
+    "@vitest/browser-playwright": "^5.1.0",
     "eslint": "^10.14.0",
     "eslint-config-next": "^16.4.5",
+    "msw": "^3.0.6",
+    "msw-storybook-addon": "^3.0.3",
+    "playwright": "^1.64.1",
     "postcss": "^8.4.49",
+    "storybook": "^10.6.7",
     "tailwindcss": "^4.3.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
   },
   "overrides": {
     "@typescript-eslint/typescript-estree": {
@@ -40,6 +56,15 @@
     },
     "eslint": {
       "minimatch": "^11.0.5"
+    },
+    "@storybook/react-vite": {
+      "@joshwooding/vite-plugin-react-docgen-typescript": "^0.9.1"
     }
+  },
+  "imports": {
+    "#.storybook/*": [
+      "./.storybook/*.tsx",
+      "./.storybook/*.ts"
+    ]
   }
 }

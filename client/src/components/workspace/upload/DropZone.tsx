@@ -38,7 +38,7 @@ export function DropZone({ inputRef, file, accept, disabled, onFile }: DropZoneP
         'relative flex min-h-32 flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-4 py-6 text-center',
         'has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-signal-blue',
         dragging ? 'border-ink-navy bg-pebble' : 'border-hairline bg-cloud',
-        disabled ? 'opacity-60' : 'hover:border-ink-navy',
+        !disabled && 'hover:border-ink-navy',
       )}
     >
       <input

@@ -82,6 +82,7 @@ export function ChatTurn({ turn, durations, onSeek }: ChatTurnProps) {
               </>
             )}
 
+            {turn.stopped && <p className="text-caption text-slate-gray">You stopped this answer here.</p>}
             <TurnMeta turn={turn} />
           </>
         )}

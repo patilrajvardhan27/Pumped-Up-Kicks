@@ -3,14 +3,16 @@
 import { useEffect, useState } from 'react';
 import { API_ENDPOINTS } from '@/services/api';
 
-export type ServerState = 'checking' | 'online' | 'no-key' | 'no-db' | 'offline';
+export type ServerState = 'checking' | 'online' | 'no-db' | 'offline';
 
 const POLL_MS = 30000;
 
-/** Polls the API health endpoint and reports what, if anything, is missing. */
-export function useServerStatus(): { state: ServerState; model: string } {
+/**
+ * Polled the API's health check. The server only says "ok" or "degraded"
+ * (degraded meant the database was unreachable), so that was all we read.
+ */
+export function useServerStatus(): ServerState {
   const [state, setState] = useState<ServerState>('checking');
-  const [model, setModel] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -19,12 +21,8 @@ export function useServerStatus(): { state: ServerState; model: string } {
       try {
         const response = await fetch(API_ENDPOINTS.HEALTH);
         if (!response.ok) throw new Error('bad status');
-        const body: { model?: string; database?: string; claude_configured?: boolean } =
-          await response.json();
-        if (cancelled) return;
-        setModel(body.model || '');
-        if (body.database !== 'ok') setState('no-db');
-        else setState(body.claude_configured ? 'online' : 'no-key');
+        const body: { status?: string } = await response.json();
+        if (!cancelled) setState(body.status === 'ok' ? 'online' : 'no-db');
       } catch {
         if (!cancelled) setState('offline');
       }
@@ -38,5 +36,5 @@ export function useServerStatus(): { state: ServerState; model: string } {
     };
   }, []);
 
-  return { state, model };
+  return state;
 }

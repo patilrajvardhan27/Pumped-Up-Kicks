@@ -2,10 +2,10 @@
 
 import { useMemo, useState, type RefObject } from 'react';
 import { Card } from '@/components/ui/Card';
-import type { NewChatScope } from '@/hooks/useAskStream';
 import type { VideoPlayerHandle } from '@/hooks/useVideoPlayer';
 import type { WorkspaceView } from '@/hooks/useWorkspaceView';
 import type { VideoInfo, WorkspaceInfo } from '@/types/api';
+import type { NewChatScope } from '@/types/chat';
 import { ChatPanel } from './chat/ChatPanel';
 import { PanelTabs, type PanelTab } from './study/PanelTabs';
 import { PracticePanel } from './study/PracticePanel';
@@ -24,7 +24,6 @@ interface StudyColumnProps {
   chatScope: NewChatScope;
   scopeLabel: string;
   hasContent: boolean;
-  onTurnComplete: () => void;
 }
 
 const SCROLL = 'min-h-0 flex-1 overflow-y-auto pr-1';
@@ -39,7 +38,6 @@ export function StudyColumn({
   chatScope,
   scopeLabel,
   hasContent,
-  onTurnComplete,
 }: StudyColumnProps) {
   const [panel, setPanel] = useState<Panel>('chat');
   const { citations, playingId, seekTo } = view;
@@ -73,17 +71,7 @@ export function StudyColumn({
         {/* The chat stays mounted behind the other tabs, so an answer still
             being written isn't lost by looking at the study guide. */}
         <div hidden={shown !== 'chat'} className="flex min-h-0 flex-1 flex-col">
-          <ChatPanel
-            videos={videos}
-            scope={chatScope}
-            scopeLabel={scopeLabel}
-            hasContent={hasContent}
-            conversationId={view.conversationId}
-            onConversationStarted={view.setConversationId}
-            onTurnComplete={onTurnComplete}
-            onSeek={seekTo}
-            onSourcesChange={view.setCitations}
-          />
+          <ChatPanel videos={videos} scope={chatScope} scopeLabel={scopeLabel} hasContent={hasContent} onSeek={seekTo} />
         </div>
         {shown === 'guide' && selectedVideo && (
           <div className={SCROLL}>

@@ -12,14 +12,6 @@ import type { ServerState } from '@/hooks/useServerStatus';
 const COPY: Record<ServerState, { label: string; dot: string; hint?: string }> = {
   checking: { label: 'Connecting', dot: 'bg-slate-gray animate-pulse-dot' },
   online: { label: 'Live', dot: 'bg-success' },
-  'no-key': {
-    label: 'No API key',
-    dot: 'bg-signal-blue',
-    hint:
-      process.env.NODE_ENV !== 'production'
-        ? 'The server is running but ANTHROPIC_API_KEY is not set. Add it to server/.env'
-        : undefined,
-  },
   'no-db': {
     label: 'No database',
     dot: 'bg-danger',
@@ -33,7 +25,7 @@ const COPY: Record<ServerState, { label: string; dot: string; hint?: string }> =
 
 /** Live API health. The dot carries real state; the label says the same in words. */
 export function ServerStatus({ compact = false }: { compact?: boolean }) {
-  const { state, model } = useServerStatus();
+  const state = useServerStatus();
   const copy = COPY[state];
 
   return (
@@ -41,9 +33,6 @@ export function ServerStatus({ compact = false }: { compact?: boolean }) {
       <span aria-hidden="true" className={cn('size-2 rounded-full', copy.dot)} />
       {/* Phones get the dot alone; the label stays available to screen readers. */}
       <span className={compact ? 'sr-only sm:not-sr-only' : undefined}>{copy.label}</span>
-      {state === 'online' && model && (
-        <span className="hidden tabular-nums text-caption text-slate-gray md:inline">{model}</span>
-      )}
     </Badge>
   );
 }
