@@ -39,7 +39,7 @@ fastembed>=0.9.1,<0.10
 numpy>=2.3.5,<2.4
 
 # --- answer generation ---
-anthropic>=2.6.0,<3
+anthropic>=2.8.0,<3
 
 # --- serverless transcription dispatch ---
 modal>=1.6.3,<2
