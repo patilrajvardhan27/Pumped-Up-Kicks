@@ -42,4 +42,4 @@ numpy>=2.3.5,<2.4
 anthropic>=2.6.0,<3
 
 # --- serverless transcription dispatch ---
-modal>=1.6.3,<2
+modal>=1.6.4,<2
