@@ -27,7 +27,7 @@ httpx>=0.28.1,<1.0
 cryptography>=50.0.2,<51
 
 # --- Canvas course material ---
-pypdf>=7.0.0,<8
+pypdf>=7.0.1,<8
 python-pptx>=1.0.2,<2
 python-docx>=1.2.0,<2
 
